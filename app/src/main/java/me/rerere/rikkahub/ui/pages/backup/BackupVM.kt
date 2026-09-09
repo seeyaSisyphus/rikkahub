@@ -104,11 +104,10 @@ class BackupVM(
     }
 
     suspend fun exportToFile(): File {
-        val file = webDavSync.prepareBackupFile(
+        // 注意：recordBackupTime() 由调用方在文件真正写入用户存储后调用
+        return webDavSync.prepareBackupFile(
             settings.value.webDavConfig.copy(items = localBackupItems.value)
         )
-        // 注意：recordBackupTime() 由调用方在文件真正写入用户存储后调用
-        return file
     }
 
     suspend fun restoreFromLocalFile(file: File) {

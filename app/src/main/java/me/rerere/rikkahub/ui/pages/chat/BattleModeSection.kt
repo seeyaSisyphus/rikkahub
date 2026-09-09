@@ -392,7 +392,7 @@ private fun BattleReasoningIcon(
         ReasoningLevel.MEDIUM -> ReasoningMedium
         ReasoningLevel.HIGH -> ReasoningHigh
         ReasoningLevel.XHIGH -> ReasoningXHigh
-        ReasoningLevel.MAX -> ReasoningHigh
+        ReasoningLevel.MAX -> ReasoningXHigh
     }
     Icon(
         imageVector = icon,

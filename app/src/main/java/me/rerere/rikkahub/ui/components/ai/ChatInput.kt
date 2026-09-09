@@ -93,6 +93,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.ArrowUp02
 import me.rerere.hugeicons.stroke.Cancel01
+import me.rerere.hugeicons.stroke.ArrowUpDouble
 import me.rerere.hugeicons.stroke.ArrowUpDown
 import me.rerere.hugeicons.stroke.FloppyDisk
 import me.rerere.hugeicons.stroke.Fullscreen
@@ -403,7 +404,7 @@ fun ChatInput(
                             SendButton(
                                 loading = loading,
                                 empty = state.isEmpty(),
-                                showSave = state.isEditing() && !editWillRegenerate,
+                                editSaving = state.isEditing() && !editWillRegenerate,
                                 onClick = { sendMessage() },
                                 onLongClick = { sendMessageWithoutAnswer() },
                             )
@@ -425,10 +426,10 @@ fun ChatInput(
 private fun SendButton(
     loading: Boolean,
     empty: Boolean,
+    editSaving: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
-    showSave: Boolean = false,
 ) {
     val showStop = loading
     val containerColor = when {
@@ -459,22 +460,30 @@ private fun SendButton(
             color = containerColor,
             content = {},
         )
-        Icon(
-            imageVector = when {
-                showStop -> HugeIcons.Cancel01
-                showSave -> HugeIcons.FloppyDisk
-                else -> HugeIcons.ArrowUp02
-            },
-            contentDescription = stringResource(
-                when {
-                    showStop -> R.string.stop
-                    showSave -> R.string.chat_page_save
-                    else -> R.string.send
-                }
-            ),
-            tint = contentColor,
-            modifier = Modifier.size(18.dp)
-        )
+        if (loading) {
+            KeepScreenOn()
+            Icon(
+                imageVector = HugeIcons.Cancel01,
+                contentDescription = stringResource(R.string.stop),
+                tint = contentColor,
+                modifier = Modifier.size(18.dp)
+            )
+        } else if (editSaving) {
+            // [FORK] 编辑且点击仅保存（不触发重试）时显示保存图标，区分“发送并重试”语义
+            Icon(
+                imageVector = HugeIcons.FloppyDisk,
+                contentDescription = stringResource(R.string.chat_page_save),
+                tint = contentColor,
+                modifier = Modifier.size(18.dp)
+            )
+        } else {
+            Icon(
+                imageVector = HugeIcons.ArrowUp02,
+                contentDescription = stringResource(R.string.send),
+                tint = contentColor,
+                modifier = Modifier.size(18.dp)
+            )
+        }
     }
 }
 

@@ -54,9 +54,6 @@ class DashScopeASRController(
 
     private var webSocket: WebSocket? = null
 
-    // 用户主动点击停止（含 Connecting 阶段取消连接）后置为 true，用于静默回调中的失败事件
-    @Volatile
-    private var cancelRequested = false
     private var recorderJob: Job? = null
     private var finishTimeoutJob: Job? = null
     private var audioRecord: AudioRecord? = null
@@ -76,7 +73,6 @@ class DashScopeASRController(
         }
 
         this.onTranscriptChange = onTranscriptChange
-        cancelRequested = false
         completedTranscripts.clear()
         partialTranscripts.clear()
         _state.update {

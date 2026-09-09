@@ -47,7 +47,6 @@ import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.ai.ReasoningButton
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.FormItem
-import me.rerere.rikkahub.ui.components.ui.IntSliderItem
 import me.rerere.rikkahub.ui.components.ui.Select
 import me.rerere.rikkahub.ui.components.ui.TagsInput
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
@@ -624,3 +623,6 @@ private fun snapContextMessageLimit(value: Int): Int {
         else -> value
     }
 }
+
+internal fun normalizeContextMessageLimit(value: Int): Int =
+    if (value in 1 until MIN_CONTEXT_MESSAGE_LIMIT) MIN_CONTEXT_MESSAGE_LIMIT else value

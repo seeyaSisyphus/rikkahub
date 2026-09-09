@@ -370,6 +370,7 @@ private fun MiMoTTSConfiguration(
                 onValueChange(setting.copy(voice = voice))
             },
             modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("mimo_default") }
         )
     }
 }

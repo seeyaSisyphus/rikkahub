@@ -577,6 +577,14 @@ private fun AddASRProviderButton(onAdd: (ASRProviderSetting) -> Unit) {
                     showBottomSheet = true
                 }
             )
+            DropdownMenuItem(
+                text = { Text("Tencent ASR") },
+                onClick = {
+                    currentProvider = ASRProviderSetting.Tencent()
+                    showTypeMenu = false
+                    showBottomSheet = true
+                }
+            )
         }
     }
 
@@ -848,6 +856,7 @@ private fun ASRProviderItem(
                             is ASRProviderSetting.MiMo -> "MiMo"
                             is ASRProviderSetting.Step -> "Step"
                             is ASRProviderSetting.Chirp3 -> "Google Chirp3"
+                            is ASRProviderSetting.Tencent -> "Tencent ASR"
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant

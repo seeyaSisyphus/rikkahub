@@ -261,8 +261,10 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null, sh
             if (nodeId != null) {
                 val index = conversation.messageNodes.indexOfFirst { it.id == nodeId }
                 if (index >= 0) {
-                    // 跳到该回答的提问节点（前一个节点），让用户先看到问题再看回答
-                    chatListState.scrollToItem((index - 1).coerceAtLeast(0))
+                    // 跳到该回答的提问节点（前一个节点），让用户先看到问题再看回答。
+                    // 必须用 requestScrollToItem：当前列表还被 loading 门控隐藏，
+                    // scrollToItem 会挂起等待首次布局，而首次布局又等 chatListReady，形成死锁。
+                    chatListState.requestScrollToItem((index - 1).coerceAtLeast(0))
                 }
             } else {
                 // requestScrollToItem 在列表未布局时也能生效，修复初始进入自动滚动可能失效的问题
@@ -276,11 +278,12 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null, sh
     // 数据到达后 UI 仍会自动填充，同时打日志便于定位根因
     LaunchedEffect(Unit) {
         delay(CHAT_LOADING_TIMEOUT_MS)
-        if (!vm.conversationLoaded.value && !vm.chatListReady) {
+        if (!vm.chatListReady) {
             Logging.logError(
                 tag = TAG,
                 title = "会话加载超时",
-                message = "超过 " + CHAT_LOADING_TIMEOUT_MS + "ms 未就绪；当前阶段: " + vm.getConversationInitStage()
+                message = "超过 " + CHAT_LOADING_TIMEOUT_MS + "ms 未就绪；conversationLoaded=" +
+                    vm.conversationLoaded.value + ", 当前阶段: " + vm.getConversationInitStage()
             )
             vm.chatListForcedOpen = true
         }
@@ -402,6 +405,8 @@ private fun ChatPageContent(
         setting = setting,
         onAttachmentAdded = { showFilesSheet = false },
     )
+    val allowAudioVideoAttachments =
+        setting.getCurrentChatModel()?.findProvider(setting.providers) is ProviderSetting.Google
 
     val completionProviders = remember(assistant.workspaceId, conversation.workspaceCwd, workspaceRepository) {
         assistant.workspaceId?.let { workspaceId ->
