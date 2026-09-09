@@ -27,7 +27,7 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.finishReasoning
 import me.rerere.rikkahub.data.ai.GenerationChunk
-import me.rerere.rikkahub.data.ai.GenerationHandler
+import me.rerere.rikkahub.data.ai.GenerationLoop
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.tools.local.LocalTools
 import me.rerere.rikkahub.data.ai.tools.createSearchTools
@@ -96,7 +96,7 @@ internal fun Conversation.collectProtectedMessageIds(): Set<Uuid> = buildSet {
 class BattleService(
     private val settingsStore: SettingsStore,
     private val memoryRepository: MemoryRepository,
-    private val generationHandler: GenerationHandler,
+    private val generationHandler: GenerationLoop,
     private val templateTransformer: TemplateTransformer,
     private val localTools: LocalTools,
     private val skillManager: SkillManager,

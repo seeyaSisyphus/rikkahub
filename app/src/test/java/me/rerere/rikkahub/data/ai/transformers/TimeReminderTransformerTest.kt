@@ -28,6 +28,7 @@ class TimeReminderTransformerTest {
         val result = applyTimeReminder(messages)
         // 首条用户消息前固定注入一条当前时间提醒
         assertEquals(2, result.size)
+        assertTrue(result[0].isSynthetic)
         assertTrue(getMessageText(result[0]).contains("<time_reminder>"))
         assertFalse(getMessageText(result[0]).contains("since last message"))
         assertEquals("Hello", getMessageText(result[1]))
@@ -111,6 +112,28 @@ class TimeReminderTransformerTest {
         assertTrue(getMessageText(result[3]) == "Msg 2")
         assertTrue(getMessageText(result[4]).contains("<time_reminder>"))
         assertTrue(getMessageText(result[5]) == "Msg 3")
+    }
+
+    @Test
+    fun `custom interval should use strict threshold and format minutes`() {
+        val messages = listOf(
+            userMessage("Hello", LocalDateTime(2026, 2, 22, 10, 0, 0)),
+            userMessage("World", LocalDateTime(2026, 2, 22, 10, 30, 0)),
+        )
+        assertEquals(3, applyTimeReminder(messages, intervalMinutes = 30).size)
+        val result = applyTimeReminder(messages, intervalMinutes = 15)
+        assertEquals(4, result.size)
+        assertTrue(getMessageText(result[2]).contains("30 min since last message"))
+    }
+
+    @Test
+    fun `large interval should not overflow or inject prematurely`() {
+        val messages = listOf(
+            userMessage("Hello", LocalDateTime(2026, 2, 22, 10, 0, 0)),
+            userMessage("World", LocalDateTime(2026, 2, 22, 12, 0, 0)),
+        )
+        assertEquals(3, applyTimeReminder(messages, intervalMinutes = 180).size)
+        assertEquals(3, applyTimeReminder(messages, intervalMinutes = Int.MAX_VALUE).size)
     }
 
     @Test

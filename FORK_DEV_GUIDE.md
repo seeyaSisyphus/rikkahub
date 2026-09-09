@@ -183,7 +183,7 @@ if (reasoningParts.isNotEmpty()) {
     val merged = UIMessagePart.Reasoning(
         reasoning = reasoningParts.joinToString("") { it.reasoning },
         createdAt = reasoningParts.first().createdAt,
-        finishedAt = reasoningParts.lastOrNull { it.finishedAt != null }?.finishedAt 
+        finishedAt = reasoningParts.lastOrNull { it.finishedAt != null }?.finishedAt
             ?: reasoningParts.last().finishedAt,
     )
     mergedThinkingSteps.add(ThinkingStep.ReasoningStep(merged))

@@ -102,4 +102,3 @@ fun String.extractThinkingTitle(): String? {
 
     return null
 }
-

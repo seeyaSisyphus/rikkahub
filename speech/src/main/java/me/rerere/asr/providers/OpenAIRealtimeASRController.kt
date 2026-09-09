@@ -91,9 +91,10 @@ class OpenAIRealtimeASRController(
 
         webSocket = httpClient.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                // stop() 之后握手才完成：直接丢弃该连接，不进入 Listening
-                if (cancelRequested || webSocket !== this@OpenAIRealtimeASRController.webSocket) {
-                    runCatching { webSocket.close(1000, "cancelled") }
+                if (this@OpenAIRealtimeASRController.webSocket !== webSocket ||
+                    state.value.status != ASRStatus.Connecting
+                ) {
+                    webSocket.cancel()
                     return
                 }
                 webSocket.send(provider.sessionUpdateEvent().toString())
@@ -102,22 +103,18 @@ class OpenAIRealtimeASRController(
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
-                handleServerEvent(text)
+                if (this@OpenAIRealtimeASRController.webSocket === webSocket) handleServerEvent(text)
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                // 用户主动取消（cancelRequested）或旧连接的迟到事件，静默处理
-                if (cancelRequested || webSocket !== this@OpenAIRealtimeASRController.webSocket) {
-                    Log.d(TAG, "Realtime ASR websocket failure after cancel, ignored", t)
-                    return
-                }
+                if (this@OpenAIRealtimeASRController.webSocket !== webSocket) return
                 Log.e(TAG, "Realtime ASR websocket failed", t)
                 releaseRecorder()
                 setError(t.message ?: "ASR websocket failed")
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                if (webSocket !== this@OpenAIRealtimeASRController.webSocket) return
+                if (this@OpenAIRealtimeASRController.webSocket !== webSocket) return
                 releaseRecorder()
                 _state.update {
                     it.copy(
@@ -127,6 +124,11 @@ class OpenAIRealtimeASRController(
                 }
             }
         })
+    }
+
+    override fun pauseCapture() {
+        recorderJob?.cancel()
+        runCatching { audioRecord?.stop() }
     }
 
     override fun stop() {
@@ -156,7 +158,11 @@ class OpenAIRealtimeASRController(
     }
 
     override fun dispose() {
-        stop()
+        recorderJob?.cancel()
+        val socket = webSocket
+        webSocket = null
+        socket?.cancel()
+        releaseRecorder()
         scope.cancel()
     }
 
@@ -207,8 +213,10 @@ class OpenAIRealtimeASRController(
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Audio recording failed", e)
-                setError(e.message ?: "Audio recording failed")
+                if (isActive) {
+                    Log.e(TAG, "Audio recording failed", e)
+                    setError(e.message ?: "Audio recording failed")
+                }
             } finally {
                 releaseRecorder()
             }
@@ -222,6 +230,16 @@ class OpenAIRealtimeASRController(
         }
 
         when (val type = event.optString("type")) {
+            "input_audio_buffer.speech_started" -> {
+                val id = event.optString("item_id")
+                _state.update { it.copy(voiceTurn = it.voiceTurn.started(id)) }
+            }
+
+            "input_audio_buffer.speech_stopped" -> {
+                val id = event.optString("item_id")
+                _state.update { it.copy(voiceTurn = it.voiceTurn.stopped(id)) }
+            }
+
             "conversation.item.input_audio_transcription.delta" -> {
                 val itemId = event.optString("item_id", "default")
                 val delta = event.optString("delta")
@@ -234,11 +252,16 @@ class OpenAIRealtimeASRController(
             "conversation.item.input_audio_transcription.completed" -> {
                 val itemId = event.optString("item_id", "default")
                 val transcript = event.optString("transcript").trim()
+                _state.update { it.copy(voiceTurn = it.voiceTurn.completed(itemId, transcript)) }
                 partialTranscripts.remove(itemId)
                 if (transcript.isNotEmpty()) {
                     completedTranscripts.add(transcript)
                 }
                 publishTranscript()
+            }
+
+            "conversation.item.input_audio_transcription.failed" -> {
+                setError(event.optJSONObject("error")?.optString("message") ?: "ASR transcription failed")
             }
 
             "error" -> {

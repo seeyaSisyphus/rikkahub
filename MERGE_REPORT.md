@@ -17,11 +17,11 @@
 ### 1. `data/model/Conversation.kt` — 保留 `conversationParams`
 
 ```
-<<<<<<< HEAD
+`<<<<<<< HEAD`
     val conversationParams: ConversationParams = ConversationParams(),
-=======
+`=======`
     val customSystemPrompt: String? = null,
->>>>>>> upstream/master
+`>>>>>>> upstream/master`
 ```
 
 **决定**：保留 HEAD（我们的 `conversationParams`）。上游的 `customSystemPrompt` 是简化版，我们的 `ConversationParams` 包含 systemPrompt + systemPromptMode + temperature + topP + contextMessageSize + battleMode，是完整超集。
@@ -29,13 +29,13 @@
 ### 2. `data/db/entity/ConversationEntity.kt` — 保留 `conversation_params` 列
 
 ```
-<<<<<<< HEAD
+`<<<<<<< HEAD`
     @ColumnInfo("conversation_params", defaultValue = "{}")
     val conversationParams: String = "{}",
-=======
+`=======`
     @ColumnInfo("custom_system_prompt", defaultValue = "")
     val customSystemPrompt: String = "",
->>>>>>> upstream/master
+`>>>>>>> upstream/master`
 ```
 
 **决定**：保留 HEAD。数据库列保持为 `conversation_params`（JSON 序列化的 `ConversationParams`），不引入上游的 `custom_system_prompt` 列。
@@ -46,22 +46,22 @@
 
 **序列化方向（→ Entity）**：
 ```
-<<<<<<< HEAD
+`<<<<<<< HEAD`
     conversationParams = JsonInstant.encodeToString(conversation.conversationParams),
-=======
+`=======`
     customSystemPrompt = conversation.customSystemPrompt ?: "",
->>>>>>> upstream/master
+`>>>>>>> upstream/master`
 ```
 
 **反序列化方向（→ Model）**：
 ```
-<<<<<<< HEAD
+`<<<<<<< HEAD`
     conversationParams = runCatching {
         JsonInstant.decodeFromString<ConversationParams>(conversationEntity.conversationParams)
     }.getOrDefault(ConversationParams()),
-=======
+`=======`
     customSystemPrompt = conversationEntity.customSystemPrompt.ifEmpty { null },
->>>>>>> upstream/master
+`>>>>>>> upstream/master`
 ```
 
 **决定**：两处均保留 HEAD。继续用 JSON 序列化 `ConversationParams`，带容错兜底 `getOrDefault`。
@@ -71,19 +71,19 @@
 这是核心冲突，涉及提示词合并的运行时逻辑：
 
 ```
-<<<<<<< HEAD  (我们的代码：三路合并)
+`<<<<<<< HEAD  (我们的代码：三路合并)`
     val effectiveSystemPrompt: String = when {
         conversationParams.systemPrompt == null -> assistant.systemPrompt
         conversationParams.systemPromptMode == SystemPromptMode.OVERRIDE -> conversationParams.systemPrompt
         else -> buildString { /* APPEND: 助手提示词 + \n\n + 对话提示词 */ }
     }
-=======
+`=======`
     (上游代码：简单覆盖)
     val effectiveSystemPrompt =
         if (assistant.allowConversationSystemPrompt && !conversationSystemPrompt.isNullOrBlank())
             conversationSystemPrompt
         else assistant.systemPrompt
->>>>>>> upstream/master
+`>>>>>>> upstream/master`
 ```
 
 **决定**：保留 HEAD 的三路合并（null 回退 / OVERRIDE 覆盖 / APPEND 追加），丢弃上游的简单覆盖。同时移除上游新增的 `conversationSystemPrompt: String?` 参数（在 `generate()` 和 `generateInternal()` 两处签名中均移除，以及调用处的传参）。
@@ -91,16 +91,16 @@
 ### 5. `ui/pages/chat/ChatPage.kt` — 接受上游滚动修复
 
 ```
-<<<<<<< HEAD  (我们的代码：两个独立的 LaunchedEffect)
+`<<<<<<< HEAD  (我们的代码：两个独立的 LaunchedEffect)`
     LaunchedEffect(vm, ...) { /* nodeId == null 时滚动到底部 */ }
     LaunchedEffect(nodeId, ...) { /* nodeId != null 时跳转到消息 */ }
-=======
+`=======`
     (上游代码：合并为一个 LaunchedEffect)
     LaunchedEffect(nodeId, ...) {
         if (nodeId != null) chatListState.scrollToItem(index)
         else chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
     }
->>>>>>> upstream/master
+`>>>>>>> upstream/master`
 ```
 
 **决定**：接受 upstream。上游的写法更简洁（一个 Effect 代替两个），且使用 `requestScrollToItem` 替代 `scrollToItem`，修复了初始进入时自动滚动可能失效的问题。此文件中我们的 `ConversationParamsSheet` 等功能代码不在冲突区域，自动合并未受影响。

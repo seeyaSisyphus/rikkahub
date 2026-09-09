@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
@@ -29,9 +30,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -377,21 +381,65 @@ internal fun AssistantBasicContent(
                     )
                 }
             ) {
-                IntSliderItem(
-                    value = assistant.contextMessageLimit,
-                    onValueChange = { newValue ->
-                        onUpdate(assistant.copy(contextMessageLimit = snapContextMessageLimit(newValue)))
-                    },
-                    valueRange = 0..512,
-                )
+                var contextMessageLimitInput by remember(
+                    assistant.id,
+                    assistant.contextMessageLimit
+                ) {
+                    mutableStateOf(assistant.contextMessageLimit.toString())
+                }
+                var contextMessageLimitFocused by remember(assistant.id) {
+                    mutableStateOf(false)
+                }
+                val focusManager = LocalFocusManager.current
 
-                Text(
-                    text = if (assistant.contextMessageLimit > 0) stringResource(
-                        R.string.assistant_page_context_message_limit_count,
-                        assistant.contextMessageLimit
-                    ) else stringResource(R.string.assistant_page_context_message_limit_unlimited),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.75f),
+                fun commitContextMessageLimit() {
+                    val value = contextMessageLimitInput.toIntOrNull()
+                    if (value == null) {
+                        contextMessageLimitInput = assistant.contextMessageLimit.toString()
+                        return
+                    }
+
+                    val snapped = snapContextMessageLimit(value)
+                    contextMessageLimitInput = snapped.toString()
+                    if (snapped != assistant.contextMessageLimit) {
+                        onUpdate(assistant.copy(contextMessageLimit = snapped))
+                    }
+                }
+
+                OutlinedTextField(
+                    value = contextMessageLimitInput,
+                    onValueChange = { input ->
+                        if (input.all(Char::isDigit) &&
+                            (input.isEmpty() || input.toIntOrNull() != null)
+                        ) {
+                            contextMessageLimitInput = input
+                            input.toIntOrNull()
+                                ?.let(::snapContextMessageLimit)
+                                ?.takeIf { it != assistant.contextMessageLimit }
+                                ?.let { onUpdate(assistant.copy(contextMessageLimit = it)) }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged { focusState ->
+                            if (contextMessageLimitFocused && !focusState.isFocused) {
+                                commitContextMessageLimit()
+                            }
+                            contextMessageLimitFocused = focusState.isFocused
+                        },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = { focusManager.clearFocus() }
+                    ),
+                    singleLine = true,
+                    supportingText = {
+                        Text(
+                            stringResource(R.string.assistant_page_context_message_limit_hint)
+                        )
+                    }
                 )
 
                 if (assistant.contextMessageLimit > 0) {

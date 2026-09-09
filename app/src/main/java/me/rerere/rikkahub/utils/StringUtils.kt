@@ -192,4 +192,3 @@ fun String.removeBracketedContent(): String? {
     val result = pattern.replace(this, "").trim()
     return result.ifBlank { null }
 }
-

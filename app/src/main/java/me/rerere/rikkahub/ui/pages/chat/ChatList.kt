@@ -807,27 +807,6 @@ private fun ChatListPreview(
         Triple(rounds, questionChars, answerChars)
     }
 
-    // 统计数据：对话轮次、提问总字数、回答总字数
-    val conversationStats = remember(conversation.messageNodes) {
-        var rounds = 0
-        var questionChars = 0
-        var answerChars = 0
-        conversation.messageNodes.forEach { node ->
-            val msg = node.currentMessage
-            when (msg.role) {
-                me.rerere.ai.core.MessageRole.USER -> {
-                    rounds++
-                    questionChars += msg.toText().wordCount()
-                }
-                me.rerere.ai.core.MessageRole.ASSISTANT -> {
-                    answerChars += msg.toText().wordCount()
-                }
-                else -> {}
-            }
-        }
-        Triple(rounds, questionChars, answerChars)
-    }
-
     // 统计收藏和固定的“组”数（一问一答算一组，口径一致）
     val favoriteAndPinnedStats = remember(conversation.messageNodes) {
         var favoriteCount = 0

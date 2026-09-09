@@ -8,6 +8,7 @@ import kotlinx.coroutines.channels.onFailure
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -26,6 +27,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
+import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.TokenUsage
@@ -48,6 +50,7 @@ import me.rerere.ai.ui.metadataAs
 import me.rerere.ai.ui.toMetadata
 import me.rerere.ai.util.KeyRoulette
 import me.rerere.ai.util.configureReferHeaders
+import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
@@ -99,6 +102,7 @@ class ChatCompletionsAPI(
             .post(encoded.toRequestBody("application/json".toMediaType()))
             .addHeader("Authorization", "Bearer ${keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())}")
             .configureReferHeaders(providerSetting.baseUrl)
+            .configureSessionHeaders(providerSetting.baseUrl, params.sessionId)
             .build()
 
         val response = client.newCall(request).await()
@@ -155,6 +159,7 @@ class ChatCompletionsAPI(
             .addHeader("Authorization", "Bearer ${keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())}")
             .addHeader("Content-Type", "application/json")
             .configureReferHeaders(providerSetting.baseUrl)
+            .configureSessionHeaders(providerSetting.baseUrl, params.sessionId)
             .build()
 
         // just for debugging response body
@@ -223,7 +228,7 @@ class ChatCompletionsAPI(
             eventSource.cancel()
         }
         // trySend 在缓冲满时会静默丢弃 delta，导致回复中间缺字 (#1295)，因此缓冲必须无界
-    }.buffer(Channel.UNLIMITED)
+    }.buffer(Channel.UNLIMITED).flowOn(Dispatchers.IO)
 
     private fun buildChatCompletionRequest(
         messages: List<UIMessage>,
@@ -262,6 +267,7 @@ class ChatCompletionsAPI(
 
             // open router适配
             if(isOpenRouter) {
+                params.sessionId?.let { put("session_id", it) }
                 if(params.model.outputModalities.contains(Modality.IMAGE)) {
                     put("modalities", buildJsonArray {
                         add("image")
@@ -353,6 +359,14 @@ class ChatCompletionsAPI(
                         })
                     }
 
+                    "api.xiaomimimo.com", "token-plan-cn.xiaomimimo.com" -> {
+                        // 小米 MiMo
+                        // https://mimo.mi.com/docs/zh-CN/api/chat/openai-api
+                        put("thinking", buildJsonObject {
+                            put("type", if (!level.isEnabled) "disabled" else "enabled")
+                        })
+                    }
+
                     "api.moonshot.cn" -> {
                         put("thinking", buildJsonObject {
                             put("type", if (!level.isEnabled) "disabled" else "enabled")
@@ -368,12 +382,12 @@ class ChatCompletionsAPI(
                         // 现有 DeepSeek 模型（V4 系列）reasoning_effort 仅支持 high 和 max
                         // low/medium -> high, xhigh -> max, OFF/AUTO -> 不发送
                         if (level.isEnabled && level != ReasoningLevel.AUTO) {
-                            val deepseekEffort = when (level) {
-                                ReasoningLevel.LOW, ReasoningLevel.MEDIUM -> "high"
-                                ReasoningLevel.XHIGH -> "max"
-                                else -> level.effort // HIGH -> "high"
+                            val effort = when (level) {
+                                ReasoningLevel.LOW, ReasoningLevel.MEDIUM, ReasoningLevel.HIGH -> "high"
+                                ReasoningLevel.XHIGH, ReasoningLevel.MAX -> "max"
+                                else -> level.effort
                             }
-                            put("reasoning_effort", deepseekEffort)
+                            put("reasoning_effort", effort)
                         }
                     }
 
@@ -381,7 +395,7 @@ class ChatCompletionsAPI(
                         if ("deepseek-v4" in params.model.modelId.lowercase()) {
                             if (level != ReasoningLevel.AUTO) {
                                 val effort = when (level) {
-                                    ReasoningLevel.XHIGH -> "max"
+                                    ReasoningLevel.XHIGH, ReasoningLevel.MAX -> "max"
                                     ReasoningLevel.OFF -> "none"
                                     else -> "high"
                                 }
@@ -422,6 +436,7 @@ class ChatCompletionsAPI(
                                     "parameters",
                                     json.encodeToJsonElement(
                                         tool.parameters()
+                                            ?: InputSchema.Obj(properties = JsonObject(emptyMap()))
                                     )
                                 )
                             })
@@ -437,8 +452,8 @@ class ChatCompletionsAPI(
                 ModelRegistry.KIMI_K2_6.match(model.modelId) ||
                 ModelRegistry.KIMI_K3.match(model.modelId) ||
                 ModelRegistry.KIMI_K3_ALIAS.match(model.modelId)
-        return !ModelRegistry.OPENAI_O_MODELS.match(model.modelId) && 
-               !ModelRegistry.GPT_5.match(model.modelId) && 
+        return !ModelRegistry.OPENAI_O_MODELS.match(model.modelId) &&
+               !ModelRegistry.GPT_5.match(model.modelId) &&
                !isMoonshotRestricted
     }
 
