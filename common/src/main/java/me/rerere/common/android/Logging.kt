@@ -8,6 +8,9 @@ import kotlin.uuid.Uuid
 
 private const val MAX_RECENT_LOGS = 100
 
+/** 单条请求日志保留的 body 字符上限：日志列表长期驻留内存，超大 body 必须截断 */
+private const val MAX_LOGGED_REQUEST_BODY_CHARS = 64 * 1024
+
 @Serializable
 sealed class LogEntry {
     abstract val id: Uuid
@@ -77,7 +80,17 @@ object Logging {
 
     fun logRequest(entry: LogEntry.RequestLog) {
         if (!requestLoggingEnabled) return
-        addLog(entry)
+        addLog(entry.withTruncatedRequestBody())
+    }
+
+    /**
+     * 超大请求体（例如带多张图片 base64 的对话）只保留开头，
+     * 否则日志列表里几条记录就能占掉上百 MB 内存。
+     */
+    private fun LogEntry.RequestLog.withTruncatedRequestBody(): LogEntry.RequestLog {
+        val body = requestBody ?: return this
+        if (body.length <= MAX_LOGGED_REQUEST_BODY_CHARS) return this
+        return copy(requestBody = body.take(MAX_LOGGED_REQUEST_BODY_CHARS) + "…（已截断）")
     }
 
     fun isRequestLoggingEnabled(): Boolean = requestLoggingEnabled
