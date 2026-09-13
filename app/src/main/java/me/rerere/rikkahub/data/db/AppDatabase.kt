@@ -34,9 +34,9 @@ import me.rerere.rikkahub.utils.JsonInstant
         WorkspaceEntity::class,
         FolderEntity::class,
     ],
-    version = 26,
+    version = 27,
     autoMigrations = []
-    // 所有迁移均由 DataSourceModule.kt 中 addMigrations() 注册的手动 Migration 处理
+    // 所有迁移均由 AppDatabaseFactory.kt 中 addMigrations() 注册的手动 Migration 处理
     // Room AutoMigration 对每个 to-schema 与当前 Entity 做 diff，
     // 历史 schema 中存在的 custom_system_prompt 字段已在 v23→v24 手动删除，
     // 若保留 AutoMigration 条目 Room KSP 会报 "未声明 @DeleteColumn" 错误
@@ -60,7 +60,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun folderDao(): FolderDAO
 
     companion object {
-        const val VERSION = 26
+        const val VERSION = 27
 
         // v21→v22: 仅新增 workspace_cwd 列
         val Migration_21_22 = object : androidx.room.migration.Migration(21, 22) {
