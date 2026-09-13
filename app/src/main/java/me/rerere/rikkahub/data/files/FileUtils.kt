@@ -28,6 +28,18 @@ object FileUtils {
         return "${Uuid.random()}.$ext"
     }
 
+    /**
+     * 按 mime type 生成图片文件名，避免把 jpeg/webp 字节存成 .png，
+     * 导致分享、FileProvider 和后续识别 mime 时对不上。
+     */
+    fun buildImageFileName(mimeType: String?): String {
+        val ext = mimeType
+            ?.let { MimeTypeMap.getSingleton().getExtensionFromMimeType(it.lowercase()) }
+            ?.takeIf { it.isNotBlank() }
+            ?.lowercase()
+        return "image.${ext ?: "png"}"
+    }
+
     fun buildRelativePath(folder: String, file: File): String =
         "$folder/${file.name}"
 

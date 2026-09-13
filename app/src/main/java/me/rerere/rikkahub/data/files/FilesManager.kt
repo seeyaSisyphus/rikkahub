@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.util.decodeImageData
 import me.rerere.common.android.Logging
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.data.db.entity.ManagedFileEntity
@@ -146,14 +147,19 @@ class FilesManager(
         return newUris
     }
 
-    fun createChatFilesByByteArrays(byteArrays: List<ByteArray>): List<Uri> {
+    fun createChatFilesByByteArrays(
+        byteArrays: List<ByteArray>,
+        displayName: String? = null,
+        mimeType: String = "image/png",
+    ): List<Uri> {
         val newUris = mutableListOf<Uri>()
+        val resolvedName = displayName ?: FileUtils.buildImageFileName(mimeType)
         val dir = context.filesDir.resolve(FileFolders.UPLOAD)
         if (!dir.exists()) {
             dir.mkdirs()
         }
         byteArrays.forEach { byteArray ->
-            val fileName = buildUuidFileName(displayName = "image.png", mimeType = "image/png")
+            val fileName = buildUuidFileName(displayName = resolvedName, mimeType = mimeType)
             val file = dir.resolve(fileName)
             if (!file.exists()) {
                 file.createNewFile()
@@ -165,15 +171,14 @@ class FilesManager(
             trackManagedFile(
                 folder = FileFolders.UPLOAD,
                 file = file,
-                displayName = "image.png",
-                mimeType = "image/png"
+                displayName = resolvedName,
+                mimeType = mimeType
             )
             newUris.add(newUri)
         }
         return newUris
     }
 
-    @OptIn(ExperimentalEncodingApi::class)
     suspend fun convertBase64ImagePartToLocalFile(message: UIMessage): UIMessage =
         withContext(Dispatchers.IO) {
             message.copy(
@@ -181,10 +186,12 @@ class FilesManager(
                     when (part) {
                         is UIMessagePart.Image -> {
                             if (part.url.startsWith("data:image")) {
-                                val sourceByteArray = Base64.decode(part.url.substringAfter("base64,").toByteArray())
-                                val bitmap = BitmapFactory.decodeByteArray(sourceByteArray, 0, sourceByteArray.size)
-                                val byteArray = FileUtils.compressBitmapToPng(bitmap)
-                                val urls = createChatFilesByByteArrays(listOf(byteArray))
+                                // 直接落盘原始字节：解码整张图再压成 PNG 既费内存（大图会 OOM），文件也更大
+                                val imageData = decodeImageData(part.url)
+                                val urls = createChatFilesByByteArrays(
+                                    byteArrays = listOf(imageData.bytes),
+                                    mimeType = imageData.mimeType,
+                                )
                                 Log.i(
                                     TAG,
                                     "convertBase64ImagePartToLocalFile: convert base64 img to ${urls.joinToString(", ")}"
