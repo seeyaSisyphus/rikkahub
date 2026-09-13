@@ -61,17 +61,17 @@ import me.rerere.ai.util.KeyRoulette
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
+import me.rerere.ai.util.estimatedJsonSize
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.parseErrorDetail
 import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.toHeaders
+import me.rerere.ai.util.toJsonRequestBody
 import me.rerere.common.http.await
 import me.rerere.common.http.jsonPrimitiveOrNull
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
@@ -297,16 +297,16 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
         params: TextGenerationParams,
     ): TextGenerationResult {
         val requestBody = buildMessageRequest(providerSetting, messages, params)
-        val encoded = json.encodeToString(requestBody)
-        if (encoded.length < 600_000) {
-            Log.i(TAG, "generateText: $encoded")
+        val bodySize = requestBody.estimatedJsonSize()
+        if (bodySize < 600_000) {
+            Log.i(TAG, "generateText: $requestBody")
         } else {
-            Log.i(TAG, "generateText: (request body too large to log, size=${encoded.length})")
+            Log.i(TAG, "generateText: (request body too large to log, size≈${bodySize})")
         }
         val request = Request.Builder()
             .url("${providerSetting.baseUrl}/messages")
             .headers(params.customHeaders.toHeaders())
-            .post(encoded.toRequestBody("application/json".toMediaType()))
+            .post(requestBody.toJsonRequestBody())
             .addHeader("x-api-key", keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString()))
             .addHeader("anthropic-version", ANTHROPIC_VERSION)
             .configureReferHeaders(providerSetting.baseUrl)
@@ -351,16 +351,16 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
         params: TextGenerationParams,
     ): Flow<StreamChunk> = callbackFlow {
         val requestBody = buildMessageRequest(providerSetting, messages, params, stream = true)
-        val encoded = json.encodeToString(requestBody)
-        if (encoded.length < 600_000) {
-            Log.i(TAG, "streamText: $encoded")
+        val bodySize = requestBody.estimatedJsonSize()
+        if (bodySize < 600_000) {
+            Log.i(TAG, "streamText: $requestBody")
         } else {
-            Log.i(TAG, "streamText: (request body too large to log, size=${encoded.length}, messages=${requestBody["messages"]?.jsonArray?.size})")
+            Log.i(TAG, "streamText: (request body too large to log, size≈${bodySize}, messages=${requestBody["messages"]?.jsonArray?.size})")
         }
         val request = Request.Builder()
             .url("${providerSetting.baseUrl}/messages")
             .headers(params.customHeaders.toHeaders())
-            .post(encoded.toRequestBody("application/json".toMediaType()))
+            .post(requestBody.toJsonRequestBody())
             .addHeader("x-api-key", keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString()))
             .addHeader("anthropic-version", ANTHROPIC_VERSION)
             .addHeader("Content-Type", "application/json")

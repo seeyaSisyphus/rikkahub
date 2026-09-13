@@ -52,19 +52,19 @@ import me.rerere.ai.util.KeyRoulette
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
+import me.rerere.ai.util.estimatedJsonSize
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.parseErrorDetail
 import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.toHeaders
+import me.rerere.ai.util.toJsonRequestBody
 import me.rerere.common.http.await
 import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.common.http.jsonPrimitiveOrNull
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
@@ -88,16 +88,16 @@ class ResponseAPI(
             params = params,
             stream = false,
         )
-        val encoded = json.encodeToString(requestBody)
-        if (encoded.length < 600_000) {
-            Log.i(TAG, "generateText: $encoded")
+        val bodySize = requestBody.estimatedJsonSize()
+        if (bodySize < 600_000) {
+            Log.i(TAG, "generateText: $requestBody")
         } else {
-            Log.i(TAG, "generateText: (request body too large to log, size=${encoded.length})")
+            Log.i(TAG, "generateText: (request body too large to log, size≈${bodySize})")
         }
         val request = Request.Builder()
             .url("${providerSetting.baseUrl}${providerSetting.responsesPath}")
             .headers(params.customHeaders.toHeaders())
-            .post(encoded.toRequestBody("application/json".toMediaType()))
+            .post(requestBody.toJsonRequestBody())
             .addHeader(
                 "Authorization",
                 "Bearer ${keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())}"
@@ -131,16 +131,16 @@ class ResponseAPI(
             params = params,
             stream = true,
         )
-        val encoded = json.encodeToString(requestBody)
-        if (encoded.length < 600_000) {
-            Log.i(TAG, "streamText: $encoded")
+        val bodySize = requestBody.estimatedJsonSize()
+        if (bodySize < 600_000) {
+            Log.i(TAG, "streamText: $requestBody")
         } else {
-            Log.i(TAG, "streamText: (request body too large to log, size=${encoded.length})")
+            Log.i(TAG, "streamText: (request body too large to log, size≈${bodySize})")
         }
         val request = Request.Builder()
             .url("${providerSetting.baseUrl}${providerSetting.responsesPath}")
             .headers(params.customHeaders.toHeaders())
-            .post(encoded.toRequestBody("application/json".toMediaType()))
+            .post(requestBody.toJsonRequestBody())
             .addHeader(
                 "Authorization",
                 "Bearer ${keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())}"

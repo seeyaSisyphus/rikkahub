@@ -58,19 +58,19 @@ import me.rerere.ai.util.KeyRoulette
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
+import me.rerere.ai.util.estimatedJsonSize
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.removeElements
 import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.toHeaders
+import me.rerere.ai.util.toJsonRequestBody
 import me.rerere.common.http.await
 import me.rerere.common.http.jsonPrimitiveOrNull
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
@@ -185,7 +185,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 .headers(params.customHeaders.toHeaders())
                 .configureSessionHeaders(url.toString(), params.sessionId)
                 .post(
-                    json.encodeToString(requestBody).toRequestBody("application/json".toMediaType())
+                    requestBody.toJsonRequestBody()
                 )
                 .configureReferHeaders(providerSetting.baseUrl)
                 .build()
@@ -226,11 +226,11 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
             }
         ).newBuilder().addQueryParameter("alt", "sse").build()
 
-        val encoded = json.encodeToString(requestBody)
-        if (encoded.length < 600_000) {
-            Log.i(TAG, "streamText: $encoded")
+        val bodySize = requestBody.estimatedJsonSize()
+        if (bodySize < 600_000) {
+            Log.i(TAG, "streamText: $requestBody")
         } else {
-            Log.i(TAG, "streamText: (request body too large to log, size=${encoded.length})")
+            Log.i(TAG, "streamText: (request body too large to log, size≈${bodySize})")
         }
 
         val request = transformRequest(
@@ -240,7 +240,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 .headers(params.customHeaders.toHeaders())
                 .configureSessionHeaders(url.toString(), params.sessionId)
                 .post(
-                    encoded.toRequestBody("application/json".toMediaType())
+                    requestBody.toJsonRequestBody()
                 )
                 .configureReferHeaders(providerSetting.baseUrl)
                 .build()
