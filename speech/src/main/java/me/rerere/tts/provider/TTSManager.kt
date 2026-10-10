@@ -14,6 +14,7 @@ import me.rerere.tts.provider.providers.OpenAITTSProvider
 import me.rerere.tts.provider.providers.QwenTTSProvider
 import me.rerere.tts.provider.providers.StepTTSProvider
 import me.rerere.tts.provider.providers.SystemTTSProvider
+import me.rerere.tts.provider.providers.VolcengineTTSProvider
 import me.rerere.tts.provider.providers.XAITTSProvider
 // [FORK] GeminiVertex / VertexCloud TTS providers
 import me.rerere.tts.provider.providers.GeminiVertexTTSProvider
@@ -45,6 +46,7 @@ class TTSManager(private val context: Context) {
         TTSProviderSetting.ElevenLabs::class  to ElevenLabsTTSProvider()  as TTSProvider<TTSProviderSetting>,
         TTSProviderSetting.FishAudio::class   to FishAudioTTSProvider()   as TTSProvider<TTSProviderSetting>,
         TTSProviderSetting.Step::class        to StepTTSProvider()        as TTSProvider<TTSProviderSetting>,
+        TTSProviderSetting.Volcengine::class  to VolcengineTTSProvider()  as TTSProvider<TTSProviderSetting>,
         // ---- [FORK] 自定义 providers ----
         TTSProviderSetting.GeminiVertex::class to GeminiVertexTTSProvider() as TTSProvider<TTSProviderSetting>,
         TTSProviderSetting.VertexCloud::class  to VertexCloudTTSProvider()  as TTSProvider<TTSProviderSetting>,

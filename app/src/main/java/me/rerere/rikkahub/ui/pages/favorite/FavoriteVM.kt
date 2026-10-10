@@ -6,7 +6,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.db.entity.FavoriteEntity
 import me.rerere.rikkahub.data.favorite.NodeFavoriteAdapter
 import me.rerere.rikkahub.data.model.FavoriteType
@@ -65,19 +64,15 @@ class FavoriteVM(
     }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    fun removeFavorite(refKey: String) {
-        viewModelScope.launch {
-            favoriteRepository.deleteByRefKey(refKey)
-        }
+    suspend fun removeFavorite(refKey: String) {
+        favoriteRepository.deleteByRefKey(refKey)
     }
 
     suspend fun getEntityByRefKey(refKey: String): FavoriteEntity? {
         return favoriteRepository.getByRefKey(refKey)
     }
 
-    fun restoreFavorite(entity: FavoriteEntity) {
-        viewModelScope.launch {
-            favoriteRepository.upsert(entity)
-        }
+    suspend fun restoreFavorite(entity: FavoriteEntity) {
+        favoriteRepository.upsert(entity)
     }
 }

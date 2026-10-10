@@ -60,7 +60,7 @@ class HistoryVM(
 
     fun togglePinStatus(conversationId: Uuid) {
         viewModelScope.launch {
-            conversationRepo.togglePinStatus(conversationId)
+            chatService.toggleConversationPinned(conversationId)
         }
     }
 

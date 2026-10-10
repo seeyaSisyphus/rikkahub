@@ -33,7 +33,7 @@ class ChatServiceTest {
         assertEquals(source.assistantId, fork.assistantId)
         assertEquals(source.workspaceCwd, fork.workspaceCwd)
         assertEquals(source.folderId, fork.folderId)
-        assertEquals("", fork.title)
+        assertEquals("Source conversation(1)", fork.title)
         assertFalse(fork.isPinned)
     }
 
@@ -47,13 +47,15 @@ class ChatServiceTest {
             customBodies = bodies,
         )
 
-        val params = backgroundTextGenerationParams(model)
+        val conversationId = Uuid.random()
+        val params = backgroundTextGenerationParams(model, conversationId)
 
         assertEquals(model, params.model)
         // 自 4559397b 起后台文本生成默认推理级别为 AUTO
         assertEquals(ReasoningLevel.AUTO, params.reasoningLevel)
         assertEquals(headers, params.customHeaders)
         assertEquals(bodies, params.customBody)
+        assertEquals(conversationId.toString(), params.sessionId)
     }
 
     @Test

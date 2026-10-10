@@ -599,7 +599,10 @@ private fun MarkdownNode(
         MarkdownElementTypes.CODE_SPAN -> {
             val code = node.getTextInNode(content).trim('`')
             Text(
-                text = code, fontFamily = JetbrainsMono, modifier = modifier
+                text = code,
+                fontFamily = JetbrainsMono,
+                style = LocalTextStyle.current.copy(fontFeatureSettings = "'calt' 0, 'liga' 0, 'clig' 0"),
+                modifier = modifier
             )
         }
 
@@ -1270,6 +1273,7 @@ private fun AnnotatedString.Builder.appendMarkdownNodeContent(
             withStyle(
                 SpanStyle(
                     fontFamily = JetbrainsMono,
+                    fontFeatureSettings = "'calt' 0, 'liga' 0, 'clig' 0",
                     fontSize = 0.9.em,
                     color = colorScheme.primary,
                 )

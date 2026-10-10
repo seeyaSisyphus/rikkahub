@@ -105,6 +105,7 @@ fun FavoritePage(vm: FavoriteVM = koinViewModel()) {
 }
 
 @Composable
+
 private fun FavoriteCard(
     item: NodeFavoriteListItem,
     onClick: () -> Unit,
