@@ -684,7 +684,10 @@ private fun ExportedChatMessage(
         model?.displayName?.isNotBlank() == true -> model.displayName
         else -> "AI"
     }
-    val groupedParts = remember(message.parts) { message.parts.groupMessageParts() }
+    // 用户消息把附件排在文字前面，导出的图片与聊天页保持一致
+    val groupedParts = remember(message.parts, message.role) {
+        message.parts.groupMessageParts(attachmentsFirst = message.role == MessageRole.USER)
+    }
     val messageContent: @Composable () -> Unit = {
         Column(
             modifier = Modifier

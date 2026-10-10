@@ -566,6 +566,7 @@ export const ChatMessage = React.memo(({
               loading={loading}
               onToolApproval={onToolApproval}
               onClickCitation={handleClickCitation}
+              attachmentsFirst={isUser}
             />
           </div>
         </div>

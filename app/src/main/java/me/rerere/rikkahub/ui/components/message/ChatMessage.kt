@@ -393,7 +393,8 @@ private fun MessagePartsBlock(
     }
 
     // Render parts in original order (group thinking/tool as chain-of-thought)
-    val groupedParts = remember(parts) { parts.groupMessageParts() }
+    // 用户消息把附件排在文字前面，图片/视频等显示在文字上方
+    val groupedParts = remember(parts, role) { parts.groupMessageParts(attachmentsFirst = role == MessageRole.USER) }
     groupedParts.fastForEach { block ->
         when (block) {
             is MessagePartBlock.ThinkingBlock -> {

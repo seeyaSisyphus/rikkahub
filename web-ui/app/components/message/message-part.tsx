@@ -34,7 +34,15 @@ type MessagePartBlock =
       index: number;
     };
 
-export function groupMessageParts(parts: UIMessagePart[]): MessagePartBlock[] {
+/**
+ * 用户消息把附件（图片/视频/音频/文档）排在文字前面，图片等显示在文字上方；
+ * 助手消息保留原始顺序，正文与生成内容按模型返回的顺序展示。
+ * 排序是稳定的，同类内容之间的相对顺序保持不变。
+ */
+export function groupMessageParts(
+  parts: UIMessagePart[],
+  attachmentsFirst = false,
+): MessagePartBlock[] {
   const result: MessagePartBlock[] = [];
   let currentThinkingSteps: ThinkingStep[] = [];
 
@@ -60,7 +68,15 @@ export function groupMessageParts(parts: UIMessagePart[]): MessagePartBlock[] {
   });
 
   flushThinkingSteps();
-  return result;
+
+  if (!attachmentsFirst) return result;
+
+  const isTextBlock = (block: MessagePartBlock) =>
+    block.type === "content" && block.part.type === "text";
+  return [
+    ...result.filter((block) => !isTextBlock(block)),
+    ...result.filter(isTextBlock),
+  ];
 }
 
 interface MessagePartsProps {
@@ -68,6 +84,7 @@ interface MessagePartsProps {
   loading?: boolean;
   onToolApproval?: (toolCallId: string, approved: boolean, reason: string, answer?: string) => void | Promise<void>;
   onClickCitation?: (id: string) => void;
+  attachmentsFirst?: boolean;
 }
 
 function renderContentPart(
@@ -103,9 +120,13 @@ export const MessageParts = React.memo(({
   loading = false,
   onToolApproval,
   onClickCitation,
+  attachmentsFirst = false,
 }: MessagePartsProps) => {
   const { t } = useTranslation("message");
-  const groupedParts = React.useMemo(() => groupMessageParts(parts), [parts]);
+  const groupedParts = React.useMemo(
+    () => groupMessageParts(parts, attachmentsFirst),
+    [parts, attachmentsFirst],
+  );
 
   return (
     <>

@@ -90,9 +90,23 @@ class ChatInputState {
                 merged.addAll(remainingAttachments)
                 return merged
             }
-            return if (text.isBlank()) messageContent else messageContent + listOf(UIMessagePart.Text(text))
+            return buildUserMessageParts(text, messageContent)
         }
-        return if (text.isBlank()) messageContent else listOf(UIMessagePart.Text(text)) + messageContent
+        return buildUserMessageParts(text, messageContent)
+    }
+
+    /**
+     * 组装用户消息的 parts：文字在前、附件在后。
+     *
+     * 这里只负责存储顺序，保持与上游一致（也符合各 Provider 对文本 + 多模态内容的常见排布），
+     * 气泡里的显示顺序由 groupMessageParts(attachmentsFirst = true) 统一调整为附件在上，
+     * 因此历史消息无论按哪种顺序存下来，展示效果都一致。
+     */
+    private fun buildUserMessageParts(
+        text: String,
+        attachments: List<UIMessagePart>,
+    ): List<UIMessagePart> {
+        return if (text.isBlank()) attachments else listOf(UIMessagePart.Text(text)) + attachments
     }
 
     fun isEmpty(): Boolean {

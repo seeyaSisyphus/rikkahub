@@ -31,13 +31,19 @@ sealed interface MessagePartBlock {
 /**
  * 将 parts 分组成 ThinkingBlock 和 ContentBlock
  * 连续的 Reasoning、客户端 Tool 和 ServerTool 会被分组到一个 ThinkingBlock 中
+ *
+ * @param attachmentsFirst 是否把附件（图片/视频/音频/文档）排在文字前面。
+ * 用户消息开启后，图片等附件会显示在文字上方；助手消息保持原始顺序，
+ * 以便正文与生成内容按模型返回的顺序展示。
  */
-fun List<UIMessagePart>.groupMessageParts(): List<MessagePartBlock> {
+fun List<UIMessagePart>.groupMessageParts(
+    attachmentsFirst: Boolean = false,
+): List<MessagePartBlock> {
     // 强制：将所有 Reasoning/Tool parts 提取到最前面，绝不让思考过程出现在正文中
     val reasoningParts = mutableListOf<UIMessagePart.Reasoning>()
     val toolSteps = mutableListOf<ThinkingStep.ToolStep>()
     val serverToolSteps = mutableListOf<ThinkingStep.ServerToolStep>()
-    val contentBlocks = mutableListOf<MessagePartBlock>()
+    val contentBlocks = mutableListOf<MessagePartBlock.ContentBlock>()
 
     this.fastForEachIndexed { index, part ->
         when (part) {
@@ -73,10 +79,19 @@ fun List<UIMessagePart>.groupMessageParts(): List<MessagePartBlock> {
     mergedThinkingSteps.addAll(toolSteps)
     mergedThinkingSteps.addAll(serverToolSteps)
 
-    // 思考过程始终在最前面
-    return if (mergedThinkingSteps.isNotEmpty()) {
-        listOf(MessagePartBlock.ThinkingBlock(mergedThinkingSteps)) + contentBlocks
+    // 用户消息按附件在上、文字在下展示，与输入框里的顺序保持一致；
+    // 助手消息保留原始顺序，正文与生成内容按模型返回的顺序展示。
+    // sortedBy 是稳定排序，同类内容之间的相对顺序保持不变。
+    val orderedContentBlocks: List<MessagePartBlock> = if (attachmentsFirst) {
+        contentBlocks.sortedBy { if (it.part is UIMessagePart.Text) 1 else 0 }
     } else {
         contentBlocks
+    }
+
+    // 思考过程始终在最前面
+    return if (mergedThinkingSteps.isNotEmpty()) {
+        listOf(MessagePartBlock.ThinkingBlock(mergedThinkingSteps)) + orderedContentBlocks
+    } else {
+        orderedContentBlocks
     }
 }
