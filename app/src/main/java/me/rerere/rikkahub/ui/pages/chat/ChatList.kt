@@ -105,6 +105,7 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
@@ -358,10 +359,10 @@ private fun ChatListNormal(
     val lastMessageIndex = conversation.messageNodes.lastIndex
     // 分别记录 USER 和 ASSISTANT 角色的最后一条 node 的 index，用于控制重试按钮显示
     val lastUserMessageIndex = conversation.messageNodes.indexOfLast {
-        it.role == me.rerere.ai.core.MessageRole.USER
+        it.role == MessageRole.USER
     }
     val lastAssistantMessageIndex = conversation.messageNodes.indexOfLast {
-        it.role == me.rerere.ai.core.MessageRole.ASSISTANT
+        it.role == MessageRole.ASSISTANT
     }
 
     Box(
@@ -477,23 +478,10 @@ private fun ChatListNormal(
                             onShare = {
                                 selecting = true
                                 selectedItems.clear()
-                                val nodeIndex = conversation.messageNodes.indexOf(node)
-                                val role = node.currentMessage.role
-                                if (role == me.rerere.ai.core.MessageRole.USER) {
-                                    // 选中当前 USER 消息 + 紧跟的 ASSISTANT 消息（若有）
-                                    selectedItems.add(node.id)
-                                    val next = conversation.messageNodes.getOrNull(nodeIndex + 1)
-                                    if (next != null && next.currentMessage.role == me.rerere.ai.core.MessageRole.ASSISTANT) {
-                                        selectedItems.add(next.id)
-                                    }
-                                } else {
-                                    // 选中前面的 USER 消息（若有）+ 当前 ASSISTANT 消息
-                                    val prev = conversation.messageNodes.getOrNull(nodeIndex - 1)
-                                    if (prev != null && prev.currentMessage.role == me.rerere.ai.core.MessageRole.USER) {
-                                        selectedItems.add(prev.id)
-                                    }
-                                    selectedItems.add(node.id)
-                                }
+                                // 默认只选中该轮问答，整段对话可在多选工具栏里「全选」
+                                selectedItems.addAll(
+                                    defaultShareNodeIds(conversation.messageNodes, index)
+                                )
                             },
                             onUpdate = {
                                 onUpdateMessage(it)
@@ -507,12 +495,12 @@ private fun ChatListNormal(
                             onToolApproval = onToolApproval,
                             onToolAnswer = onToolAnswer,
                             lastMessage = when (node.role) {
-                                me.rerere.ai.core.MessageRole.USER -> index == lastUserMessageIndex
+                                MessageRole.USER -> index == lastUserMessageIndex
                                 // 只有当该回答确实是最后一条提问的回答（其后没有新的提问）时才允许重试，
                                 // 避免用户发起新提问但模型未响应/被中断时，上一条问答的回答仍显示重试按钮
                                 else -> index == lastAssistantMessageIndex && lastAssistantMessageIndex > lastUserMessageIndex
                             },
-                            onScrollToQuestion = if (node.currentMessage.role == me.rerere.ai.core.MessageRole.ASSISTANT && index > 0) {
+                            onScrollToQuestion = if (node.currentMessage.role == MessageRole.ASSISTANT && index > 0) {
                                 val targetIndex = index - 1
                                 {
                                     // 点击向上跳转时，暂停自动贴底，防止跳转到问题后又被拉回底部
@@ -521,8 +509,8 @@ private fun ChatListNormal(
                                 }
                             } else null,
                             onScrollToAnswer = if (
-                                node.currentMessage.role == me.rerere.ai.core.MessageRole.USER &&
-                                conversation.messageNodes.getOrNull(index + 1)?.currentMessage?.role == me.rerere.ai.core.MessageRole.ASSISTANT
+                                node.currentMessage.role == MessageRole.USER &&
+                                conversation.messageNodes.getOrNull(index + 1)?.currentMessage?.role == MessageRole.ASSISTANT
                             ) {
                                 val targetIndex = index + 1
                                 {
@@ -698,7 +686,7 @@ private fun ChatListNormal(
             // 预先计算所有 USER 消息在列表中的 index（用于按提问跳转）
             val userMessageIndices = remember(conversation.messageNodes) {
                 conversation.messageNodes.mapIndexedNotNull { index, node ->
-                    if (node.currentMessage.role == me.rerere.ai.core.MessageRole.USER) index else null
+                    if (node.currentMessage.role == MessageRole.USER) index else null
                 }
             }
 
@@ -816,11 +804,11 @@ private fun ChatListPreview(
         conversation.messageNodes.forEach { node ->
             val msg = node.currentMessage
             when (msg.role) {
-                me.rerere.ai.core.MessageRole.USER -> {
+                MessageRole.USER -> {
                     rounds++
                     questionChars += msg.toText().wordCount()
                 }
-                me.rerere.ai.core.MessageRole.ASSISTANT -> {
+                MessageRole.ASSISTANT -> {
                     answerChars += msg.toText().wordCount()
                 }
                 else -> {}
@@ -856,14 +844,14 @@ private fun ChatListPreview(
                 PreviewFilter.ALL -> false
             }
             messages = messages.filter { (_, node) ->
-                matches(node) || node.currentMessage.role == me.rerere.ai.core.MessageRole.USER
+                matches(node) || node.currentMessage.role == MessageRole.USER
             }
             // 当显示收藏/固定消息时，同时显示对应的提问（前一个消息如果是USER）
             val result = mutableListOf<Pair<Int, MessageNode>>()
             val addedIndices = mutableSetOf<Int>()
             messages.forEach { (index, node) ->
                 val isProtected = matches(node)
-                if (isProtected && node.currentMessage.role == me.rerere.ai.core.MessageRole.ASSISTANT) {
+                if (isProtected && node.currentMessage.role == MessageRole.ASSISTANT) {
                     // 添加对应的提问（前一个消息）
                     if (index > 0 && !addedIndices.contains(index - 1)) {
                         result.add(index - 1 to conversation.messageNodes[index - 1])
@@ -874,7 +862,7 @@ private fun ChatListPreview(
                         result.add(index to node)
                         addedIndices.add(index)
                     }
-                } else if (isProtected && node.currentMessage.role == me.rerere.ai.core.MessageRole.USER) {
+                } else if (isProtected && node.currentMessage.role == MessageRole.USER) {
                     // 收藏/固定的提问：带出自身
                     if (!addedIndices.contains(index)) {
                         result.add(index to node)
@@ -885,7 +873,7 @@ private fun ChatListPreview(
                         result.add(index + 1 to conversation.messageNodes[index + 1])
                         addedIndices.add(index + 1)
                     }
-                } else if (node.currentMessage.role == me.rerere.ai.core.MessageRole.USER) {
+                } else if (node.currentMessage.role == MessageRole.USER) {
                     // 检查下一个消息是否是收藏/固定的回答
                     if (index + 1 < conversation.messageNodes.size &&
                         matches(conversation.messageNodes[index + 1]) &&
@@ -1009,7 +997,7 @@ private fun ChatListPreview(
                 key = { index, item -> item.second.id },
             ) { _, (originalIndex, node) ->
                 val message = node.currentMessage
-                val isUser = message.role == me.rerere.ai.core.MessageRole.USER
+                val isUser = message.role == MessageRole.USER
                 val isFavorite = node.isFavorite
                 Row(
                     modifier = Modifier.fillMaxWidth(),
