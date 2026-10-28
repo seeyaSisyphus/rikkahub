@@ -13,7 +13,6 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -45,11 +44,12 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.Settings
-import me.rerere.rikkahub.data.files.SkillManager
-import me.rerere.rikkahub.data.model.AssistantMemory
+import me.rerere.rikkahub.data.skills.SkillManager
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.MemoryFile
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.repository.MemoryRepository
+import me.rerere.rikkahub.data.repository.memoryId
 import java.time.Instant
 import kotlin.uuid.Uuid
 import me.rerere.common.android.Logging
@@ -148,7 +148,7 @@ class BattleService(
         saveConversation: suspend (Uuid, Conversation) -> Unit,
         processingStatus: MutableStateFlow<String?>,
     ) {
-        val settings = settingsStore.settingsFlow.first()
+        val settings = settingsStore.awaitLoaded()
 
         // 解析出有效的模型实例
         val battleModels = battleModelIds.mapNotNull { settings.providers.findModelById(it) }
@@ -158,11 +158,7 @@ class BattleService(
         }
 
         val assistant = settings.getCurrentAssistant()
-        val memories: List<AssistantMemory> = if (assistant.useGlobalMemory) {
-            memoryRepository.getGlobalMemories()
-        } else {
-            memoryRepository.getMemoriesOfAssistant(settings.assistantId.toString())
-        }
+        val memories: List<MemoryFile> = memoryRepository.getFiles(assistant.memoryId)
         val tools = buildTools(settings)
 
         // 为每个模型创建空占位 UIMessage，并预先写入 modelId 以便失败时仍可单独重试
@@ -317,7 +313,7 @@ class BattleService(
         oldJob?.cancel()
         runCatching { oldJob?.join() }
 
-        val settings = settingsStore.settingsFlow.first()
+        val settings = settingsStore.awaitLoaded()
         val model = settings.providers.findModelById(modelId)
         if (model == null) {
             Log.w(BATTLE_TAG, "rerunSlot: model not found for id=$modelId")
@@ -325,11 +321,7 @@ class BattleService(
         }
 
         val assistant = settings.getCurrentAssistant()
-        val memories: List<AssistantMemory> = if (assistant.useGlobalMemory) {
-            memoryRepository.getGlobalMemories()
-        } else {
-            memoryRepository.getMemoriesOfAssistant(settings.assistantId.toString())
-        }
+        val memories: List<MemoryFile> = memoryRepository.getFiles(assistant.memoryId)
         val tools = buildTools(settings)
 
         // 根据开关决定重试时使用哪种上下文
@@ -442,7 +434,7 @@ class BattleService(
         conversationId: Uuid,
         battleNodeId: Uuid,
         placeholderMsgId: Uuid,
-        memories: List<AssistantMemory>,
+        memories: List<MemoryFile>,
         tools: List<Tool>,
         getConversation: () -> Conversation,
         updateConversationState: (Uuid, (Conversation) -> Conversation) -> Unit,
@@ -457,7 +449,7 @@ class BattleService(
         val maxRetries = 3
         val retryDelayMs = 2000L
 
-        val settings = settingsStore.settingsFlow.first()
+        val settings = settingsStore.awaitLoaded()
         val assistant = settings.getCurrentAssistant()
         val conversation = getConversation()
 
@@ -550,7 +542,7 @@ class BattleService(
                 )
             )
         }
-        mcpManager.getAllAvailableTools().forEach { (serverId, serverName, tool) ->
+        mcpManager.getAllAvailableTools(assistant).forEach { (serverId, serverName, tool) ->
             add(
                 Tool(
                     name = "mcp__${serverName}__${tool.name}",

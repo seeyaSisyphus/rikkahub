@@ -64,7 +64,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
 
     fun updateDisplaySetting(setting: DisplaySetting) {
         displaySetting = setting
-        vm.updateSettings(settings.copy(displaySetting = setting))
+        vm.updateSettings { it.copy(displaySetting = setting) }
     }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -124,7 +124,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         trailingContent = {
                             Switch(
                                 checked = settings.dynamicColor,
-                                onCheckedChange = { vm.updateSettings(settings.copy(dynamicColor = it)) },
+                                onCheckedChange = { enabled -> vm.updateSettings { it.copy(dynamicColor = enabled) } },
                             )
                         },
                         colors = CustomColors.listItemColors,

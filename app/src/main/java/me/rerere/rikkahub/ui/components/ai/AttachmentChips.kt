@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.components.ai
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -25,6 +27,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,19 +35,24 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import androidx.core.net.toUri
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.launch
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Files02
 import me.rerere.hugeicons.stroke.MusicNote03
+import me.rerere.hugeicons.stroke.PaintBoard
 import me.rerere.hugeicons.stroke.Video01
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.components.ui.ImagePreviewDialog
+import me.rerere.ui.sketch.SketchDialog
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import org.koin.compose.koinInject
 
@@ -68,14 +76,55 @@ internal fun MediaFileInputRow(
         }
     }
 
-    // 点击图片缩略图后放大预览，支持在多张图片间滑动
-    val imageUrls = state.messageContent.filterIsInstance<UIMessagePart.Image>().map { it.url }
-    var previewImageUrl by remember { mutableStateOf<String?>(null) }
-    previewImageUrl?.let { url ->
+    // 长按图片缩略图进入画板，非空时显示画板
+    val scope = rememberCoroutineScope()
+    var drawingOn by remember { mutableStateOf<UIMessagePart.Image?>(null) }
+    drawingOn?.let { part ->
+        SketchDialog(
+            image = part.url.toUri(),
+            onDismiss = { drawingOn = null },
+            onConfirm = { result ->
+                drawingOn = null
+                scope.launch {
+                    val uri = filesManager.createChatFileBySketch(result) ?: return@launch
+                    // 画好的图换掉原来那张，位置不变；等保存的这会儿原图已经被移走的话就不加了
+                    if (part !in state.messageContent) {
+                        filesManager.deleteChatFiles(listOf(uri))
+                        return@launch
+                    }
+                    state.messageContent = state.messageContent.map {
+                        if (it == part) UIMessagePart.Image(uri.toString()) else it
+                    }
+                    if (state.shouldDeleteFileOnRemove(part)) {
+                        filesManager.deleteChatFiles(listOf(part.url.toUri()))
+                    }
+                }
+            },
+        )
+    }
+
+    // 点开预览时从哪张图片开始，非空时显示预览；预览里可以切到画板在当前图片上画
+    var previewing by remember { mutableStateOf<UIMessagePart.Image?>(null) }
+    previewing?.let { start ->
+        val images = state.messageContent.filterIsInstance<UIMessagePart.Image>()
         ImagePreviewDialog(
-            images = imageUrls,
-            initialPage = imageUrls.indexOf(url).coerceAtLeast(0),
-            onDismissRequest = { previewImageUrl = null },
+            images = images.map { it.url },
+            initialPage = images.indexOf(start).coerceAtLeast(0),
+            onDismissRequest = { previewing = null },
+            actions = { page ->
+                IconButton(
+                    onClick = {
+                        previewing = null
+                        drawingOn = images.getOrNull(page)
+                    }
+                ) {
+                    Icon(
+                        imageVector = HugeIcons.PaintBoard,
+                        contentDescription = stringResource(R.string.sketch_draw_on_image),
+                        tint = Color.White,
+                    )
+                }
+            },
         )
     }
 
@@ -92,8 +141,9 @@ internal fun MediaFileInputRow(
                 is UIMessagePart.Image -> {
                     ImageAttachmentPreview(
                         url = part.url,
-                        onClick = { previewImageUrl = part.url },
-                        onRemove = { removePart(part, part.url) }
+                        onClick = { previewing = part },
+                        onLongClick = { drawingOn = part },
+                        onRemove = { removePart(part, part.url) },
                     )
                 }
 
@@ -144,12 +194,13 @@ internal fun MediaFileInputRow(
 
 /**
  * 输入框中已选图片的预览：只显示较大的方形缩略图（不显示文件名），右上角为删除按钮。
- * 点击缩略图可放大查看。
+ * 点击缩略图可放大查看，长按进入画板编辑。
  */
 @Composable
 private fun ImageAttachmentPreview(
     url: String,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     onRemove: () -> Unit,
 ) {
     Box(modifier = Modifier.size(94.dp)) {
@@ -164,7 +215,7 @@ private fun ImageAttachmentPreview(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    .clickable(onClick = onClick)
+                    .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             )
         }
         Box(
@@ -192,8 +243,12 @@ private fun AttachmentChip(
     title: String,
     leading: @Composable () -> Unit,
     onRemove: () -> Unit,
+    onClick: (() -> Unit)? = null,
 ) {
     Surface(
+        modifier = Modifier
+            .clip(RoundedCornerShape(18.dp))
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         shape = RoundedCornerShape(18.dp),
         tonalElevation = 1.dp,
         shadowElevation = 0.dp,

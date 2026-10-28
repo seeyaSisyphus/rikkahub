@@ -1,7 +1,13 @@
 package me.rerere.rikkahub.ui.components.message
 
 import androidx.compose.ui.util.fastForEachIndexed
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.utils.JsonInstant
+
+internal const val CHART_DISPLAY_TOOL_NAME = "chart_display"
 
 /**
  * 思考步骤类型，用于分组 Reasoning、客户端 Tool 和 ServerTool
@@ -26,11 +32,16 @@ sealed interface ThinkingStep {
 sealed interface MessagePartBlock {
     data class ThinkingBlock(val steps: List<ThinkingStep>) : MessagePartBlock
     data class ContentBlock(val part: UIMessagePart, val index: Int) : MessagePartBlock
+
+    /** 成功执行的 chart_display 工具调用, 在正文中以图表卡片展示 */
+    data class ChartBlock(val tool: UIMessagePart.Tool, val index: Int) : MessagePartBlock
 }
 
 /**
  * 将 parts 分组成 ThinkingBlock 和 ContentBlock
  * 连续的 Reasoning、客户端 Tool 和 ServerTool 会被分组到一个 ThinkingBlock 中
+ * 成功执行的 chart_display 原地替换为 ChartBlock (按原始位置插入正文流);
+ * 生成中或失败的调用仍作为普通 ToolStep 展示
  *
  * @param attachmentsFirst 是否把附件（图片/视频/音频/文档）排在文字前面。
  * 用户消息开启后，图片等附件会显示在文字上方；助手消息保持原始顺序，
@@ -43,7 +54,7 @@ fun List<UIMessagePart>.groupMessageParts(
     val reasoningParts = mutableListOf<UIMessagePart.Reasoning>()
     val toolSteps = mutableListOf<ThinkingStep.ToolStep>()
     val serverToolSteps = mutableListOf<ThinkingStep.ServerToolStep>()
-    val contentBlocks = mutableListOf<MessagePartBlock.ContentBlock>()
+    val contentBlocks = mutableListOf<MessagePartBlock>()
 
     this.fastForEachIndexed { index, part ->
         when (part) {
@@ -52,7 +63,11 @@ fun List<UIMessagePart>.groupMessageParts(
             }
 
             is UIMessagePart.Tool -> {
-                toolSteps.add(ThinkingStep.ToolStep(part))
+                if (part.isSuccessfulChartDisplay()) {
+                    contentBlocks.add(MessagePartBlock.ChartBlock(part, index))
+                } else {
+                    toolSteps.add(ThinkingStep.ToolStep(part))
+                }
             }
 
             is UIMessagePart.ServerTool -> {
@@ -83,7 +98,12 @@ fun List<UIMessagePart>.groupMessageParts(
     // 助手消息保留原始顺序，正文与生成内容按模型返回的顺序展示。
     // sortedBy 是稳定排序，同类内容之间的相对顺序保持不变。
     val orderedContentBlocks: List<MessagePartBlock> = if (attachmentsFirst) {
-        contentBlocks.sortedBy { if (it.part is UIMessagePart.Text) 1 else 0 }
+        contentBlocks.sortedBy {
+            when (it) {
+                is MessagePartBlock.ContentBlock -> if (it.part is UIMessagePart.Text) 1 else 0
+                else -> 0
+            }
+        }
     } else {
         contentBlocks
     }
@@ -94,4 +114,11 @@ fun List<UIMessagePart>.groupMessageParts(
     } else {
         orderedContentBlocks
     }
+}
+
+private fun UIMessagePart.Tool.isSuccessfulChartDisplay(): Boolean {
+    if (toolName != CHART_DISPLAY_TOOL_NAME || !isExecuted) return false
+    val outputText = output.filterIsInstance<UIMessagePart.Text>().joinToString("\n") { it.text }
+    val result = runCatching { JsonInstant.parseToJsonElement(outputText) }.getOrNull() as? JsonObject
+    return (result?.get("success") as? JsonPrimitive)?.booleanOrNull == true
 }

@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.TokenUsage
+import me.rerere.ai.provider.Model
 import me.rerere.ai.util.json
 import kotlin.math.roundToInt
 import kotlin.time.Clock
@@ -25,8 +26,18 @@ data class UIMessage(
     val modelId: Uuid? = null,
     // modelId 在 settings 中找不到对应 Model 时的 fallback 显示名（如导入历史对话时使用）
     val modelName: String? = null,
+    // 模型名称的快照：modelId 指向的模型被删除后，靠它继续显示这条消息由谁生成
+    val modelSnapshot: ModelSnapshot? = null,
     val usage: TokenUsage? = null,
+    // 模型实际生成耗时（各步从首个 chunk 到响应结束的累计），不含首 token 延迟、工具执行和审批等待
+    val generationTimeMs: Long? = null,
+    // 最后一次请求自己的 usage；usage 是多步累计值，看上下文占用和缓存命中要用这个
+    val lastUsage: TokenUsage? = null,
+    // 这条消息累计请求了多少次模型（多轮工具调用共用同一条消息）
+    val stepCount: Int? = null,
     val translation: String? = null,
+    // 压缩检查点：此消息是它之前全部历史的摘要，组装请求时从最后一个检查点开始取
+    val isContextCheckpoint: Boolean = false,
     // 请求期间生成的内部消息；该标记仅在内存中使用
     @Transient
     val isSynthetic: Boolean = false,
@@ -72,6 +83,27 @@ data class UIMessage(
         it is UIMessagePart.Image && it.url.startsWith("data:")
     }
 
+    /**
+     * 最后一次请求的 usage
+     *
+     * 没有 [lastUsage] 的旧消息退回用 [usage]：多步消息的 usage 是累计值，会比实际偏大。
+     */
+    fun lastRequestUsage(): TokenUsage? = lastUsage ?: usage
+
+    /** 最后一次请求结束时的上下文占用（prompt + completion） */
+    fun contextTokens(): Int? = lastRequestUsage()?.let { it.promptTokens + it.completionTokens }
+
+    /**
+     * 用快照还原出一个只用于展示名称和图标的 [Model]
+     *
+     * 仅在按 [modelId] 查不到模型时使用；其余字段都是默认值，不能拿它发起请求。
+     */
+    fun snapshotModel(): Model? {
+        val id = modelId ?: return null
+        val snapshot = modelSnapshot ?: return null
+        return Model(modelId = snapshot.modelId, displayName = snapshot.displayName, id = id)
+    }
+
     companion object {
         fun system(prompt: String) = UIMessage(
             role = MessageRole.SYSTEM,
@@ -89,6 +121,15 @@ data class UIMessage(
         )
     }
 }
+
+/**
+ * 消息上保存的模型名称快照, 对应 [Model.modelId] 与 [Model.displayName]
+ */
+@Serializable
+data class ModelSnapshot(
+    val modelId: String,
+    val displayName: String,
+)
 
 /**
  * 判断这个消息是否有有任何用户**可输入内容**
@@ -124,7 +165,7 @@ fun List<UIMessagePart>.isEmptyUIMessage(): Boolean {
             is UIMessagePart.Audio -> message.url.isBlank()
             is UIMessagePart.Tool,
             is UIMessagePart.ServerTool,
-                -> false
+            -> false
             else -> true
         }
     }
@@ -136,6 +177,20 @@ fun List<UIMessagePart>.isEmptyUIMessage(): Boolean {
  * 越小则截断点前进的步幅越大, 连续命中缓存的轮数越多, 但一次丢弃的上下文也越多
  */
 private const val CONTEXT_KEEP_RATIO = 0.5f
+
+/**
+ * 截取实际发送给模型的上下文
+ *
+ * 先丢弃最后一个压缩检查点之前的消息(它们只保留给用户查看), 再按 [limit] 限制条数。
+ * 检查点本身是被压缩历史的唯一来源, 始终保留, 条数限制只作用于它之后的消息。
+ *
+ * @param limit 触发截断的消息条数上限, 小于等于 0 表示不限制
+ */
+fun List<UIMessage>.limitContext(limit: Int): List<UIMessage> {
+    val checkpointIndex = indexOfLast { it.isContextCheckpoint }
+    if (checkpointIndex < 0) return limitMessageCount(limit)
+    return listOf(this[checkpointIndex]) + subList(checkpointIndex + 1, size).limitMessageCount(limit)
+}
 
 /**
  * 按阶梯式(滞回)策略限制上下文消息数量
@@ -155,13 +210,18 @@ fun List<UIMessage>.limitContext(
     limit: Int,
     protectedMessageIds: Set<Uuid> = emptySet(),
 ): List<UIMessage> {
+    // 无固定消息时等价于基础版本(压缩检查点 + 阶梯截断)
+    if (protectedMessageIds.isEmpty()) return limitContext(limit)
+
+    // 先应用压缩检查点: 丢弃最后一个检查点之前的历史, 检查点本身始终保留
+    val checkpointIndex = indexOfLast { it.isContextCheckpoint }
+    if (checkpointIndex >= 0) {
+        return listOf(this[checkpointIndex]) +
+            subList(checkpointIndex + 1, size).limitContext(limit, protectedMessageIds)
+    }
+
     // limit<=0 表示不限制上下文长度；全部消息都能放下时直接返回
     if (limit <= 0 || this.size <= limit) return this
-
-    // [FORK] 无固定消息时直接阶梯式截断
-    if (protectedMessageIds.isEmpty()) {
-        return limitNormalContext(limit)
-    }
 
     // [FORK] 固定消息优先占用预算, 普通消息用剩余预算
     val protectedMsgs: List<UIMessage> = filter { it.id in protectedMessageIds }
@@ -170,7 +230,7 @@ fun List<UIMessage>.limitContext(
     // 普通消息剩余预算；即使固定占满预算, 也至少保留最新一条普通消息(当前提问), 避免请求缺失当前输入
     val remaining = (limit - protectedMsgs.size).coerceAtLeast(1)
 
-    val limitedNormalMsgs: List<UIMessage> = normalMsgs.limitNormalContext(remaining)
+    val limitedNormalMsgs: List<UIMessage> = normalMsgs.limitMessageCount(remaining)
 
     // 按原时序合并 protected 全部 + 截断后的 normal
     val limitedNormalIds = limitedNormalMsgs.map { it.id }.toSet()
@@ -182,7 +242,7 @@ fun List<UIMessage>.limitContext(
  *
  * 保留的条数始终落在 `[limit * CONTEXT_KEEP_RATIO, limit)` 区间内。
  */
-private fun List<UIMessage>.limitNormalContext(limit: Int): List<UIMessage> {
+private fun List<UIMessage>.limitMessageCount(limit: Int): List<UIMessage> {
     if (limit <= 0 || this.size <= limit) return this
 
     // 截断后回落到的目标条数, 以及两次截断之间截断点前进的步幅
@@ -200,7 +260,7 @@ private fun List<UIMessage>.limitNormalContext(limit: Int): List<UIMessage> {
 /**
  * 将截断起点回退到安全边界, 避免把 tool call 与其结果拆散, 或让上下文从半截的工具调用开始
  *
- * 只会向前(下标减小)调整, 因此不会破坏 [limitContext] 保留条数的下界。
+ * 只会向前(下标减小)调整, 因此不会破坏 [limitMessageCount] 保留条数的下界。
  * 调整只依赖 `[0, startIndex]` 区间内的消息, 这部分在追加新消息时不会变化, 结果因此保持稳定。
  */
 private fun List<UIMessage>.alignContextStart(startIndex: Int): Int {
@@ -485,8 +545,12 @@ fun <T> List<T>.migrateToolNodes(
                                                 )
                                             )
                                         )
-                                    } else part
-                                } else part
+                                    } else {
+                                        part
+                                    }
+                                } else {
+                                    part
+                                }
                             }
 
                             is UIMessagePart.ToolCall -> {

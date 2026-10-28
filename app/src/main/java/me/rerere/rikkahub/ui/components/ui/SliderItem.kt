@@ -15,9 +15,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Minus
-import com.composables.icons.lucide.Plus
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.MinusSign
+import me.rerere.hugeicons.stroke.PlusSign
 import kotlin.math.roundToInt
 
 /**
@@ -73,7 +73,7 @@ fun IntSliderItem(
             },
             enabled = canDecrement,
         ) {
-            Icon(Lucide.Minus, contentDescription = "Decrease")
+            Icon(HugeIcons.MinusSign, contentDescription = "Decrease")
         }
         Slider(
             value = sliderValue,
@@ -97,7 +97,7 @@ fun IntSliderItem(
             },
             enabled = canIncrement,
         ) {
-            Icon(Lucide.Plus, contentDescription = "Increase")
+            Icon(HugeIcons.PlusSign, contentDescription = "Increase")
         }
     }
 }

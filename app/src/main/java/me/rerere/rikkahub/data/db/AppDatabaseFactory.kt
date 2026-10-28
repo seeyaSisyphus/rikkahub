@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
-import me.rerere.rikkahub.data.db.fts.SimpleDictManager
+import me.rerere.rikkahub.data.db.fts.createMessageFtsTables
 import me.rerere.rikkahub.data.db.migrations.Migration_6_7
 import me.rerere.rikkahub.data.db.migrations.Migration_11_12
 import me.rerere.rikkahub.data.db.migrations.Migration_13_14
@@ -14,6 +14,13 @@ import me.rerere.rikkahub.data.db.migrations.Migration_23_24_Fork
 import me.rerere.rikkahub.data.db.migrations.Migration_24_25
 import me.rerere.rikkahub.data.db.migrations.Migration_25_26
 import me.rerere.rikkahub.data.db.migrations.Migration_26_27
+import me.rerere.rikkahub.data.db.migrations.Migration_27_28
+import me.rerere.rikkahub.data.db.migrations.Migration_28_29
+import me.rerere.rikkahub.data.db.migrations.Migration_29_30
+import me.rerere.rikkahub.data.db.migrations.Migration_30_31
+import me.rerere.rikkahub.data.db.migrations.Migration_31_32
+import me.rerere.rikkahub.data.db.migrations.Migration_32_33
+import java.io.File
 
 /** Shared schema, migrations and extensions for the app and staged backup validation. */
 internal object AppDatabaseFactory {
@@ -33,36 +40,18 @@ internal object AppDatabaseFactory {
                 Migration_24_25,
                 Migration_25_26,
                 Migration_26_27,
+                Migration_27_28,
+                Migration_28_29,
+                Migration_29_30,
+                Migration_30_31,
+                Migration_31_32,
+                Migration_32_33,
             )
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onOpen(db: SupportSQLiteDatabase) {
-                    val dictDir = SimpleDictManager.extractDict(context)
-                    val cursor = db.query("SELECT jieba_dict(?)", arrayOf(dictDir.absolutePath))
-                    cursor.use {
-                        if (it.moveToFirst()) {
-                            val result = it.getString(0)
-                            val success = result?.trimEnd('/') == dictDir.absolutePath.trimEnd('/')
-                            if (!success) {
-                                android.util.Log.e(
-                                    "DataSourceModule",
-                                    "jieba_dict failed: $result, path=${dictDir.absolutePath}"
-                                )
-                            }
-                        }
-                    }
-                    db.execSQL(
-                        """
-                        CREATE VIRTUAL TABLE IF NOT EXISTS message_fts USING fts5(
-                            text,
-                            node_id UNINDEXED,
-                            message_id UNINDEXED,
-                            conversation_id UNINDEXED,
-                            title UNINDEXED,
-                            update_at UNINDEXED,
-                            tokenize = 'simple'
-                        )
-                        """.trimIndent()
-                    )
+                    // 旧版本搜索用 jieba 分词，会把词典解压到这里（约 14MB），现在不再需要
+                    File(context.filesDir, "simple_dict").takeIf { it.exists() }?.deleteRecursively()
+                    createMessageFtsTables(db)
                 }
             })
             .openHelperFactory(SQLiteConfiguration.openHelperFactory(context))

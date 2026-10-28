@@ -10,42 +10,62 @@ import me.rerere.rikkahub.data.db.dao.FavoriteDAO
 import me.rerere.rikkahub.data.db.dao.FolderDAO
 import me.rerere.rikkahub.data.db.dao.GenMediaDAO
 import me.rerere.rikkahub.data.db.dao.ManagedFileDAO
+import me.rerere.rikkahub.data.db.dao.MediaCreationDAO
+import me.rerere.rikkahub.data.db.dao.MemoryConsolidationDAO
 import me.rerere.rikkahub.data.db.dao.MemoryDAO
 import me.rerere.rikkahub.data.db.dao.MessageNodeDAO
+import me.rerere.rikkahub.data.db.dao.TranslationHistoryDAO
+import me.rerere.rikkahub.data.db.dao.UsageRecordDAO
 import me.rerere.rikkahub.data.db.dao.WorkspaceDAO
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
 import me.rerere.rikkahub.data.db.entity.FavoriteEntity
 import me.rerere.rikkahub.data.db.entity.FolderEntity
 import me.rerere.rikkahub.data.db.entity.GenMediaEntity
 import me.rerere.rikkahub.data.db.entity.ManagedFileEntity
-import me.rerere.rikkahub.data.db.entity.MemoryEntity
+import me.rerere.rikkahub.data.db.entity.MediaCreationNodeEntity
+import me.rerere.rikkahub.data.db.entity.MediaCreationRecordEntity
+import me.rerere.rikkahub.data.db.entity.MediaCreationSessionEntity
+import me.rerere.rikkahub.data.db.entity.MemoryConsolidationEntity
+import me.rerere.rikkahub.data.db.entity.MemoryFileEntity
 import me.rerere.rikkahub.data.db.entity.MessageNodeEntity
+import me.rerere.rikkahub.data.db.entity.TranslationHistoryEntity
+import me.rerere.rikkahub.data.db.entity.UsageRecordEntity
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.utils.JsonInstant
 
 @Database(
     entities = [
         ConversationEntity::class,
-        MemoryEntity::class,
+        MemoryFileEntity::class,
+        MemoryConsolidationEntity::class,
         GenMediaEntity::class,
         MessageNodeEntity::class,
         ManagedFileEntity::class,
         FavoriteEntity::class,
         WorkspaceEntity::class,
         FolderEntity::class,
+        MediaCreationSessionEntity::class,
+        MediaCreationNodeEntity::class,
+        MediaCreationRecordEntity::class,
+        TranslationHistoryEntity::class,
+        UsageRecordEntity::class,
     ],
-    version = 27,
+    version = 33,
     autoMigrations = []
-    // 所有迁移均由 AppDatabaseFactory.kt 中 addMigrations() 注册的手动 Migration 处理
-    // Room AutoMigration 对每个 to-schema 与当前 Entity 做 diff，
-    // 历史 schema 中存在的 custom_system_prompt 字段已在 v23→v24 手动删除，
-    // 若保留 AutoMigration 条目 Room KSP 会报 "未声明 @DeleteColumn" 错误
+    // [FORK] 所有迁移均由 AppDatabaseFactory.kt 中 addMigrations() 注册的手动 Migration 处理。
+    // fork 与上游在 v25 后版本号分叉，合并后统一推进到 v33（比上游最新的 v32 高一级，
+    // 否则上游 lineage 的 v32 库会因版本相同、schema 不同而校验失败）：
+    // 25→26 … 32→33 每一步均通过幂等的 ensureMergedSchema() 兼容两条 lineage。
+    // 若保留 AutoMigration 条目 Room KSP 会对历史 schema 与当前 Entity 做 diff，
+    // 报 "未声明 @DeleteColumn" 等错误，因此不使用 AutoMigration。
 )
 @TypeConverters(TokenUsageConverter::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun conversationDao(): ConversationDAO
 
     abstract fun memoryDao(): MemoryDAO
+
+    abstract fun memoryConsolidationDao(): MemoryConsolidationDAO
 
     abstract fun genMediaDao(): GenMediaDAO
 
@@ -59,8 +79,14 @@ abstract class AppDatabase : RoomDatabase() {
 
     abstract fun folderDao(): FolderDAO
 
+    abstract fun mediaCreationDao(): MediaCreationDAO
+
+    abstract fun translationHistoryDao(): TranslationHistoryDAO
+
+    abstract fun usageRecordDao(): UsageRecordDAO
+
     companion object {
-        const val VERSION = 27
+        const val VERSION = 33
 
         // v21→v22: 仅新增 workspace_cwd 列
         val Migration_21_22 = object : androidx.room.migration.Migration(21, 22) {

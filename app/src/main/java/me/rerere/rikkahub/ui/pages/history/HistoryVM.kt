@@ -45,16 +45,14 @@ class HistoryVM(
 
     fun deleteConversation(conversation: Conversation) {
         viewModelScope.launch {
-            // 先标记已删除，防止并发中的异步任务（如生成标题）在删库后重新将其 insert 回数据库
-            chatService.markConversationDeleted(conversation.id)
-            conversationRepo.deleteConversation(conversation)
+            chatService.deleteConversation(conversation.id)
         }
     }
 
     fun deleteAllConversations() {
         val assistant = assistant.value ?: return
         viewModelScope.launch {
-            conversationRepo.deleteConversationOfAssistant(assistant.id)
+            chatService.deleteConversationsOfAssistant(assistant.id)
         }
     }
 
@@ -69,12 +67,12 @@ class HistoryVM(
 
     fun restoreConversation(conversation: Conversation) {
         viewModelScope.launch {
-            conversationRepo.insertConversation(conversation)
+            chatService.restoreConversation(conversation)
         }
     }
 
     suspend fun getFullConversation(conversationId: Uuid): Conversation? {
-        return conversationRepo.getConversationById(conversationId)
+        return chatService.getConversation(conversationId)
     }
 
 }

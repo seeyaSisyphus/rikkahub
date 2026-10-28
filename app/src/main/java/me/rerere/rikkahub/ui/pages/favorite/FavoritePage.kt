@@ -19,6 +19,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -28,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.SwipeToDelete
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.navigateToChatPage
@@ -105,7 +112,25 @@ fun FavoritePage(vm: FavoriteVM = koinViewModel()) {
 }
 
 @Composable
+private fun SwipeableFavoriteCard(
+    item: NodeFavoriteListItem,
+    onClick: () -> Unit,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    SwipeToDelete(
+        onDelete = onDelete,
+        modifier = modifier,
+        shape = CardDefaults.shape,
+    ) {
+        FavoriteCard(
+            item = item,
+            onClick = onClick,
+        )
+    }
+}
 
+@Composable
 private fun FavoriteCard(
     item: NodeFavoriteListItem,
     onClick: () -> Unit,

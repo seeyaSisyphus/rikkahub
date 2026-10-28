@@ -36,9 +36,11 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.Provider
+import me.rerere.ai.provider.ProviderQuota
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationResult
 import me.rerere.ai.provider.TextGenerationParams
+import me.rerere.ai.provider.runQuotaQuery
 import me.rerere.ai.provider.providers.PartGroup
 import me.rerere.ai.provider.providers.google.vertex.ServiceAccountTokenProvider
 import me.rerere.ai.provider.providers.groupPartsByToolBoundary
@@ -61,12 +63,13 @@ import me.rerere.ai.util.encodeBase64
 import me.rerere.ai.util.estimatedJsonSize
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
+import me.rerere.ai.util.mergeCustomHeaders
 import me.rerere.ai.util.removeElements
 import me.rerere.ai.util.stringSafe
-import me.rerere.ai.util.toHeaders
 import me.rerere.ai.util.toJsonRequestBody
 import me.rerere.common.http.await
 import me.rerere.common.http.jsonPrimitiveOrNull
+import me.rerere.common.http.sse.newEventSource
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -74,7 +77,6 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
-import okhttp3.sse.EventSources
 import org.apache.commons.text.StringEscapeUtils
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
@@ -86,6 +88,15 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
     private val serviceAccountTokenProvider by lazy {
         ServiceAccountTokenProvider(client)
     }
+    private val interactionsAPI = InteractionsAPI(client = client, keyRoulette = keyRoulette)
+
+    override suspend fun getQuota(providerSetting: ProviderSetting.Google): ProviderQuota? =
+        client.runQuotaQuery(providerSetting) {
+            keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
+        }
+
+    // Interactions API 目前只有 Gemini Developer API 提供，Vertex AI 仍走 generateContent
+    private fun ProviderSetting.Google.usesInteractionsApi() = useInteractionsApi && !vertexAI
 
     private fun buildUrl(providerSetting: ProviderSetting.Google, path: String): HttpUrl {
         return if (!providerSetting.vertexAI) {
@@ -130,6 +141,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 providerSetting = providerSetting,
                 request = Request.Builder()
                     .url(url)
+                    .headers(providerSetting.mergeCustomHeaders())
                     .get()
                     .build()
             )
@@ -167,6 +179,10 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         messages: List<UIMessage>,
         params: TextGenerationParams,
     ): TextGenerationResult = withContext(Dispatchers.IO) {
+        if (providerSetting.usesInteractionsApi()) {
+            return@withContext interactionsAPI.generateText(providerSetting, messages, params)
+        }
+
         val requestBody = buildCompletionRequestBody(messages, params)
 
         val url = buildUrl(
@@ -182,7 +198,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
             providerSetting = providerSetting,
             request = Request.Builder()
                 .url(url)
-                .headers(params.customHeaders.toHeaders())
+                .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
                 .configureSessionHeaders(url.toString(), params.sessionId)
                 .post(
                     requestBody.toJsonRequestBody()
@@ -214,6 +230,16 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         providerSetting: ProviderSetting.Google,
         messages: List<UIMessage>,
         params: TextGenerationParams,
+    ): Flow<StreamChunk> = if (providerSetting.usesInteractionsApi()) {
+        interactionsAPI.streamText(providerSetting, messages, params)
+    } else {
+        streamGenerateContent(providerSetting, messages, params)
+    }
+
+    private fun streamGenerateContent(
+        providerSetting: ProviderSetting.Google,
+        messages: List<UIMessage>,
+        params: TextGenerationParams,
     ): Flow<StreamChunk> = callbackFlow {
         val requestBody = buildCompletionRequestBody(messages, params)
 
@@ -237,7 +263,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
             providerSetting = providerSetting,
             request = Request.Builder()
                 .url(url)
-                .headers(params.customHeaders.toHeaders())
+                .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
                 .configureSessionHeaders(url.toString(), params.sessionId)
                 .post(
                     requestBody.toJsonRequestBody()
@@ -328,8 +354,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
             }
         }
 
-        val eventSource = EventSources.createFactory(client)
-                .newEventSource(request, listener)
+        val eventSource = client.newEventSource(request, listener)
 
         awaitClose {
             println("[awaitClose] 关闭eventSource")
@@ -376,16 +401,18 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                         params.model.modelId.contains(Regex("2\\.5.*pro", RegexOption.IGNORE_CASE))
                     val isGemini3ProSeries =
                         ModelRegistry.GEMINI_3_PRO_SERIES.match(modelId = params.model.modelId)
-                    val isGemini3FlashSeries =
-                        ModelRegistry.GEMINI_3_FLASH_SERIES.match(modelId = params.model.modelId)
+                    val useThinkingLevel =
+                        ModelRegistry.GEMINI_3_SERIES.match(modelId = params.model.modelId) ||
+                            ModelRegistry.GEMINI_4.match(modelId = params.model.modelId)
 
                     when (params.reasoningLevel) {
                         ReasoningLevel.AUTO -> {} // 自动模式，不设置参数
 
                         ReasoningLevel.OFF -> {
                             when {
-                                isGemini3FlashSeries -> put("thinkingLevel", "minimal")
+                                // Gemini 3 Pro 系列不支持关闭思考, 最低只能 low
                                 isGemini3ProSeries -> put("thinkingLevel", "low")
+                                useThinkingLevel -> put("thinkingLevel", "minimal")
                                 !isGeminiPro -> {
                                     put("thinkingBudget", 0)
                                     put("includeThoughts", false)
@@ -394,13 +421,14 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                         }
 
                         else -> {
-                            when {
-                                isGemini3ProSeries || isGemini3FlashSeries -> when (params.reasoningLevel) {
+                            if (useThinkingLevel) {
+                                when (params.reasoningLevel) {
                                     ReasoningLevel.LOW -> put("thinkingLevel", "low")
                                     ReasoningLevel.MEDIUM -> put("thinkingLevel", "medium")
                                     else -> put("thinkingLevel", "high") // HIGH, XHIGH
                                 }
-                                else -> put("thinkingBudget", params.reasoningLevel.budgetTokens)
+                            } else {
+                                put("thinkingBudget", params.reasoningLevel.budgetTokens)
                             }
                         }
                     }

@@ -53,11 +53,12 @@ import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.model.ConversationParams
 import me.rerere.rikkahub.ui.components.ai.BattleModelPicker
-import me.rerere.rikkahub.ui.components.ui.FormItem
-import me.rerere.rikkahub.ui.components.ui.icons.ReasoningHigh
-import me.rerere.rikkahub.ui.components.ui.icons.ReasoningXHigh
-import me.rerere.rikkahub.ui.components.ui.icons.ReasoningLow
-import me.rerere.rikkahub.ui.components.ui.icons.ReasoningMedium
+import me.rerere.ui.components.FormItem
+import me.rerere.ui.icons.ReasoningHigh
+import me.rerere.ui.icons.ReasoningMax
+import me.rerere.ui.icons.ReasoningXHigh
+import me.rerere.ui.icons.ReasoningLow
+import me.rerere.ui.icons.ReasoningMedium
 import kotlin.uuid.Uuid
 
 /**
@@ -392,7 +393,7 @@ private fun BattleReasoningIcon(
         ReasoningLevel.MEDIUM -> ReasoningMedium
         ReasoningLevel.HIGH -> ReasoningHigh
         ReasoningLevel.XHIGH -> ReasoningXHigh
-        ReasoningLevel.MAX -> ReasoningXHigh
+        ReasoningLevel.MAX -> ReasoningMax
     }
     Icon(
         imageVector = icon,

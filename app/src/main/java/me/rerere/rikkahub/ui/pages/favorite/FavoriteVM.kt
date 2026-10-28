@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import me.rerere.rikkahub.data.db.entity.FavoriteEntity
-import me.rerere.rikkahub.data.favorite.NodeFavoriteAdapter
+import me.rerere.rikkahub.data.repository.NodeFavoriteAdapter
 import me.rerere.rikkahub.data.model.FavoriteType
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.FavoriteRepository

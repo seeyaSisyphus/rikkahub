@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DrawerState
+import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -51,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -71,6 +73,7 @@ import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.FolderAdd
 import me.rerere.hugeicons.stroke.Image02
+import me.rerere.hugeicons.stroke.ImageToVideo
 import me.rerere.hugeicons.stroke.InLove
 import me.rerere.hugeicons.stroke.Label
 import me.rerere.hugeicons.stroke.LanguageCircle
@@ -79,11 +82,15 @@ import me.rerere.hugeicons.stroke.MessageAdd01
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Settings03
+import me.rerere.hugeicons.stroke.Sorting01
 import me.rerere.hugeicons.stroke.Sparkles
+import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.hugeicons.stroke.TimelineList
 import me.rerere.hugeicons.stroke.TransactionHistory
+import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.datastore.ConversationSortOrder
 import me.rerere.rikkahub.data.datastore.HistoryViewMode
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.Assistant
@@ -94,19 +101,18 @@ import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.ui.components.ai.AssistantPicker
 import me.rerere.rikkahub.ui.components.ui.BackupReminderCard
 import me.rerere.rikkahub.ui.components.ui.Greeting
-import me.rerere.rikkahub.ui.components.ui.Tooltip
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.components.ui.UpdateCard
 import androidx.compose.ui.draw.clip
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.context.Navigator
-import com.dokar.sonner.ToastType
+import me.rerere.ui.toast.ToastType
 import me.rerere.rikkahub.ui.hooks.EditStateContent
 import me.rerere.rikkahub.ui.hooks.readBooleanPreference
-import me.rerere.rikkahub.ui.hooks.rememberIsPlayStoreVersion
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.pages.history.ConversationTagSheet
 import me.rerere.rikkahub.utils.navigateToChatPage
+import me.rerere.ui.components.Tooltip
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import sh.calvin.reorderable.ReorderableItem
@@ -124,7 +130,6 @@ fun ChatDrawerContent(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val toaster = LocalToaster.current
-    val isPlayStore = rememberIsPlayStoreVersion()
     val repo = koinInject<ConversationRepository>()
 
     val activity = context as ComponentActivity
@@ -133,6 +138,7 @@ fun ChatDrawerContent(
     val conversations = drawerVm.conversations.collectAsLazyPagingItems()
     val folders by drawerVm.folders.collectAsStateWithLifecycle()
     val selectedFolderId by drawerVm.selectedFolderId.collectAsStateWithLifecycle()
+    val memoryDreaming by drawerVm.memoryDreaming.collectAsStateWithLifecycle()
     val conversationListState = rememberLazyListState(
         initialFirstVisibleItemIndex = drawerVm.scrollIndex,
         initialFirstVisibleItemScrollOffset = drawerVm.scrollOffset,
@@ -155,13 +161,13 @@ fun ChatDrawerContent(
 
     // 昵称编辑状态
     val nicknameEditState = useEditState<String> { newNickname ->
-        vm.updateSettings(
-            settings.copy(
-                displaySetting = settings.displaySetting.copy(
+        vm.updateSettings {
+            it.copy(
+                displaySetting = it.displaySetting.copy(
                     userNickname = newNickname
                 )
             )
-        )
+        }
     }
 
     // 移动对话状态
@@ -203,14 +209,17 @@ fun ChatDrawerContent(
         }
     }
 
-    ModalDrawerSheet(
-        modifier = Modifier.width(300.dp)
-    ) {
+    // 矮屏（如手表、横屏手机）上顶部固定会把会话列表挤没，改为跟随列表一起滚动
+    val windowHeight = LocalWindowInfo.current.containerDpSize.height
+    val scrollableHeader = windowHeight < 640.dp
+
+    // 抽屉顶部：更新/备份提醒、用户信息、常用入口和文件夹栏
+    val drawerHeader: @Composable () -> Unit = {
         Column(
-            modifier = Modifier.padding(8.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (updateChecksEnabled && !isPlayStore) {
+            if (updateChecksEnabled && !BuildConfig.IS_PLAY_STORE) {
                 UpdateCard(vm)
             }
 
@@ -231,13 +240,13 @@ fun ChatDrawerContent(
                     name = settings.displaySetting.userNickname.ifBlank { stringResource(R.string.user_default_name) },
                     value = settings.displaySetting.userAvatar,
                     onUpdate = { newAvatar ->
-                        vm.updateSettings(
-                            settings.copy(
-                                displaySetting = settings.displaySetting.copy(
+                        vm.updateSettings {
+                            it.copy(
+                                displaySetting = it.displaySetting.copy(
                                     userAvatar = newAvatar
                                 )
                             )
-                        )
+                        }
                     },
                     modifier = Modifier.size(50.dp),
                 )
@@ -318,110 +327,148 @@ fun ChatDrawerContent(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 4.dp),
                 )
-                IconButton(
-                    onClick = { vm.updateSettings(settings.copy(historyViewMode = if (viewMode == HistoryViewMode.TAG) HistoryViewMode.TIMELINE else HistoryViewMode.TAG)) },
-                    modifier = Modifier.size(32.dp),
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        imageVector = if (viewMode == HistoryViewMode.TAG) HugeIcons.TimelineList else HugeIcons.Label,
-                        contentDescription = if (viewMode == HistoryViewMode.TAG) "切换到时间视图" else "切换到标签视图",
-                        modifier = Modifier.size(18.dp),
+                    ConversationSortButton(
+                        sortOrder = settings.displaySetting.conversationSortOrder,
+                        onSortOrderChange = { sortOrder ->
+                            vm.updateSettings {
+                                it.copy(
+                                    displaySetting = it.displaySetting.copy(
+                                        conversationSortOrder = sortOrder
+                                    )
+                                )
+                            }
+                            // 换排序后回到顶部，否则会停留在原来滚动到的位置
+                            scope.launch { conversationListState.scrollToItem(0) }
+                        },
                     )
+                    IconButton(
+                        onClick = { vm.updateSettings { it.copy(historyViewMode = if (viewMode == HistoryViewMode.TAG) HistoryViewMode.TIMELINE else HistoryViewMode.TAG) } },
+                        modifier = Modifier.size(32.dp),
+                    ) {
+                        Icon(
+                            imageVector = if (viewMode == HistoryViewMode.TAG) HugeIcons.TimelineList else HugeIcons.Label,
+                            contentDescription = if (viewMode == HistoryViewMode.TAG) "切换到时间视图" else "切换到标签视图",
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
                 }
             }
 
-            // [FORK] 按视图模式显示对话列表
-            if (viewMode == HistoryViewMode.TAG) {
-                DrawerTagView(
-                    conversations = allConversations,
-                    orderedTags = conversationTags,
-                    current = current,
-                    conversationJobs = conversationJobs.keys,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    onClick = { conversation ->
-                        scope.launch {
-                            drawerState?.close()
-                            navigateToChatPage(navController, conversation.id)
+        }
+    }
+
+    ModalDrawerSheet(
+        modifier = Modifier.width(300.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (!scrollableHeader) {
+                drawerHeader()
+            }
+
+        // [FORK] 按视图模式显示对话列表
+        if (viewMode == HistoryViewMode.TAG) {
+            DrawerTagView(
+                conversations = allConversations,
+                orderedTags = conversationTags,
+                current = current,
+                conversationJobs = conversationJobs.keys,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                onClick = { conversation ->
+                    scope.launch {
+                        drawerState?.close()
+                        navigateToChatPage(navController, conversation.id)
+                    }
+                },
+                onDelete = {
+                    vm.deleteConversation(it)
+                    if (it.id == current.id) navigateToChatPage(navController)
+                },
+                onRegenerateTitle = { vm.generateTitle(it, true) },
+                onPin = { vm.updatePinnedStatus(it) },
+                onMoveToAssistant = {
+                    conversationToMove = it
+                    showMoveToAssistantSheet = true
+                },
+                onSetTag = { tagSheetConversation = it },
+                onRenameTitle = { conversation, newTitle ->
+                    vm.updateConversationTitle(conversation, newTitle)
+                },
+                // [FORK] 标签排序持久化到 Settings
+                onReorderTags = { newTags ->
+                    vm.updateSettings { it.copy(conversationTags = newTags) }
+                },
+            )
+        } else {
+            ConversationList(
+                current = current,
+                conversations = conversations,
+                header = if (scrollableHeader) drawerHeader else null,
+                conversationJobs = conversationJobs.keys,
+                listState = conversationListState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                onClick = { conversation ->
+                    scope.launch {
+                        drawerState?.close()
+                        navigateToChatPage(navController, conversation.id)
+                    }
+                },
+                onRegenerateTitle = {
+                    vm.generateTitle(it, true)
+                },
+                onDelete = {
+                    scope.launch {
+                        // 等待删除协程完成，确保数据库已删除后再刷新列表
+                        vm.deleteConversation(it).join()
+                        conversations.refresh()
+                        if (it.id == current.id) {
+                            navigateToChatPage(navController)
                         }
-                    },
-                    onDelete = {
-                        vm.deleteConversation(it)
-                        if (it.id == current.id) navigateToChatPage(navController)
-                    },
-                    onRegenerateTitle = { vm.generateTitle(it, true) },
-                    onPin = { vm.updatePinnedStatus(it) },
-                    onMoveToAssistant = {
-                        conversationToMove = it
-                        showMoveToAssistantSheet = true
-                    },
-                    onSetTag = { tagSheetConversation = it },
-                    onRenameTitle = { conversation, newTitle ->
-                        vm.updateConversationTitle(conversation, newTitle)
-                    },
-                    // [FORK] 标签排序持久化到 Settings
-                    onReorderTags = { newTags ->
-                        vm.updateSettings(settings.copy(conversationTags = newTags))
-                    },
-                )
-            } else {
-                ConversationList(
-                    current = current,
-                    conversations = conversations,
-                    conversationJobs = conversationJobs.keys,
-                    listState = conversationListState,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    onClick = { conversation ->
-                        scope.launch {
-                            drawerState?.close()
-                            navigateToChatPage(navController, conversation.id)
-                        }
-                    },
-                    onRegenerateTitle = {
-                        vm.generateTitle(it, true)
-                    },
-                    onDelete = {
-                        scope.launch {
-                            // 等待删除协程完成，确保数据库已删除后再刷新列表
-                            vm.deleteConversation(it).join()
-                            conversations.refresh()
-                            if (it.id == current.id) {
-                                navigateToChatPage(navController)
-                            }
-                        }
-                    },
-                    onPin = {
-                        vm.updatePinnedStatus(it)
-                    },
-                    onMoveToAssistant = {
-                        conversationToMove = it
-                        showMoveToAssistantSheet = true
-                    },
-                    onSetTag = { tagSheetConversation = it },
-                    onRenameTitle = { conversation, newTitle ->
-                        vm.updateConversationTitle(conversation, newTitle)
-                    },
-                    onMoveToFolder = {
-                        conversationToMoveFolder = it
-                        showMoveToFolderSheet = true
-                    },
+                    }
+                },
+                onPin = {
+                    vm.updatePinnedStatus(it)
+                },
+                onMoveToAssistant = {
+                    conversationToMove = it
+                    showMoveToAssistantSheet = true
+                },
+                onSetTag = { tagSheetConversation = it },
+                onRenameTitle = { conversation, newTitle ->
+                    vm.updateConversationTitle(conversation, newTitle)
+                },
+                onMoveToFolder = {
+                    conversationToMoveFolder = it
+                    showMoveToFolderSheet = true
+                },
+            )
+        }
+            if (memoryDreaming) {
+                MemoryDreamingEntry(
+                    onClick = { navController.navigate(Screen.AssistantMemory(settings.assistantId.toString())) },
                 )
             }
 
             // 助手选择器
             AssistantPicker(
                 settings = settings,
-                onUpdateSettings = {
-                    val updateJob = vm.updateSettings(it)
+                onSelectAssistant = { assistant ->
+                    val updateJob = vm.updateSettings { it.copy(assistantId = assistant.id) }
                     scope.launch {
                         updateJob.join()
                         val id = if (context.readBooleanPreference("create_new_conversation_on_start", true)) {
                             Uuid.random()
                         } else {
-                            repo.getConversationsOfAssistant(it.assistantId)
+                            repo.getConversationsOfAssistant(assistant.id)
                                 .first()
                                 .firstOrNull()
                                 ?.id ?: Uuid.random()
@@ -851,64 +898,115 @@ fun ChatDrawerContent(
 private fun DrawerActions(navController: Navigator) {
 
     Column {
-        // 搜索入口
-        Surface(
-            onClick = { navController.navigate(Screen.MessageSearch) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp),
-            shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-        ) {
+        // 历史记录入口，行尾是搜索入口
+        DrawerEntry(
+            icon = HugeIcons.TransactionHistory,
+            text = stringResource(R.string.chat_page_history),
+            onClick = { navController.navigate(Screen.History) },
+            trailingIcon = HugeIcons.Search01,
+            trailingDescription = stringResource(R.string.chat_page_search_chats),
+            onTrailingClick = { navController.navigate(Screen.MessageSearch) },
+        )
+
+        // 媒体创作入口
+        DrawerEntry(
+            icon = HugeIcons.ImageToVideo,
+            text = stringResource(R.string.media_creation_title),
+            onClick = { navController.navigate(Screen.MediaCreationSessions) },
+        )
+
+        // 翻译入口
+        DrawerEntry(
+            icon = HugeIcons.LanguageCircle,
+            text = stringResource(R.string.chat_page_menu_ai_translator),
+            onClick = { navController.navigate(Screen.Translator) },
+        )
+    }
+}
+
+@Composable
+private fun DrawerEntry(
+    icon: ImageVector,
+    text: String,
+    onClick: () -> Unit,
+    trailingIcon: ImageVector? = null,
+    trailingDescription: String? = null,
+    onTrailingClick: () -> Unit = {},
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .weight(1f)
                     .padding(horizontal = 8.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Icon(
-                    imageVector = HugeIcons.Search01,
+                    imageVector = icon,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
                     tint = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = stringResource(R.string.chat_page_search_chats),
+                    text = text,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
+            }
+            if (trailingIcon != null) {
+                // 不用 IconButton，它的 48dp 最小尺寸会把这一行撑得比其他行高
+                Box(
+                    modifier = Modifier
+                        .padding(end = 4.dp)
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .clickable(onClick = onTrailingClick),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = trailingIcon,
+                        contentDescription = trailingDescription,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
+    }
+}
 
-        // 历史记录入口
-        Surface(
-            onClick = { navController.navigate(Screen.History) },
+// 后台正在整理当前助手的记忆，点开是记忆页
+@Composable
+private fun MemoryDreamingEntry(onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 4.dp),
-            shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
+                .padding(horizontal = 8.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Icon(
-                    imageVector = HugeIcons.TransactionHistory,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = stringResource(R.string.chat_page_history),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-            }
+            ContainedLoadingIndicator(modifier = Modifier.size(18.dp))
+            Text(
+                text = stringResource(R.string.memory_dreaming),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
         }
     }
 }
@@ -951,11 +1049,10 @@ private fun FolderBar(
     onCreate: () -> Unit,
     onRename: (Folder) -> Unit,
     onDelete: (Folder) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     LazyRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 4.dp),
+        modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -1008,6 +1105,61 @@ private fun FolderBar(
                 onClick = onCreate,
                 onLongClick = {},
             )
+        }
+    }
+}
+
+@Composable
+private fun ConversationSortButton(
+    sortOrder: ConversationSortOrder,
+    onSortOrderChange: (ConversationSortOrder) -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    Box {
+        Surface(
+            onClick = { menuExpanded = true },
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+        ) {
+            Tooltip(
+                tooltip = { Text(stringResource(R.string.chat_page_sort_conversations)) }
+            ) {
+                Icon(
+                    imageVector = HugeIcons.Sorting01,
+                    contentDescription = stringResource(R.string.chat_page_sort_conversations),
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .size(16.dp),
+                )
+            }
+        }
+        DropdownMenu(
+            expanded = menuExpanded,
+            onDismissRequest = { menuExpanded = false },
+        ) {
+            ConversationSortOrder.entries.forEach { option ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            stringResource(
+                                when (option) {
+                                    ConversationSortOrder.UPDATE_TIME -> R.string.chat_page_sort_by_update_time
+                                    ConversationSortOrder.CREATE_TIME -> R.string.chat_page_sort_by_create_time
+                                }
+                            )
+                        )
+                    },
+                    trailingIcon = {
+                        if (option == sortOrder) {
+                            Icon(HugeIcons.Tick01, null, modifier = Modifier.size(18.dp))
+                        }
+                    },
+                    onClick = {
+                        menuExpanded = false
+                        if (option != sortOrder) onSortOrderChange(option)
+                    }
+                )
+            }
         }
     }
 }

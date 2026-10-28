@@ -6,18 +6,37 @@
 
 RikkaHub is a native Android LLM chat client that supports switching between different AI providers
 for conversations.
-Built with Jetpack Compose, Kotlin, and follows Material Design 3 principles.
+Built with Jetpack Compose, Kotlin, and follows Material 3 Expressive (MD3 Expressive) design language.
+
+## Design Language
+
+The UI follows Material 3 Expressive. New and reworked screens should match it rather than the older baseline
+Material 3 look (cards with dividers, plain forms).
+
+- The app theme is `MaterialExpressiveTheme` (app/src/main/java/me/rerere/rikkahub/ui/theme/Theme.kt); prefer the
+  expressive variants of components, shapes (`MaterialShapes`), emphasized typography (e.g. `titleSmallEmphasized`)
+  and motion from `androidx.compose.material3` over hand-rolled equivalents.
+- Settings-style and form pages use segmented groups via `CardGroup` (
+  app/src/main/java/me/rerere/rikkahub/ui/components/ui/CardGroup.kt) instead of a card with dividers.
+- Favor larger corner radii, filled/tonal containers, and whole-row click targets.
 
 ## Build, Test, and Development Commands
 
 ```bash
-./gradlew assembleDebug          # 构建 Debug APK
+./gradlew assembleGithubDebug    # 构建 GitHub 渠道的 Debug APK
+./gradlew assembleGithubRelease  # 构建 GitHub Release / 每日构建用的 APK
+./gradlew bundlePlayRelease      # 构建上架 Google Play 的 AAB
 ./gradlew test                   # 运行所有模块的 JVM 单元测试
 ./gradlew lint                   # 运行 Android Lint
+./gradlew spotlessApply          # 用 ktlint 格式化相对 origin/master 改动过的 Kotlin 文件
+./gradlew spotlessCheck          # 只检查格式不改文件
 ```
 
-构建应用需要在 `app/` 下提供 `google-services.json`（用于 Firebase）。
+构建应用需要在 `app/` 下提供 `google-services.json`（用于 Firebase）
 `web` 模块会在 `preBuild` 阶段构建 `web-ui/` 并复制静态资源，需要本地可用 `pnpm`。
+
+App 有一个 `distribution` 维度的 product flavor：`github`（默认）和 `play`，共用同一个 applicationId。
+渠道差异用 `BuildConfig.IS_PLAY_STORE` 判断（如 Play 版不检查更新、不显示更新提醒）。
 
 ## Import 规则
 
@@ -47,7 +66,7 @@ ReorderableItem(reorderState, key = tag.id.toString()) { ... }
 > ❗️ **重要提示（AI 助手必读）**：每次向现有文件新增一个类、函数、扩展函数的引用，必须先检查文件头部是否已有对应 `import`。
 > 就算同个包下的不同类（如 `LazyListState` 和 `rememberLazyListState`）也各自需要独立的 import，不要假定已包含。
 
-**在提交代码前，确保编译通过**（`./gradlew assembleDebug`），避免因遗漏 import 导致构建失败。
+**在提交代码前，确保编译通过**（`./gradlew assembleGithubDebug`），避免因遗漏 import 导致构建失败。
 
 ## Coding Style & Naming Conventions
 
@@ -72,13 +91,17 @@ ReorderableItem(reorderState, key = tag.id.toString()) { ... }
 - **ai**: AI SDK abstraction layer for different providers (OpenAI, Google, Anthropic)
 - **common**: Common utilities and extensions
 - **document**: Document parsing module for handling PDF, DOCX, PPTX, and EPUB files
-- **highlight**: Code syntax highlighting implementation
 - **material3**: Material color utility extensions used by the app UI
+- **ui**: Reusable Compose UI components that do not depend on app logic
 - **search**: Search functionality SDK for multiple providers (Exa, Tavily, Zhipu, Bing, Brave, SearXNG, and others)
 - **speech**: Speech module for TTS and ASR implementations
 - **web**: Embedded web server module that provides Ktor server startup function and hosts static frontend build files (
   built from web-ui/ React project)
 - **workspace**: Sandboxed per-workspace file system and shell execution environment exposed to the AI as tools.
+- **terminal**: Terminal emulator core taken from termux-app's `terminal-emulator` (package `com.termux.terminal`, kept
+  binary compatible with the `terminal-view` aar). `TerminalSession` runs over a `TerminalTransport`: local PRoot
+  terminals use `LocalPtyTransport`, SSH workspaces use the app's `SshTerminalTransport`. Origin and local changes are
+  listed in terminal/README.md.
 
 ## Concepts
 
@@ -89,8 +112,17 @@ ReorderableItem(reorderState, key = tag.id.toString()) { ... }
 
 - **Conversation**: A persistent conversation thread between the user and an assistant. Each conversation maintains a
   list of MessageNodes in a tree structure to support message branching, along with metadata like title, creation time,
-  update time, pin status, chat suggestions, optional conversation-level system prompt, and prompt injection bindings. (
-  app/src/main/java/me/rerere/rikkahub/data/model/Conversation.kt)
+  update time, pin status, chat suggestions, optional conversation-level system prompt, and prompt injection bindings.
+  Once a conversation is persisted it also holds a `ConversationConfig` snapshot (chat model, reasoning level, search,
+  MCP servers, workspace, skills) taken from the assistant; from then on chat-page changes to those settings stay on
+  the conversation, and code should read them through `Settings.getAssistantOf(conversation)` /
+  `Settings.getChatModelOf(conversation)` instead of the assistant directly. Once loaded, the in-memory
+  `ConversationSession` is the single source of truth: change a conversation through `ChatService` (which applies
+  `session.update { latest -> ... }` and then `flush()`), never by saving a whole `Conversation` snapshot or one read
+  back from the database; deleting also goes through `ChatService` so a running generation cannot re-insert it. (
+  app/src/main/java/me/rerere/rikkahub/data/model/Conversation.kt,
+  app/src/main/java/me/rerere/rikkahub/data/model/ConversationConfig.kt,
+  app/src/main/java/me/rerere/rikkahub/service/ConversationSession.kt)
 
 - **UIMessage**: A platform-agnostic message abstraction that encapsulates chat messages with different types of content
   parts (text, images, documents, reasoning, tool calls/results, etc.). Each message has a role (USER, ASSISTANT,
@@ -125,34 +157,27 @@ ReorderableItem(reorderState, key = tag.id.toString()) { ... }
 - Page-specific strings should use page prefix (e.g., `setting_page_`)
 - If the user does not explicitly request localization, prioritize implementing functionality without considering
   localization. (e.g `Text("Hello world")`)
-- For `locale-tui` operations, use the `locale-tui-localization` skill.
+- Add, translate or clean up strings with the `tools/i18n` CLI (Bun); see the `i18n-localization` skill.
 
 ## Database Migration
 
-数据库迁移使用 Room 的 `AutoMigration` 或手动 `Migration`，相关文件：
+数据库迁移统一使用**手动 Migration**（不使用 AutoMigration），相关文件：
 
 - 数据库定义：`app/src/main/java/me/rerere/rikkahub/data/db/AppDatabase.kt`
-- 手动迁移：`app/src/main/java/me/rerere/rikkahub/data/db/migrations/`
-- 备份/恢复：`app/src/main/java/me/rerere/rikkahub/data/sync/webdav/WebDavSync.kt`
+- 手动迁移：`app/src/main/java/me/rerere/rikkahub/data/db/migrations/`，在 `AppDatabaseFactory.kt` 的 `addMigrations()` 中注册
+- 备份/恢复：`app/src/main/java/me/rerere/rikkahub/data/sync/BackupManager.kt` + `DatabaseBackup.kt`
 
 ### 每次新增 schema 变更时必须做
 
 1. **递增 `version`**（`@Database` 注解）
 2. **同步更新 `AppDatabase.VERSION` 常量**（`companion object` 中），供备份恢复逻辑动态引用
-3. **添加对应 migration**：简单增删列用 `AutoMigration`，需要 schema 约束修复的用手动 `Migration`
+3. **添加对应手动 Migration** 并注册到 `AppDatabaseFactory`
 
-```kotlin
-// AppDatabase.kt 示例
-@Database(version = 20, autoMigrations = [
-    ...
-    AutoMigration(from = 19, to = 20),
-])
-abstract class AppDatabase : RoomDatabase() {
-    companion object {
-        const val VERSION = 20  // 必须与 @Database.version 保持一致
-    }
-}
-```
+> 本 fork 不使用 `AutoMigration`：fork 与上游的版本号在 v25 后分叉（fork 25→26→27，上游 25→…→32），
+> 合并后统一推进到 v33（始终比上游最新版本高一级，避免同版本不同 schema 的库绕过迁移）。
+> v25→v33 的每一步迁移都会调用幂等的 `ensureMergedSchema()`
+> （`MigrationUtils.kt`），以 IF NOT EXISTS / try-catch 方式兼容两条 lineage 的旧库。
+> 上游 v30→v31 的 `usage_record` 回填保留在 `Migration_30_31.kt` 中，随后再补齐 fork 侧 schema。
 
 ### 手动 Migration 编写规范
 
@@ -163,6 +188,8 @@ abstract class AppDatabase : RoomDatabase() {
 
 ### 备份/恢复注意事项
 
-- **备份时**：在复制 `.db` 文件前执行 `PRAGMA wal_checkpoint(FULL)`，确保 WAL 数据写入主文件、`user_version` 准确
-- **恢复时**：`fixRestoredDbSchema` 会自动将备份 DB 的版本设为 `AppDatabase.VERSION - 1`，触发最后一个 Migration 做 schema 修复，**无需手动维护版本号**
-- 不要在 `fixRestoredDbSchema` 中手动预添加列，应由 Migration 统一处理
+- **备份时**：`DatabaseBackup.createSnapshot` 通过 `VACUUM INTO` 生成一致快照（WAL 内容已包含）
+- **恢复时**：`BackupManager` 先用 `DatabaseBackup.normalize` 校验备份完整性，再以
+  `AppDatabaseFactory.create()` 打开暂存副本——Room 会按备份的 `user_version` 自动执行
+  对应的迁移链升到当前版本，校验通过后才发布替换正式库。**无需手动维护版本号**，
+  迁移必须保持幂等（旧备份可能来自分叉 lineage 的任一版本）

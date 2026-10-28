@@ -20,7 +20,6 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.Tool
-import me.rerere.ai.provider.CustomBody
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.Provider
 import me.rerere.ai.provider.ProviderManager
@@ -33,6 +32,7 @@ import me.rerere.ai.ui.StreamChunkHandler
 import me.rerere.ai.ui.handleTextGenerationResult
 import me.rerere.ai.ui.limitContext
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.prompts.buildMemoryPrompt
 import me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.MessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.OutputMessageTransformer
@@ -43,17 +43,11 @@ import me.rerere.rikkahub.data.ai.transformers.visualTransforms
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.data.model.AssistantMemory
 import me.rerere.ai.core.ReasoningLevel
-import me.rerere.ai.registry.ModelRegistry
-import me.rerere.rikkahub.data.ai.tools.buildMemoryTools
-import me.rerere.rikkahub.data.repository.MemoryRepository
-import me.rerere.rikkahub.data.datastore.findModelById
-import me.rerere.rikkahub.utils.applyPlaceholders
+import me.rerere.rikkahub.data.model.MemoryFile
 // [FORK] ConversationParams 解析器
 import me.rerere.rikkahub.data.ai.resolveWith
 import me.rerere.rikkahub.data.model.ConversationParams
-import java.util.Locale
 import java.io.File
 import java.io.IOException
 import java.net.ConnectException
@@ -66,6 +60,9 @@ import kotlin.uuid.Uuid
 private const val TAG = "GenerationHandler"
 private const val MAX_TOOL_OUTPUT_CHARS = 32 * 1024
 private const val TOOL_OUTPUT_PREVIEW_CHARS = 4 * 1024
+
+// 搜索结果的体积由用户设置的结果数决定，且结果列表 UI 与引用跳转都依赖完整的 JSON 结构，不参与截断
+private val TOOLS_WITHOUT_OUTPUT_TRUNCATION = setOf("search_web")
 private const val MAX_PROVIDER_NETWORK_RETRIES = 3
 private const val INITIAL_PROVIDER_RETRY_DELAY_MS = 1_000L
 
@@ -82,7 +79,6 @@ class GenerationLoop(
     private val context: Context,
     private val providerManager: ProviderManager,
     private val json: Json,
-    private val memoryRepo: MemoryRepository,
 ) {
     fun generateText(
         settings: Settings,
@@ -92,14 +88,12 @@ class GenerationLoop(
         outputTransformers: List<OutputMessageTransformer> = emptyList(),
         assistant: Assistant,
         conversationParams: ConversationParams = ConversationParams(),
-        memories: List<AssistantMemory>? = null,
+        memories: List<MemoryFile>? = null,
         tools: List<Tool> = emptyList(),
         maxSteps: Int = 256,
         processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
         conversationSystemPrompt: String? = null,
         conversationId: Uuid? = null,
-        conversationModeInjectionIds: Set<Uuid> = emptySet(),
-        conversationLorebookIds: Set<Uuid> = emptySet(),
         workspaceCwd: String? = null,
         // [FORK] 覆盖助手级别的 reasoningLevel（Battle Mode 分模型设置）
         reasoningLevelOverride: ReasoningLevel? = null,
@@ -113,32 +107,6 @@ class GenerationLoop(
 
         for (stepIndex in 0 until maxSteps) {
             Log.i(TAG, "streamText: start step #$stepIndex (${model.id})")
-
-            val toolsInternal = buildList {
-                Log.i(TAG, "generateInternal: build tools($assistant)")
-                val effectiveMemoryKey: String? = if (assistant?.enableMemory == true) {
-                    if (assistant.useGlobalMemory) {
-                        MemoryRepository.GLOBAL_MEMORY_ID
-                    } else {
-                        assistant.id.toString()
-                    }
-                } else null
-                if (effectiveMemoryKey != null) {
-                    buildMemoryTools(
-                        json = json,
-                        onCreation = { content ->
-                            memoryRepo.addMemory(effectiveMemoryKey, content)
-                        },
-                        onUpdate = { id, content ->
-                            memoryRepo.updateContent(id, content)
-                        },
-                        onDelete = { id ->
-                            memoryRepo.deleteMemory(id)
-                        }
-                    ).let(this::addAll)
-                }
-                addAll(tools)
-            }
 
             // Check if we have tool calls ready to continue after user interaction.
             val pendingTools = messages.lastOrNull()?.getTools()?.filter {
@@ -178,14 +146,12 @@ class GenerationLoop(
                     model = model,
                     providerImpl = providerImpl,
                     provider = provider,
-                    tools = toolsInternal,
+                    tools = tools,
                     memories = memories ?: emptyList(),
                     stream = assistant.streamOutput,
                     processingStatus = processingStatus,
                     conversationSystemPrompt = conversationSystemPrompt,
                     conversationId = conversationId,
-                    conversationModeInjectionIds = conversationModeInjectionIds,
-                    conversationLorebookIds = conversationLorebookIds,
                     workspaceCwd = workspaceCwd,
                     protectedMessageIds = protectedMessageIds,
                 )
@@ -218,7 +184,7 @@ class GenerationLoop(
                 // Check for tools that need approval
                 var hasPendingApproval = false
                 val updatedTools = toolCalls.map { tool ->
-                    val toolDef = toolsInternal.find { it.name == tool.toolName }
+                    val toolDef = tools.find { it.name == tool.toolName }
                     when {
                         // Tool needs approval and state is Auto -> set to Pending
                         toolDef?.needsApproval(tool.inputAsJson()) == true &&
@@ -303,7 +269,7 @@ class GenerationLoop(
                     else -> {
                         // Auto or Approved - execute the tool
                         runCatching {
-                            val toolDef = toolsInternal.find { toolDef -> toolDef.name == tool.toolName }
+                            val toolDef = tools.find { toolDef -> toolDef.name == tool.toolName }
                                 ?: error("Tool ${tool.toolName} not found")
                             val args = runCatching {
                                 json.parseToJsonElement(tool.input.ifBlank { "{}" })
@@ -312,9 +278,9 @@ class GenerationLoop(
                             }
                             Log.i(TAG, "generateText: executing tool ${toolDef.name} with args: $args")
                             val result = toolDef.execute(args)
-                            val hasShellAccess = toolsInternal.any { it.name == "workspace_shell" }
+                            val hasShellAccess = tools.any { it.name == "workspace_shell" }
                             executedTools += tool.copy(
-                                output = maybeTruncateToolOutput(tool.toolCallId, result, hasShellAccess)
+                                output = maybeTruncateToolOutput(tool, result, hasShellAccess)
                             )
                         }.onFailure {
                             // 取消必须向上传播，否则停止生成会被误报为工具执行错误
@@ -381,13 +347,11 @@ class GenerationLoop(
         providerImpl: Provider<ProviderSetting>,
         provider: ProviderSetting,
         tools: List<Tool>,
-        memories: List<AssistantMemory>,
+        memories: List<MemoryFile>,
         stream: Boolean,
         processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
         conversationSystemPrompt: String? = null,
         conversationId: Uuid? = null,
-        conversationModeInjectionIds: Set<Uuid> = emptySet(),
-        conversationLorebookIds: Set<Uuid> = emptySet(),
         workspaceCwd: String? = null,
         // [FORK] Battle Mode：覆盖助手级别的思考深度，null 表示使用助手默认值
         reasoningLevelOverride: ReasoningLevel? = null,
@@ -399,20 +363,28 @@ class GenerationLoop(
         val effectiveTemperature = resolved.temperature
         val effectiveTopP = resolved.topP
         val effectiveContextMessageSize = resolved.contextMessageSize
-        val effectiveSystemPrompt = resolved.systemPrompt
+        // [FORK] resolved.systemPrompt 已按 APPEND/OVERRIDE/null 合并了
+        // assistant.systemPrompt + conversationParams.systemPrompt；
+        // conversationParams.systemPrompt 未设置时回退到旧的会话级 customSystemPrompt 字段（上游逻辑）
+        val effectiveSystemPrompt =
+            if (conversationParams.systemPrompt == null &&
+                assistant.allowConversationSystemPrompt && !conversationSystemPrompt.isNullOrBlank()
+            ) {
+                conversationSystemPrompt
+            } else {
+                resolved.systemPrompt
+            }
 
         val internalMessages = buildList {
             val system = buildString {
-                // [FORK] resolved.systemPrompt 已按 APPEND/OVERRIDE/null 合并了
-                // assistant.systemPrompt + conversationParams.systemPrompt，直接使用
-                if (resolved.systemPrompt.isNotBlank()) {
-                    append(resolved.systemPrompt)
+                if (effectiveSystemPrompt.isNotBlank()) {
+                    append(effectiveSystemPrompt)
                 }
 
                 // 记忆（助手级）
                 if (assistant.enableMemory) {
                     appendLine()
-                    append(buildMemoryPrompt(memories = memories))
+                    append(buildMemoryPrompt(memories))
                 }
                 // 工具prompt
                 tools.forEach { tool ->
@@ -430,8 +402,6 @@ class GenerationLoop(
             model = model,
             assistant = assistant,
             settings = settings,
-            conversationModeInjectionIds = conversationModeInjectionIds,
-            conversationLorebookIds = conversationLorebookIds,
             processingStatus = processingStatus,
             workspaceCwd = workspaceCwd,
         )
@@ -589,10 +559,13 @@ class GenerationLoop(
     }
 
     private fun maybeTruncateToolOutput(
-        toolCallId: String,
+        tool: UIMessagePart.Tool,
         output: List<UIMessagePart>,
         hasShellAccess: Boolean,
     ): List<UIMessagePart> {
+        if (tool.toolName in TOOLS_WITHOUT_OUTPUT_TRUNCATION) return output
+
+        val toolCallId = tool.toolCallId
         val textParts = output.filterIsInstance<UIMessagePart.Text>()
         val nonTextParts = output.filter { it !is UIMessagePart.Text }
         val totalChars = textParts.sumOf { it.text.length }
@@ -621,77 +594,4 @@ class GenerationLoop(
             )
         ) + nonTextParts
     }
-
-    fun translateText(
-        settings: Settings,
-        sourceText: String,
-        targetLanguage: Locale,
-        onStreamUpdate: ((String) -> Unit)? = null
-    ): Flow<String> = flow {
-        val model = settings.providers.findModelById(settings.translateModeId)
-            ?: error("Translation model not found")
-        val provider = model.findProvider(settings.providers)
-            ?: error("Translation provider not found")
-
-        val providerHandler = providerManager.getProviderByType(provider)
-
-        if (!ModelRegistry.QWEN_MT.match(model.modelId)) {
-            // Use regular translation with prompt
-            val prompt = settings.translatePrompt.applyPlaceholders(
-                "source_text" to sourceText,
-                "target_lang" to targetLanguage.toString(),
-            )
-
-            var messages = listOf(UIMessage.user(prompt))
-            var translatedText = ""
-            val streamChunkHandler = StreamChunkHandler(model)
-
-            providerHandler.streamText(
-                providerSetting = provider,
-                messages = messages,
-                params = TextGenerationParams(
-                    model = model,
-                    reasoningLevel = ReasoningLevel.fromBudgetTokens(settings.translateThinkingBudget),
-                ),
-            ).collect { chunk ->
-                messages = streamChunkHandler.handle(messages, chunk)
-                translatedText = messages.lastOrNull()?.toText() ?: ""
-
-                if (translatedText.isNotBlank()) {
-                    onStreamUpdate?.invoke(translatedText)
-                    emit(translatedText)
-                }
-            }
-        } else {
-            // Use Qwen MT model with special translation options
-            val messages = listOf(UIMessage.user(sourceText))
-            val result = providerHandler.generateText(
-                providerSetting = provider,
-                messages = messages,
-                params = TextGenerationParams(
-                    model = model,
-                    temperature = 0.3f,
-                    topP = 0.95f,
-                    customBody = listOf(
-                        CustomBody(
-                            key = "translation_options",
-                            value = buildJsonObject {
-                                put("source_lang", JsonPrimitive("auto"))
-                                put(
-                                    "target_lang",
-                                    JsonPrimitive(targetLanguage.getDisplayLanguage(Locale.ENGLISH))
-                                )
-                            }
-                        )
-                    )
-                ),
-            )
-            val translatedText = result.message.toText()
-
-            if (translatedText.isNotBlank()) {
-                onStreamUpdate?.invoke(translatedText)
-                emit(translatedText)
-            }
-        }
-    }.flowOn(Dispatchers.IO)
 }

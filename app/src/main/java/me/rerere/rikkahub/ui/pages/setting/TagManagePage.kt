@@ -67,7 +67,7 @@ fun TagManagePage(vm: SettingVM = koinViewModel()) {
     }
 
     fun persistTags() {
-        vm.updateSettings(settings.copy(conversationTags = tags.toList()))
+        vm.updateSettings { it.copy(conversationTags = tags.toList()) }
     }
 
     // 弹窗状态

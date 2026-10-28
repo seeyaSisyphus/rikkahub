@@ -22,6 +22,10 @@ data class ConversationEntity(
     val chatSuggestions: String,
     @ColumnInfo("is_pinned", defaultValue = "0")
     val isPinned: Boolean,
+    // [FORK] 会话级系统提示词：fork 曾在 v22→v23 删除该列，合并上游会话级系统提示词功能后恢复，
+    // 由 ensureMergedSchema() 幂等补列
+    @ColumnInfo("custom_system_prompt", defaultValue = "")
+    val customSystemPrompt: String = "",
     @ColumnInfo("conversation_params", defaultValue = "{}")
     val conversationParams: String = "{}",
     @ColumnInfo("mode_injection_ids", defaultValue = "[]")
@@ -34,4 +38,6 @@ data class ConversationEntity(
     val workspaceCwd: String = "",
     @ColumnInfo("folder_id", defaultValue = "")
     val folderId: String = "",
+    @ColumnInfo("config", defaultValue = "")
+    val config: String = "",
 )

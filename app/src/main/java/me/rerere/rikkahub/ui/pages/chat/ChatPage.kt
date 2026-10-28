@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.util.Log
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -78,13 +79,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
-import com.dokar.sonner.ToastType
+import me.rerere.ui.toast.ToastType
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.UIMessagePart
@@ -104,10 +104,9 @@ import me.rerere.common.android.Logging
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
-import me.rerere.rikkahub.data.datastore.getCurrentAssistant
-import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.datastore.getSelectedASRProvider
 import me.rerere.rikkahub.data.datastore.getAssistantById
+import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
@@ -139,11 +138,10 @@ import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.hooks.EditStateContent
 import me.rerere.rikkahub.ui.hooks.useEditState
-import me.rerere.rikkahub.utils.ImageUtils
 import me.rerere.rikkahub.utils.base64Decode
 import me.rerere.rikkahub.utils.isAllowedFileType
 import me.rerere.rikkahub.utils.navigateToChatPage
-import me.rerere.rikkahub.ui.components.ui.FormItem
+import me.rerere.ui.components.FormItem
 import me.rerere.rikkahub.ui.components.ui.IntSliderItem
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
@@ -184,8 +182,15 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null, sh
     val hasActiveSlots by vm.hasActiveSlots.collectAsStateWithLifecycle()
     val processingStatus by vm.processingStatus.collectAsStateWithLifecycle()
     val currentChatModel by vm.currentChatModel.collectAsStateWithLifecycle()
-    val enableWebSearch by vm.enableWebSearch.collectAsStateWithLifecycle()
+    val assistant by vm.assistant.collectAsStateWithLifecycle()
     val errors by vm.errors.collectAsStateWithLifecycle()
+
+    // 新会话发出第一条消息前，跟随抽屉当前选中的文件夹（#2133）
+    val drawerVm: ChatDrawerVM = koinViewModel(viewModelStoreOwner = LocalContext.current as ComponentActivity)
+    val selectedFolderId by drawerVm.selectedFolderId.collectAsStateWithLifecycle()
+    LaunchedEffect(selectedFolderId) {
+        vm.updateDraftFolder(selectedFolderId)
+    }
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
@@ -314,7 +319,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null, sh
                     navController = navController,
                     vm = vm,
                     chatListState = chatListState,
-                    enableWebSearch = enableWebSearch,
+                    assistant = assistant,
                     currentChatModel = currentChatModel,
                     bigScreen = true,
                     errors = errors,
@@ -351,7 +356,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null, sh
                     navController = navController,
                     vm = vm,
                     chatListState = chatListState,
-                    enableWebSearch = enableWebSearch,
+                    assistant = assistant,
                     currentChatModel = currentChatModel,
                     bigScreen = false,
                     errors = errors,
@@ -382,7 +387,7 @@ private fun ChatPageContent(
     navController: Navigator,
     vm: ChatVM,
     chatListState: LazyListState,
-    enableWebSearch: Boolean,
+    assistant: Assistant,
     currentChatModel: Model?,
     errors: List<ChatError>,
     onDismissError: (Uuid) -> Unit,
@@ -392,13 +397,13 @@ private fun ChatPageContent(
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
     val workspaceRepository: WorkspaceRepository = koinInject()
+
     var previewMode by rememberSaveable { mutableStateOf(false) }
     var showMessageJumperOverlay by rememberSaveable { mutableStateOf(false) }
     // 缩略页跳转请求：nonce 保证同一 index 重复点击时 LaunchedEffect 也能重新触发
     var jumpNonce by remember { mutableIntStateOf(0) }
     var jumpRequest by remember { mutableStateOf<JumpRequest?>(null) }
     val hazeState = rememberHazeState()
-    val assistant = setting.getCurrentAssistant()
     var showFilesSheet by remember { mutableStateOf(false) }
     val attachmentPickerActions = rememberChatAttachmentPickerActions(
         inputState = inputState,
@@ -406,7 +411,7 @@ private fun ChatPageContent(
         onAttachmentAdded = { showFilesSheet = false },
     )
     val allowAudioVideoAttachments =
-        setting.getCurrentChatModel()?.findProvider(setting.providers) is ProviderSetting.Google
+        currentChatModel?.findProvider(setting.providers) is ProviderSetting.Google
 
     val completionProviders = remember(assistant.workspaceId, conversation.workspaceCwd, workspaceRepository) {
         assistant.workspaceId?.let { workspaceId ->
@@ -450,6 +455,8 @@ private fun ChatPageContent(
                 topBar = {
                     TopBar(
                         settings = setting,
+                        assistant = assistant,
+                        chatModel = currentChatModel,
                         conversation = conversation,
                         bigScreen = bigScreen,
                         drawerState = drawerState,
@@ -488,41 +495,12 @@ private fun ChatPageContent(
                         onStopVoiceMode = vm.voiceSession::stop,
                         loading = loadingJob != null || hasActiveSlots,
                         settings = setting,
+                        assistant = assistant,
+                        chatModel = currentChatModel,
                         hazeState = hazeState,
                         completionProviders = completionProviders,
                         onCancelClick = {
                             vm.stopGeneration()
-                        },
-                        enableSearch = enableWebSearch,
-                        onUpdateSearchMode = { mode ->
-                            val current = setting.getCurrentAssistant()
-                            val model = setting.getCurrentChatModel()
-                            vm.updateSettings(
-                                setting.copy(
-                                    assistants = setting.assistants.map { assistant ->
-                                        if (assistant.id == current.id) {
-                                            assistant.copy(enableWebSearch = mode == SearchMode.LOCAL)
-                                        } else {
-                                            assistant
-                                        }
-                                    },
-                                    providers = if (model == null) {
-                                        setting.providers
-                                    } else {
-                                        setting.providers.map { provider ->
-                                            provider.editModel(
-                                                model.copy(
-                                                    tools = if (mode == SearchMode.BUILT_IN) {
-                                                        model.tools + BuiltInTools.Search
-                                                    } else {
-                                                        model.tools - BuiltInTools.Search
-                                                    }
-                                                )
-                                            )
-                                        }
-                                    },
-                                )
-                            )
                         },
                         onSendClick = {
                             if (currentChatModel == null) {
@@ -552,29 +530,8 @@ private fun ChatPageContent(
                             }
                             inputState.clearInput()
                         },
-                        onUpdateChatModel = {
-                            vm.setChatModel(assistant = setting.getCurrentAssistant(), model = it)
-                        },
-                        onUpdateAssistant = {
-                            vm.updateSettings(
-                                setting.copy(
-                                    assistants = setting.assistants.map { assistant ->
-                                        if (assistant.id == it.id) {
-                                            it
-                                        } else {
-                                            assistant
-                                        }
-                                    }
-                                )
-                            )
-                        },
-                        onUpdateSearchService = { index ->
-                            vm.updateSettings(
-                                setting.copy(
-                                    searchServiceSelected = index
-                                )
-                            )
-                        },
+                        onUpdateChatModel = vm::setChatModel,
+                        onUpdateAssistant = vm::updateAssistant,
                         onMoreClick = {
                             showFilesSheet = true
                         },
@@ -700,6 +657,7 @@ private fun ChatPageContent(
                 setting = setting,
                 conversation = conversation,
                 assistant = assistant,
+                chatModel = currentChatModel,
                 vm = vm,
                 attachmentPickerActions = attachmentPickerActions,
                 onStartVoiceMode = onStartVoiceMode,
@@ -719,6 +677,7 @@ private fun ChatFilesPickerSheet(
     setting: Settings,
     conversation: Conversation,
     assistant: Assistant,
+    chatModel: Model?,
     vm: ChatVM,
     attachmentPickerActions: ChatAttachmentPickerActions,
     onStartVoiceMode: () -> Unit,
@@ -734,11 +693,9 @@ private fun ChatFilesPickerSheet(
     val voiceState by vm.voiceSession.state.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
-    var showInjectionSheet by remember { mutableStateOf(false) }
     var showCompressDialog by remember { mutableStateOf(false) }
 
     fun dismissAll() {
-        showInjectionSheet = false
         showCompressDialog = false
         onDismiss()
     }
@@ -748,7 +705,7 @@ private fun ChatFilesPickerSheet(
 
     var cameraOutputUri by remember { mutableStateOf<Uri?>(null) }
     var cameraOutputFile by remember { mutableStateOf<File?>(null) }
-    val (_, launchCameraCrop) = useCropLauncher(
+    val launchCameraCrop = useCropLauncher(
         onCroppedImageReady = { croppedUri ->
             inputState.addImages(filesManager.createChatFilesByContents(listOf(croppedUri)))
             dismissAll()
@@ -788,16 +745,11 @@ private fun ChatFilesPickerSheet(
         }
     }
 
-    var preCropTempFile by remember { mutableStateOf<File?>(null) }
-    val (_, launchImageCrop) = useCropLauncher(
+    val launchImageCrop = useCropLauncher(
         onCroppedImageReady = { croppedUri ->
             inputState.addImages(filesManager.createChatFilesByContents(listOf(croppedUri)))
             dismissAll()
         },
-        onCleanup = {
-            preCropTempFile?.delete()
-            preCropTempFile = null
-        }
     )
     // 处理从相册选中的图片：单张走裁剪（可在设置中跳过），多张直接加入输入框
     fun processPickedImages(selectedUris: List<Uri>) {
@@ -810,23 +762,8 @@ private fun ChatFilesPickerSheet(
             inputState.addImages(filesManager.createChatFilesByContents(selectedUris))
             dismissAll()
         } else if (selectedUris.size == 1) {
-            val tempFile = File(context.appTempFolder, "pick_temp_${System.currentTimeMillis()}.jpg")
-            runCatching {
-                val source = selectedUris.first()
-                // HEIF/HEIC（尤其 HDR HEIF）交给 UCrop 前先解码转为 JPEG，规避裁剪解码失败
-                val converted = ImageUtils.isHeifImage(context, source) &&
-                    ImageUtils.convertHeifToJpeg(context, source, tempFile)
-                if (!converted) {
-                    context.contentResolver.openInputStream(source)?.use { input ->
-                        tempFile.outputStream().use { output -> input.copyTo(output) }
-                    }
-                }
-                preCropTempFile = tempFile
-                launchImageCrop(tempFile.toUri())
-            }.onFailure {
-                Log.e("ImagePickButton", "Failed to copy image to temp, falling back", it)
-                launchImageCrop(selectedUris.first())
-            }
+            // 裁剪器用 ImageDecoder 解码，自带 EXIF 方向并支持 HEIF，直接用 content uri
+            launchImageCrop(selectedUris.first())
         } else {
             inputState.addImages(filesManager.createChatFilesByContents(selectedUris))
             dismissAll()
@@ -940,29 +877,20 @@ private fun ChatFilesPickerSheet(
             conversation = conversation,
             state = inputState,
             assistant = assistant,
+            chatModel = chatModel,
             mcpManager = vm.mcpManager,
-            onCompressContext = { additionalPrompt, targetTokens, keepRecentMessages ->
-                vm.handleCompressContext(additionalPrompt, targetTokens, keepRecentMessages)
-            },
-            onUpdateAssistant = {
-                vm.updateSettings(
-                    setting.copy(
-                        assistants = setting.assistants.map { assistant ->
-                            if (assistant.id == it.id) {
-                                it
-                            } else {
-                                assistant
-                            }
-                        }
-                    )
+            onCompressContext = vm::handleCompressContext,
+            onUpdateAssistant = vm::updateAssistant,
+            onUpdateWorkspaceCwd = vm::updateWorkspaceCwd,
+            onUpdateSearchMode = { mode ->
+                vm.updateSearch(
+                    enableWebSearch = mode == SearchMode.LOCAL,
+                    builtInSearch = mode == SearchMode.BUILT_IN,
                 )
             },
-            onUpdateConversation = {
-                vm.updateConversation(it)
-                vm.saveConversationAsync()
+            onUpdateSearchService = { index ->
+                vm.updateSettings { it.copy(searchServiceSelected = index) }
             },
-            showInjectionSheet = showInjectionSheet,
-            onShowInjectionSheetChange = { showInjectionSheet = it },
             showCompressDialog = showCompressDialog,
             onShowCompressDialogChange = { showCompressDialog = it },
             onDismiss = { dismissAll() },
@@ -977,8 +905,9 @@ private fun ChatFilesPickerSheet(
             onPickVideo = { videoPickerLauncher.launch("video/*") },
             onPickAudio = { audioPickerLauncher.launch("audio/*") },
             onPickFile = { filePickerLauncher.launch(arrayOf("*/*")) },
+            onSketch = attachmentPickerActions.onSketch,
             // 切换语音识别开关：asrEnabled 取反即可，controller 会自动响应
-            onToggleAsr = { vm.updateSettings(setting.copy(asrEnabled = !setting.asrEnabled)) },
+            onToggleAsr = { vm.updateSettings { it.copy(asrEnabled = !it.asrEnabled) } },
             onStartVoiceMode = if (
                 setting.getSelectedASRProvider()?.supportsServerVadVoiceMode == true &&
                 voiceState.phase == VoicePhase.Off
@@ -1014,6 +943,8 @@ private fun ChatFilesPickerSheet(
 @Composable
 private fun TopBar(
     settings: Settings,
+    assistant: Assistant,
+    chatModel: Model?,
     conversation: Conversation,
     drawerState: DrawerState,
     bigScreen: Boolean,
@@ -1032,7 +963,8 @@ private fun TopBar(
     }
 
     TopAppBar(
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+        // 消息会滚动到标题栏下面，底色必须不透明，否则标题/状态栏时间会和消息文字互相干扰
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
         navigationIcon = {
             if (!bigScreen) {
                 IconButton(
@@ -1057,17 +989,16 @@ private fun TopBar(
                 color = Color.Transparent,
             ) {
                 Column {
-                    val assistant = settings.getCurrentAssistant()
-                    val model = settings.getCurrentChatModel()
+                    val provider = chatModel?.findProvider(providers = settings.providers, checkOverwrite = false)
                     Text(
                         text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
                         maxLines = 1,
                         style = MaterialTheme.typography.bodyMedium,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    if (model != null) {
+                    if (chatModel != null && provider != null) {
                         Text(
-                            text = "${assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) }} / ${model.displayName}",
+                            text = "${assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) }} / ${chatModel.displayName} (${provider.name})",
                             overflow = TextOverflow.Ellipsis,
                             maxLines = 1,
                             color = LocalContentColor.current.copy(0.65f),

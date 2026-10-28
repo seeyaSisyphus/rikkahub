@@ -5,11 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExposedDropdownMenu
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -28,11 +23,12 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.components.ui.FormItem
-import me.rerere.rikkahub.ui.components.ui.OutlinedNumberInput
-import me.rerere.rikkahub.ui.components.ui.SelectTextField
-import me.rerere.rikkahub.ui.components.ui.Switch
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupScope
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.tts.provider.TTSProviderSetting
+import me.rerere.ui.components.OutlinedNumberInput
+import me.rerere.ui.components.SelectTextField
 
 @Composable
 fun TTSProviderConfigure(
@@ -41,175 +37,174 @@ fun TTSProviderConfigure(
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = modifier.verticalScroll(rememberScrollState())
     ) {
-        // Provider type selector
-        val providers = remember { TTSProviderSetting.Types }
+        CardGroup {
+            formItem(
+                headlineContent = { Text(stringResource(R.string.setting_tts_page_provider_type)) },
+                supportingContent = { Text(stringResource(R.string.setting_tts_page_provider_type_description)) },
+            ) {
+                SelectTextField(
+                    value = when (setting) {
+                        is TTSProviderSetting.OpenAI -> "OpenAI"
+                        is TTSProviderSetting.Gemini -> "Gemini"
+                        is TTSProviderSetting.SystemTTS -> "System TTS"
+                        is TTSProviderSetting.MiniMax -> "MiniMax"
+                        is TTSProviderSetting.Qwen -> "Qwen"
+                        is TTSProviderSetting.Groq -> "Groq"
+                        is TTSProviderSetting.XAI -> "xAI"
+                        is TTSProviderSetting.MiMo -> "MiMo"
+                        is TTSProviderSetting.Step -> "Step"
+                        is TTSProviderSetting.ElevenLabs -> "ElevenLabs"
+                        is TTSProviderSetting.GeminiVertex -> "Gemini Vertex"
+                        is TTSProviderSetting.VertexCloud -> "Vertex Cloud"
+                        is TTSProviderSetting.FishAudio -> "Fish Audio"
+                        is TTSProviderSetting.Volcengine -> "火山引擎"
+                    },
+                    options = TTSProviderSetting.Types,
+                    readOnly = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    optionToString = { providerClass ->
+                        when (providerClass) {
+                            TTSProviderSetting.OpenAI::class -> "OpenAI"
+                            TTSProviderSetting.Gemini::class -> "Gemini"
+                            TTSProviderSetting.SystemTTS::class -> "System TTS"
+                            TTSProviderSetting.MiniMax::class -> "MiniMax"
+                            TTSProviderSetting.Qwen::class -> "Qwen"
+                            TTSProviderSetting.Groq::class -> "Groq"
+                            TTSProviderSetting.XAI::class -> "xAI"
+                            TTSProviderSetting.MiMo::class -> "MiMo"
+                            TTSProviderSetting.ElevenLabs::class -> "ElevenLabs"
+                            TTSProviderSetting.GeminiVertex::class -> "Gemini Vertex"
+                            TTSProviderSetting.VertexCloud::class -> "Vertex Cloud"
+                            TTSProviderSetting.FishAudio::class -> "Fish Audio"
+                            TTSProviderSetting.Volcengine::class -> "火山引擎"
+                            TTSProviderSetting.Step::class -> "Step"
+                            else -> providerClass.simpleName ?: "Unknown"
+                        }
+                    },
+                    onOptionSelected = { providerClass ->
+                        val newSetting = when (providerClass) {
+                            TTSProviderSetting.OpenAI::class -> TTSProviderSetting.OpenAI(
+                                id = setting.id,
+                                name = "OpenAI TTS"
+                            )
 
-        FormItem(
-            label = { Text(stringResource(R.string.setting_tts_page_provider_type)) },
-            description = { Text(stringResource(R.string.setting_tts_page_provider_type_description)) },
-        ) {
-            SelectTextField(
-                value = when (setting) {
-                    is TTSProviderSetting.OpenAI -> "OpenAI"
-                    is TTSProviderSetting.Gemini -> "Gemini"
-                    is TTSProviderSetting.SystemTTS -> "System TTS"
-                    is TTSProviderSetting.MiniMax -> "MiniMax"
-                    is TTSProviderSetting.Qwen -> "Qwen"
-                    is TTSProviderSetting.Groq -> "Groq"
-                    is TTSProviderSetting.XAI -> "xAI"
-                    is TTSProviderSetting.MiMo -> "MiMo"
-                    is TTSProviderSetting.Step -> "Step"
-                    is TTSProviderSetting.ElevenLabs -> "ElevenLabs"
-                    is TTSProviderSetting.GeminiVertex -> "Gemini Vertex"
-                    is TTSProviderSetting.VertexCloud -> "Vertex Cloud"
-                    is TTSProviderSetting.FishAudio -> "Fish Audio"
-                    is TTSProviderSetting.Volcengine -> "火山引擎"
-                },
-                options = providers,
-                readOnly = true,
-                modifier = Modifier.fillMaxWidth(),
-                optionToString = { providerClass ->
-                    when (providerClass) {
-                        TTSProviderSetting.OpenAI::class -> "OpenAI"
-                        TTSProviderSetting.Gemini::class -> "Gemini"
-                        TTSProviderSetting.SystemTTS::class -> "System TTS"
-                        TTSProviderSetting.MiniMax::class -> "MiniMax"
-                        TTSProviderSetting.Qwen::class -> "Qwen"
-                        TTSProviderSetting.Groq::class -> "Groq"
-                        TTSProviderSetting.XAI::class -> "xAI"
-                        TTSProviderSetting.MiMo::class -> "MiMo"
-                        TTSProviderSetting.ElevenLabs::class -> "ElevenLabs"
-                        TTSProviderSetting.FishAudio::class -> "Fish Audio"
-                        TTSProviderSetting.Volcengine::class -> "火山引擎"
-                        TTSProviderSetting.Step::class -> "Step"
-                        TTSProviderSetting.GeminiVertex::class -> "Gemini Vertex"
-                        TTSProviderSetting.VertexCloud::class -> "Vertex Cloud"
-                        else -> providerClass.simpleName ?: "Unknown"
+                            TTSProviderSetting.Gemini::class -> TTSProviderSetting.Gemini(
+                                id = setting.id,
+                                name = "Gemini TTS"
+                            )
+
+                            TTSProviderSetting.SystemTTS::class -> TTSProviderSetting.SystemTTS(
+                                id = setting.id,
+                                name = "System TTS"
+                            )
+
+                            TTSProviderSetting.MiniMax::class -> TTSProviderSetting.MiniMax(
+                                id = setting.id,
+                                name = "MiniMax TTS"
+                            )
+
+                            TTSProviderSetting.Qwen::class -> TTSProviderSetting.Qwen(
+                                id = setting.id,
+                                name = "Qwen TTS"
+                            )
+
+                            TTSProviderSetting.Groq::class -> TTSProviderSetting.Groq(
+                                id = setting.id,
+                                name = "Groq TTS"
+                            )
+
+                            TTSProviderSetting.XAI::class -> TTSProviderSetting.XAI(
+                                id = setting.id,
+                                name = "xAI TTS"
+                            )
+
+                            TTSProviderSetting.MiMo::class -> TTSProviderSetting.MiMo(
+                                id = setting.id,
+                                name = "MiMo TTS"
+                            )
+
+                            TTSProviderSetting.ElevenLabs::class -> TTSProviderSetting.ElevenLabs(
+                                id = setting.id,
+                                name = "ElevenLabs TTS"
+                            )
+
+                            TTSProviderSetting.GeminiVertex::class -> TTSProviderSetting.GeminiVertex(
+                                id = setting.id,
+                                name = "Gemini Vertex TTS"
+                            )
+
+                            TTSProviderSetting.VertexCloud::class -> TTSProviderSetting.VertexCloud(
+                                id = setting.id,
+                                name = "Vertex Cloud TTS"
+                            )
+
+                            TTSProviderSetting.FishAudio::class -> TTSProviderSetting.FishAudio(
+                                id = setting.id,
+                                name = "Fish Audio TTS"
+                            )
+
+                            TTSProviderSetting.Step::class -> TTSProviderSetting.Step(
+                                id = setting.id,
+                                name = "Step TTS"
+                            )
+
+                            TTSProviderSetting.Volcengine::class -> TTSProviderSetting.Volcengine(id = setting.id)
+
+                            else -> setting
+                        }
+                        onValueChange(newSetting)
                     }
-                },
-                onOptionSelected = { providerClass ->
-                    val newSetting = when (providerClass) {
-                        TTSProviderSetting.OpenAI::class -> TTSProviderSetting.OpenAI(
-                            id = setting.id,
-                            name = "OpenAI TTS"
-                        )
+                )
+            }
 
-                        TTSProviderSetting.Gemini::class -> TTSProviderSetting.Gemini(
-                            id = setting.id,
-                            name = "Gemini TTS"
-                        )
-
-                        TTSProviderSetting.SystemTTS::class -> TTSProviderSetting.SystemTTS(
-                            id = setting.id,
-                            name = "System TTS"
-                        )
-
-                        TTSProviderSetting.MiniMax::class -> TTSProviderSetting.MiniMax(
-                            id = setting.id,
-                            name = "MiniMax TTS"
-                        )
-
-                        TTSProviderSetting.Qwen::class -> TTSProviderSetting.Qwen(
-                            id = setting.id,
-                            name = "Qwen TTS"
-                        )
-
-                        TTSProviderSetting.Groq::class -> TTSProviderSetting.Groq(
-                            id = setting.id,
-                            name = "Groq TTS"
-                        )
-
-                        TTSProviderSetting.XAI::class -> TTSProviderSetting.XAI(
-                            id = setting.id,
-                            name = "xAI TTS"
-                        )
-
-                        TTSProviderSetting.MiMo::class -> TTSProviderSetting.MiMo(
-                            id = setting.id,
-                            name = "MiMo TTS"
-                        )
-
-                        TTSProviderSetting.ElevenLabs::class -> TTSProviderSetting.ElevenLabs(
-                            id = setting.id,
-                            name = "ElevenLabs TTS"
-                        )
-
-                        TTSProviderSetting.GeminiVertex::class -> TTSProviderSetting.GeminiVertex(
-                            id = setting.id,
-                            name = "Gemini Vertex TTS"
-                        )
-
-                        TTSProviderSetting.VertexCloud::class -> TTSProviderSetting.VertexCloud(
-                            id = setting.id,
-                            name = "Vertex Cloud TTS"
-                        )
-
-                        TTSProviderSetting.FishAudio::class -> TTSProviderSetting.FishAudio(
-                            id = setting.id,
-                            name = "Fish Audio TTS"
-                        )
-
-                        TTSProviderSetting.Step::class -> TTSProviderSetting.Step(
-                            id = setting.id,
-                            name = "Step TTS"
-                        )
-
-                        TTSProviderSetting.Volcengine::class -> TTSProviderSetting.Volcengine(id = setting.id)
-
-                        else -> setting
-                    }
-                    onValueChange(newSetting)
-                }
-            )
+            // Name
+            formItem(
+                headlineContent = { Text(stringResource(R.string.setting_tts_page_name)) },
+                supportingContent = { Text(stringResource(R.string.setting_tts_page_name_description)) }
+            ) {
+                OutlinedTextField(
+                    value = setting.name,
+                    onValueChange = { newName ->
+                        onValueChange(setting.copyProvider(name = newName))
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text(stringResource(R.string.setting_tts_page_name_placeholder)) }
+                )
+            }
         }
 
-        // Name
-        FormItem(
-            label = { Text(stringResource(R.string.setting_tts_page_name)) },
-            description = { Text(stringResource(R.string.setting_tts_page_name_description)) }
-        ) {
-            OutlinedTextField(
-                value = setting.name,
-                onValueChange = { newName ->
-                    onValueChange(setting.copyProvider(name = newName))
-                },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text(stringResource(R.string.setting_tts_page_name_placeholder)) }
-            )
-        }
-
-        // Provider-specific fields
-        when (setting) {
-            is TTSProviderSetting.OpenAI -> OpenAITTSConfiguration(setting, onValueChange)
-            is TTSProviderSetting.Gemini -> GeminiTTSConfiguration(setting, onValueChange)
-            is TTSProviderSetting.MiniMax -> MiniMaxTTSConfiguration(setting, onValueChange)
-            is TTSProviderSetting.SystemTTS -> SystemTTSConfiguration(setting, onValueChange)
-            is TTSProviderSetting.Qwen -> QwenTTSConfiguration(setting, onValueChange)
-            is TTSProviderSetting.Groq -> GroqTTSConfiguration(setting, onValueChange)
-            is TTSProviderSetting.XAI -> XAITTSConfiguration(setting, onValueChange)
-            is TTSProviderSetting.MiMo -> MiMoTTSConfiguration(setting, onValueChange)
-            is TTSProviderSetting.ElevenLabs -> ElevenLabsTTSConfiguration(setting, onValueChange)
-            is TTSProviderSetting.FishAudio -> FishAudioTTSConfiguration(setting, onValueChange)
-            is TTSProviderSetting.Step -> StepTTSConfiguration(setting, onValueChange)
-            is TTSProviderSetting.GeminiVertex -> GeminiVertexTTSConfiguration(setting, onValueChange)
-            is TTSProviderSetting.VertexCloud -> VertexCloudTTSConfiguration(setting, onValueChange)
-            is TTSProviderSetting.Volcengine -> VolcengineTTSConfiguration(setting, onValueChange)
+        CardGroup {
+            when (setting) {
+                is TTSProviderSetting.OpenAI -> openAITTSItems(setting, onValueChange)
+                is TTSProviderSetting.Gemini -> geminiTTSItems(setting, onValueChange)
+                is TTSProviderSetting.MiniMax -> miniMaxTTSItems(setting, onValueChange)
+                is TTSProviderSetting.SystemTTS -> systemTTSItems(setting, onValueChange)
+                is TTSProviderSetting.Qwen -> qwenTTSItems(setting, onValueChange)
+                is TTSProviderSetting.Groq -> groqTTSItems(setting, onValueChange)
+                is TTSProviderSetting.XAI -> xAITTSItems(setting, onValueChange)
+                is TTSProviderSetting.MiMo -> miMoTTSItems(setting, onValueChange)
+                is TTSProviderSetting.ElevenLabs -> elevenLabsTTSItems(setting, onValueChange)
+                is TTSProviderSetting.GeminiVertex -> geminiVertexTTSItems(setting, onValueChange)
+                is TTSProviderSetting.VertexCloud -> vertexCloudTTSItems(setting, onValueChange)
+                is TTSProviderSetting.FishAudio -> fishAudioTTSItems(setting, onValueChange)
+                is TTSProviderSetting.Step -> stepTTSItems(setting, onValueChange)
+                is TTSProviderSetting.Volcengine -> volcengineTTSItems(setting, onValueChange)
+            }
         }
     }
 }
 
-@Composable
-private fun OpenAITTSConfiguration(
+private fun CardGroupScope.openAITTSItems(
     setting: TTSProviderSetting.OpenAI,
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // API Key
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
-        description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_api_key)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
     ) {
         OutlinedTextField(
             value = setting.apiKey,
@@ -222,9 +217,9 @@ private fun OpenAITTSConfiguration(
     }
 
     // Base URL
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_base_url)) },
-        description = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_base_url)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
     ) {
         OutlinedTextField(
             value = setting.baseUrl,
@@ -237,9 +232,9 @@ private fun OpenAITTSConfiguration(
     }
 
     // Model
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_model)) },
-        description = { Text(stringResource(R.string.setting_tts_page_model_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_model)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_model_description)) }
     ) {
         OutlinedTextField(
             value = setting.model,
@@ -254,9 +249,9 @@ private fun OpenAITTSConfiguration(
     // Voice
     val voices = listOf("alloy", "echo", "fable", "onyx", "nova", "shimmer")
 
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_voice)) },
-        description = { Text(stringResource(R.string.setting_tts_page_voice_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_voice)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_voice_description)) }
     ) {
         SelectTextField(
             value = setting.voice,
@@ -272,16 +267,15 @@ private fun OpenAITTSConfiguration(
     }
 }
 
-@Composable
-private fun MiMoTTSConfiguration(
+private fun CardGroupScope.miMoTTSItems(
     setting: TTSProviderSetting.MiMo,
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // MiMo 配置均为自由输入，同时提供候选列表方便快速选择
     // API Key
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
-        description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_api_key)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
     ) {
         OutlinedTextField(
             value = setting.apiKey,
@@ -294,9 +288,9 @@ private fun MiMoTTSConfiguration(
     }
 
     // Base URL
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_base_url)) },
-        description = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_base_url)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
     ) {
         OutlinedTextField(
             value = setting.baseUrl,
@@ -309,49 +303,28 @@ private fun MiMoTTSConfiguration(
     }
 
     // Model — 提供 v2.5 三个模型的候选列表
-    var modelExpanded by remember { mutableStateOf(false) }
     val models = listOf(
         "mimo-v2.5-tts",
         "mimo-v2.5-tts-voicedesign",
         "mimo-v2.5-tts-voiceclone"
     )
 
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_model)) },
-        description = { Text(stringResource(R.string.setting_tts_page_model_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_model)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_model_description)) }
     ) {
-        ExposedDropdownMenuBox(
-            expanded = modelExpanded,
-            onExpandedChange = { modelExpanded = !modelExpanded }
-        ) {
-            OutlinedTextField(
-                value = setting.model,
-                onValueChange = { newModel ->
-                    onValueChange(setting.copy(model = newModel))
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
-                placeholder = { Text("mimo-v2.5-tts") },
-                trailingIcon = {
-                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = modelExpanded)
-                }
-            )
-            ExposedDropdownMenu(
-                expanded = modelExpanded,
-                onDismissRequest = { modelExpanded = false }
-            ) {
-                models.forEach { model ->
-                    DropdownMenuItem(
-                        text = { Text(model) },
-                        onClick = {
-                            modelExpanded = false
-                            onValueChange(setting.copy(model = model))
-                        }
-                    )
-                }
-            }
-        }
+        SelectTextField(
+            value = setting.model,
+            options = models,
+            onValueChange = { newModel ->
+                onValueChange(setting.copy(model = newModel))
+            },
+            onOptionSelected = { model ->
+                onValueChange(setting.copy(model = model))
+            },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("mimo-v2.5-tts") }
+        )
     }
 
     // Voice
@@ -368,9 +341,9 @@ private fun MiMoTTSConfiguration(
         "Dean"
     )
 
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_voice)) },
-        description = { Text(stringResource(R.string.setting_tts_page_voice_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_voice)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_voice_description)) }
     ) {
         SelectTextField(
             value = setting.voice,
@@ -387,15 +360,14 @@ private fun MiMoTTSConfiguration(
     }
 }
 
-@Composable
-private fun MiniMaxTTSConfiguration(
+private fun CardGroupScope.miniMaxTTSItems(
     setting: TTSProviderSetting.MiniMax,
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // API Key
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
-        description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_api_key)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
     ) {
         OutlinedTextField(
             value = setting.apiKey,
@@ -407,9 +379,9 @@ private fun MiniMaxTTSConfiguration(
     }
 
     // Base URL
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_base_url)) },
-        description = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_base_url)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
     ) {
         OutlinedTextField(
             value = setting.baseUrl,
@@ -421,64 +393,39 @@ private fun MiniMaxTTSConfiguration(
         )
     }
 
-    // Model
-    var modelExpanded by remember { mutableStateOf(false) }
+    // Model — 提供 speech-2.8 两个模型的候选列表
     val models = listOf(
         "speech-2.8-turbo",
         "speech-2.8-hd"
     )
 
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_model)) },
-        description = { Text(stringResource(R.string.setting_tts_page_model_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_model)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_model_description)) }
     ) {
-        ExposedDropdownMenuBox(
-            expanded = modelExpanded,
-            onExpandedChange = { modelExpanded = !modelExpanded }
-        ) {
-            OutlinedTextField(
-                value = setting.model,
-                onValueChange = { newModel ->
-                    onValueChange(setting.copy(model = newModel))
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
-                placeholder = { Text("speech-2.8-turbo") },
-                trailingIcon = {
-                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = modelExpanded)
-                }
-            )
-            ExposedDropdownMenu(
-                expanded = modelExpanded,
-                onDismissRequest = { modelExpanded = false }
-            ) {
-                models.forEach { model ->
-                    DropdownMenuItem(
-                        text = { Text(model) },
-                        onClick = {
-                            modelExpanded = false
-                            onValueChange(setting.copy(model = model))
-                        }
-                    )
-                }
-            }
-        }
+        SelectTextField(
+            value = setting.model,
+            options = models,
+            onValueChange = { newModel ->
+                onValueChange(setting.copy(model = newModel))
+            },
+            onOptionSelected = { model ->
+                onValueChange(setting.copy(model = model))
+            },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("speech-2.8-turbo") }
+        )
     }
 
     // Stream
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_stream)) },
-        description = { Text(stringResource(R.string.setting_tts_page_stream_description)) },
-        tail = {
-            Switch(
-                checked = setting.stream,
-                onCheckedChange = { newStream ->
-                    onValueChange(setting.copy(stream = newStream))
-                }
-            )
-        }
-    ) {}
+    switchItem(
+        checked = setting.stream,
+        onCheckedChange = { newStream ->
+            onValueChange(setting.copy(stream = newStream))
+        },
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_stream)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_stream_description)) },
+    )
 
     // Voice ID
     val voiceIds = listOf(
@@ -506,9 +453,9 @@ private fun MiniMaxTTSConfiguration(
         "Chinese (Mandarin)_Gentle_Senior" to "温柔学姐"
     )
 
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_voice_id)) },
-        description = { Text(stringResource(R.string.setting_tts_page_voice_id_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_voice_id)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_voice_id_description)) }
     ) {
         SelectTextField(
             value = setting.voiceId,
@@ -525,51 +472,30 @@ private fun MiniMaxTTSConfiguration(
     }
 
     // Emotion
-    var emotionExpanded by remember { mutableStateOf(false) }
     // speech-2.8 系列支持的情绪（whisper 仅 2.6 支持，已排除）
     val emotions = listOf("calm", "happy", "sad", "angry", "fearful", "disgusted", "surprised", "fluent")
 
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_emotion)) },
-        description = { Text(stringResource(R.string.setting_tts_page_emotion_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_emotion)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_emotion_description)) }
     ) {
-        ExposedDropdownMenuBox(
-            expanded = emotionExpanded,
-            onExpandedChange = { emotionExpanded = !emotionExpanded }
-        ) {
-            OutlinedTextField(
-                value = setting.emotion,
-                onValueChange = { newEmotion ->
-                    onValueChange(setting.copy(emotion = newEmotion))
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
-                trailingIcon = {
-                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = emotionExpanded)
-                }
-            )
-            ExposedDropdownMenu(
-                expanded = emotionExpanded,
-                onDismissRequest = { emotionExpanded = false }
-            ) {
-                emotions.forEach { emotion ->
-                    DropdownMenuItem(
-                        text = { Text(emotion) },
-                        onClick = {
-                            emotionExpanded = false
-                            onValueChange(setting.copy(emotion = emotion))
-                        }
-                    )
-                }
-            }
-        }
+        SelectTextField(
+            value = setting.emotion,
+            options = emotions,
+            onValueChange = { newEmotion ->
+                onValueChange(setting.copy(emotion = newEmotion))
+            },
+            onOptionSelected = { emotion ->
+                onValueChange(setting.copy(emotion = emotion))
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 
     // Speed
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_speed)) },
-        description = { Text(stringResource(R.string.setting_tts_page_speed_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_speed)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_speed_description)) }
     ) {
         OutlinedNumberInput(
             value = setting.speed,
@@ -584,9 +510,9 @@ private fun MiniMaxTTSConfiguration(
     }
 
     // Vol（音量）
-    FormItem(
-        label = { Text("音量 (Vol)") },
-        description = { Text("合成音频的音量，范围 (0, 10]，默认 1.0") }
+    formItem(
+        headlineContent = { Text("音量 (Vol)") },
+        supportingContent = { Text("合成音频的音量，范围 (0, 10]，默认 1.0") }
     ) {
         OutlinedNumberInput(
             value = setting.vol,
@@ -601,9 +527,9 @@ private fun MiniMaxTTSConfiguration(
     }
 
     // Pitch（语调）
-    FormItem(
-        label = { Text("语调 (Pitch)") },
-        description = { Text("合成音频的语调，范围 [-12, 12]，默认 0") }
+    formItem(
+        headlineContent = { Text("语调 (Pitch)") },
+        supportingContent = { Text("合成音频的语调，范围 [-12, 12]，默认 0") }
     ) {
         OutlinedNumberInput(
             value = setting.pitch.toFloat(),
@@ -619,16 +545,14 @@ private fun MiniMaxTTSConfiguration(
     }
 }
 
-
-@Composable
-private fun GeminiTTSConfiguration(
+private fun CardGroupScope.geminiTTSItems(
     setting: TTSProviderSetting.Gemini,
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // API Key
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
-        description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_api_key)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
     ) {
         OutlinedTextField(
             value = setting.apiKey,
@@ -641,9 +565,9 @@ private fun GeminiTTSConfiguration(
     }
 
     // Base URL
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_base_url)) },
-        description = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_base_url)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
     ) {
         OutlinedTextField(
             value = setting.baseUrl,
@@ -656,9 +580,9 @@ private fun GeminiTTSConfiguration(
     }
 
     // Model
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_model)) },
-        description = { Text(stringResource(R.string.setting_tts_page_model_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_model)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_model_description)) }
     ) {
         OutlinedTextField(
             value = setting.model,
@@ -671,9 +595,9 @@ private fun GeminiTTSConfiguration(
     }
 
     // Voice Name
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_voice_name)) },
-        description = { Text(stringResource(R.string.setting_tts_page_voice_name_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_voice_name)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_voice_name_description)) }
     ) {
         OutlinedTextField(
             value = setting.voiceName,
@@ -686,15 +610,14 @@ private fun GeminiTTSConfiguration(
     }
 }
 
-@Composable
-private fun SystemTTSConfiguration(
+private fun CardGroupScope.systemTTSItems(
     setting: TTSProviderSetting.SystemTTS,
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // Speech Rate
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_speech_rate)) },
-        description = { Text(stringResource(R.string.setting_tts_page_speech_rate_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_speech_rate)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_speech_rate_description)) }
     ) {
         OutlinedNumberInput(
             value = setting.speechRate,
@@ -709,9 +632,9 @@ private fun SystemTTSConfiguration(
     }
 
     // Pitch
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_pitch)) },
-        description = { Text(stringResource(R.string.setting_tts_page_pitch_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_pitch)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_pitch_description)) }
     ) {
         OutlinedNumberInput(
             value = setting.pitch,
@@ -726,15 +649,14 @@ private fun SystemTTSConfiguration(
     }
 }
 
-@Composable
-private fun QwenTTSConfiguration(
+private fun CardGroupScope.qwenTTSItems(
     setting: TTSProviderSetting.Qwen,
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // API Key
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
-        description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_api_key)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
     ) {
         OutlinedTextField(
             value = setting.apiKey,
@@ -747,9 +669,9 @@ private fun QwenTTSConfiguration(
     }
 
     // Base URL
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_base_url)) },
-        description = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_base_url)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
     ) {
         OutlinedTextField(
             value = setting.baseUrl,
@@ -767,9 +689,9 @@ private fun QwenTTSConfiguration(
         "qwen-audio-3.0-tts-plus",
     )
 
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_model)) },
-        description = { Text(stringResource(R.string.setting_tts_page_model_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_model)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_model_description)) }
     ) {
         SelectTextField(
             value = setting.model,
@@ -803,9 +725,9 @@ private fun QwenTTSConfiguration(
         else -> emptyList()
     }
 
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_voice)) },
-        description = { Text(stringResource(R.string.setting_tts_page_voice_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_voice)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_voice_description)) }
     ) {
         SelectTextField(
             value = setting.voice,
@@ -823,9 +745,9 @@ private fun QwenTTSConfiguration(
     // Audio Format
     val formats = listOf("wav", "mp3", "pcm", "opus")
 
-    FormItem(
-        label = { Text("Audio Format") },
-        description = { Text("Audio encoding returned by Qwen TTS") }
+    formItem(
+        headlineContent = { Text("Audio Format") },
+        supportingContent = { Text("Audio encoding returned by Qwen TTS") }
     ) {
         SelectTextField(
             value = setting.format,
@@ -841,9 +763,9 @@ private fun QwenTTSConfiguration(
     // Sample Rate
     val sampleRates = listOf(8000, 16000, 22050, 24000, 44100, 48000)
 
-    FormItem(
-        label = { Text("Sample Rate") },
-        description = { Text("Audio sample rate in Hz") }
+    formItem(
+        headlineContent = { Text("Sample Rate") },
+        supportingContent = { Text("Audio sample rate in Hz") }
     ) {
         SelectTextField(
             value = setting.sampleRate.toString(),
@@ -857,15 +779,14 @@ private fun QwenTTSConfiguration(
     }
 }
 
-@Composable
-private fun GroqTTSConfiguration(
+private fun CardGroupScope.groqTTSItems(
     setting: TTSProviderSetting.Groq,
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // API Key
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
-        description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_api_key)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
     ) {
         OutlinedTextField(
             value = setting.apiKey,
@@ -878,9 +799,9 @@ private fun GroqTTSConfiguration(
     }
 
     // Base URL
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_base_url)) },
-        description = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_base_url)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
     ) {
         OutlinedTextField(
             value = setting.baseUrl,
@@ -893,9 +814,9 @@ private fun GroqTTSConfiguration(
     }
 
     // Model
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_model)) },
-        description = { Text(stringResource(R.string.setting_tts_page_model_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_model)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_model_description)) }
     ) {
         OutlinedTextField(
             value = setting.model,
@@ -910,9 +831,9 @@ private fun GroqTTSConfiguration(
     // Voice
     val voices = listOf("austin", "natalie", "kailin")
 
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_voice)) },
-        description = { Text(stringResource(R.string.setting_tts_page_voice_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_voice)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_voice_description)) }
     ) {
         SelectTextField(
             value = setting.voice,
@@ -928,15 +849,14 @@ private fun GroqTTSConfiguration(
     }
 }
 
-@Composable
-private fun XAITTSConfiguration(
+private fun CardGroupScope.xAITTSItems(
     setting: TTSProviderSetting.XAI,
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // API Key
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
-        description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_api_key)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
     ) {
         OutlinedTextField(
             value = setting.apiKey,
@@ -949,9 +869,9 @@ private fun XAITTSConfiguration(
     }
 
     // Base URL
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_base_url)) },
-        description = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_base_url)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
     ) {
         OutlinedTextField(
             value = setting.baseUrl,
@@ -972,9 +892,9 @@ private fun XAITTSConfiguration(
         "leo" to "Leo"
     )
 
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_voice)) },
-        description = { Text(stringResource(R.string.setting_tts_page_voice_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_voice)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_voice_description)) }
     ) {
         SelectTextField(
             value = setting.voiceId,
@@ -1013,8 +933,8 @@ private fun XAITTSConfiguration(
         "bn" to "Bengali"
     )
 
-    FormItem(
-        label = { Text("Language") },
+    formItem(
+        headlineContent = { Text("Language") },
     ) {
         SelectTextField(
             value = setting.language,
@@ -1031,15 +951,14 @@ private fun XAITTSConfiguration(
     }
 }
 
-@Composable
-private fun ElevenLabsTTSConfiguration(
+private fun CardGroupScope.elevenLabsTTSItems(
     setting: TTSProviderSetting.ElevenLabs,
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // API Key
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
-        description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_api_key)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
     ) {
         OutlinedTextField(
             value = setting.apiKey,
@@ -1052,9 +971,9 @@ private fun ElevenLabsTTSConfiguration(
     }
 
     // Base URL
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_base_url)) },
-        description = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_base_url)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
     ) {
         OutlinedTextField(
             value = setting.baseUrl,
@@ -1073,9 +992,9 @@ private fun ElevenLabsTTSConfiguration(
         "eleven_flash_v2_5" to "Eleven Flash v2.5"
     )
 
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_model)) },
-        description = { Text(stringResource(R.string.setting_tts_page_model_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_model)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_model_description)) }
     ) {
         SelectTextField(
             value = setting.model,
@@ -1092,9 +1011,9 @@ private fun ElevenLabsTTSConfiguration(
     }
 
     // Voice ID
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_voice)) },
-        description = { Text(stringResource(R.string.setting_tts_page_voice_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_voice)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_voice_description)) }
     ) {
         OutlinedTextField(
             value = setting.voiceId,
@@ -1107,9 +1026,9 @@ private fun ElevenLabsTTSConfiguration(
     }
 
     // Stability
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_stability)) },
-        description = { Text(stringResource(R.string.setting_tts_page_stability_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_stability)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_stability_description)) }
     ) {
         OutlinedNumberInput(
             value = setting.stability,
@@ -1122,9 +1041,9 @@ private fun ElevenLabsTTSConfiguration(
     }
 
     // Similarity Boost
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_similarity_boost)) },
-        description = { Text(stringResource(R.string.setting_tts_page_similarity_boost_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_similarity_boost)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_similarity_boost_description)) }
     ) {
         OutlinedNumberInput(
             value = setting.similarityBoost,
@@ -1137,15 +1056,14 @@ private fun ElevenLabsTTSConfiguration(
     }
 }
 
-@Composable
-private fun FishAudioTTSConfiguration(
+private fun CardGroupScope.fishAudioTTSItems(
     setting: TTSProviderSetting.FishAudio,
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // API Key
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
-        description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_api_key)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
     ) {
         OutlinedTextField(
             value = setting.apiKey,
@@ -1158,9 +1076,9 @@ private fun FishAudioTTSConfiguration(
     }
 
     // Base URL
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_base_url)) },
-        description = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_base_url)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
     ) {
         OutlinedTextField(
             value = setting.baseUrl,
@@ -1180,9 +1098,9 @@ private fun FishAudioTTSConfiguration(
         "s1" to "S1"
     )
 
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_model)) },
-        description = { Text(stringResource(R.string.setting_tts_page_model_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_model)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_model_description)) }
     ) {
         SelectTextField(
             value = setting.model,
@@ -1199,9 +1117,9 @@ private fun FishAudioTTSConfiguration(
     }
 
     // Voice ID (reference_id)
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_voice_id)) },
-        description = { Text(stringResource(R.string.setting_tts_page_voice_id_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_voice_id)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_voice_id_description)) }
     ) {
         OutlinedTextField(
             value = setting.referenceId,
@@ -1214,9 +1132,9 @@ private fun FishAudioTTSConfiguration(
     }
 
     // Temperature
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_temperature)) },
-        description = { Text(stringResource(R.string.setting_tts_page_temperature_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_temperature)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_temperature_description)) }
     ) {
         OutlinedNumberInput(
             value = setting.temperature,
@@ -1229,9 +1147,9 @@ private fun FishAudioTTSConfiguration(
     }
 
     // Speed
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_speed)) },
-        description = { Text(stringResource(R.string.setting_tts_page_fish_audio_speed_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_speed)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_fish_audio_speed_description)) }
     ) {
         OutlinedNumberInput(
             value = setting.speed,
@@ -1244,15 +1162,14 @@ private fun FishAudioTTSConfiguration(
     }
 }
 
-@Composable
-private fun StepTTSConfiguration(
+private fun CardGroupScope.stepTTSItems(
     setting: TTSProviderSetting.Step,
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // API Key
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
-        description = { Text("从阶跃星辰官网获取密钥: platform.stepfun.com/interface-key") }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_api_key)) },
+        supportingContent = { Text("从阶跃星辰官网获取密钥: platform.stepfun.com/interface-key") }
     ) {
         OutlinedTextField(
             value = setting.apiKey,
@@ -1265,9 +1182,9 @@ private fun StepTTSConfiguration(
     }
 
     // Base URL
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_base_url)) },
-        description = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_base_url)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
     ) {
         OutlinedTextField(
             value = setting.baseUrl,
@@ -1287,9 +1204,9 @@ private fun StepTTSConfiguration(
         "step-tts-2" to "step-tts-2 (上一代)",
     )
 
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_model)) },
-        description = { Text(stringResource(R.string.setting_tts_page_model_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_model)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_model_description)) }
     ) {
         SelectTextField(
             value = setting.model,
@@ -1342,9 +1259,9 @@ private fun StepTTSConfiguration(
         "qingniandaxuesheng" to "青年大学生 (qingniandaxuesheng)",
     )
 
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_voice)) },
-        description = { Text(stringResource(R.string.setting_tts_page_voice_description)) }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_voice)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_voice_description)) }
     ) {
         SelectTextField(
             value = setting.voice,
@@ -1363,9 +1280,9 @@ private fun StepTTSConfiguration(
     // Response Format
     val formats = listOf("mp3", "wav", "pcm", "opus", "flac")
 
-    FormItem(
-        label = { Text("Response Format") },
-        description = { Text("音频编码格式 (注意 StepFun API 字段名为 camelCase)") }
+    formItem(
+        headlineContent = { Text("Response Format") },
+        supportingContent = { Text("音频编码格式 (注意 StepFun API 字段名为 camelCase)") }
     ) {
         SelectTextField(
             value = setting.responseFormat,
@@ -1381,9 +1298,9 @@ private fun StepTTSConfiguration(
     }
 
     // Speed
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_speed)) },
-        description = { Text("语速 (0.5 - 2.0, 1.0 为正常)") }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_speed)) },
+        supportingContent = { Text("语速 (0.5 - 2.0, 1.0 为正常)") }
     ) {
         OutlinedNumberInput(
             value = setting.speed,
@@ -1398,9 +1315,9 @@ private fun StepTTSConfiguration(
     }
 
     // Volume
-    FormItem(
-        label = { Text("Volume") },
-        description = { Text("音量 (0.1 - 2.0, 1.0 为正常)") }
+    formItem(
+        headlineContent = { Text("Volume") },
+        supportingContent = { Text("音量 (0.1 - 2.0, 1.0 为正常)") }
     ) {
         OutlinedNumberInput(
             value = setting.volume,
@@ -1417,9 +1334,9 @@ private fun StepTTSConfiguration(
     // Sample Rate
     val sampleRates = listOf(8000, 16000, 22050, 24000)
 
-    FormItem(
-        label = { Text("Sample Rate") },
-        description = { Text("采样率 (Hz)") }
+    formItem(
+        headlineContent = { Text("Sample Rate") },
+        supportingContent = { Text("采样率 (Hz)") }
     ) {
         SelectTextField(
             value = setting.sampleRate.toString(),
@@ -1434,9 +1351,9 @@ private fun StepTTSConfiguration(
     }
 
     // Instruction (仅 stepaudio-2.5-tts 生效)
-    FormItem(
-        label = { Text("Instruction") },
-        description = { Text("全局语境指令, 仅 stepaudio-2.5-tts 生效 (≤200 字符, 留空不下发)") }
+    formItem(
+        headlineContent = { Text("Instruction") },
+        supportingContent = { Text("全局语境指令, 仅 stepaudio-2.5-tts 生效 (≤200 字符, 留空不下发)") }
     ) {
         OutlinedTextField(
             value = setting.instruction,
@@ -1454,17 +1371,15 @@ private fun StepTTSConfiguration(
     }
 }
 
-@Composable
-private fun VolcengineTTSConfiguration(
+private fun CardGroupScope.volcengineTTSItems(
     setting: TTSProviderSetting.Volcengine,
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
-    var keyVisible by remember(setting.id) { mutableStateOf(false) }
-
-    FormItem(
-        label = { Text("API Key") },
-        description = { Text("请填写豆包语音控制台的 API Key，不是火山方舟控制台的 API Key。") }
+    formItem(
+        headlineContent = { Text("API Key") },
+        supportingContent = { Text("请填写豆包语音控制台的 API Key，不是火山方舟控制台的 API Key。") }
     ) {
+        var keyVisible by remember(setting.id) { mutableStateOf(false) }
         OutlinedTextField(
             value = setting.apiKey,
             onValueChange = { onValueChange(setting.copy(apiKey = it)) },
@@ -1481,7 +1396,7 @@ private fun VolcengineTTSConfiguration(
             modifier = Modifier.fillMaxWidth(),
         )
     }
-    FormItem(label = { Text(stringResource(R.string.setting_tts_page_base_url)) }) {
+    formItem(headlineContent = { Text(stringResource(R.string.setting_tts_page_base_url)) }) {
         OutlinedTextField(
             value = setting.baseUrl,
             onValueChange = { onValueChange(setting.copy(baseUrl = it)) },
@@ -1490,9 +1405,9 @@ private fun VolcengineTTSConfiguration(
             modifier = Modifier.fillMaxWidth(),
         )
     }
-    FormItem(
-        label = { Text("资源 ID") },
-        description = { Text("需与已开通的服务和音色匹配，默认 seed-tts-2.0。") }
+    formItem(
+        headlineContent = { Text("资源 ID") },
+        supportingContent = { Text("需与已开通的服务和音色匹配，默认 seed-tts-2.0。") }
     ) {
         OutlinedTextField(
             value = setting.resourceId,
@@ -1501,9 +1416,9 @@ private fun VolcengineTTSConfiguration(
             modifier = Modifier.fillMaxWidth(),
         )
     }
-    FormItem(
-        label = { Text("音色 ID") },
-        description = { Text("填写控制台中的音色 ID，默认使用 VV 音色。") }
+    formItem(
+        headlineContent = { Text("音色 ID") },
+        supportingContent = { Text("填写控制台中的音色 ID，默认使用 VV 音色。") }
     ) {
         OutlinedTextField(
             value = setting.speaker,
@@ -1512,9 +1427,9 @@ private fun VolcengineTTSConfiguration(
             modifier = Modifier.fillMaxWidth(),
         )
     }
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_speed)) },
-        description = { Text("范围 -50～100，0 为正常语速，-50 为半速，100 为两倍速。") }
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_speed)) },
+        supportingContent = { Text("范围 -50～100，0 为正常语速，-50 为半速，100 为两倍速。") }
     ) {
         OutlinedNumberInput(
             value = setting.speechRate,
@@ -1524,14 +1439,13 @@ private fun VolcengineTTSConfiguration(
     }
 }
 
-@Composable
-private fun GeminiVertexTTSConfiguration(
+private fun CardGroupScope.geminiVertexTTSItems(
     setting: TTSProviderSetting.GeminiVertex,
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
-    FormItem(
-        label = { Text("Service Account Email") },
-        description = { Text("Google Cloud 服务账号邮筱") }
+    formItem(
+        headlineContent = { Text("Service Account Email") },
+        supportingContent = { Text("Google Cloud 服务账号邮筱") }
     ) {
         OutlinedTextField(
             value = setting.serviceAccountEmail,
@@ -1540,9 +1454,9 @@ private fun GeminiVertexTTSConfiguration(
             placeholder = { Text("your-account@project.iam.gserviceaccount.com") }
         )
     }
-    FormItem(
-        label = { Text("Private Key") },
-        description = { Text("服务账号私钥 (PEM)") }
+    formItem(
+        headlineContent = { Text("Private Key") },
+        supportingContent = { Text("服务账号私钥 (PEM)") }
     ) {
         OutlinedTextField(
             value = setting.privateKey,
@@ -1551,9 +1465,9 @@ private fun GeminiVertexTTSConfiguration(
             minLines = 3,
         )
     }
-    FormItem(
-        label = { Text("Project ID") },
-        description = { Text("Google Cloud 项目 ID") }
+    formItem(
+        headlineContent = { Text("Project ID") },
+        supportingContent = { Text("Google Cloud 项目 ID") }
     ) {
         OutlinedTextField(
             value = setting.projectId,
@@ -1561,9 +1475,9 @@ private fun GeminiVertexTTSConfiguration(
             modifier = Modifier.fillMaxWidth(),
         )
     }
-    FormItem(
-        label = { Text("Location") },
-        description = { Text("地址，如 us-central1") }
+    formItem(
+        headlineContent = { Text("Location") },
+        supportingContent = { Text("地址，如 us-central1") }
     ) {
         OutlinedTextField(
             value = setting.location,
@@ -1571,9 +1485,9 @@ private fun GeminiVertexTTSConfiguration(
             modifier = Modifier.fillMaxWidth(),
         )
     }
-    FormItem(
-        label = { Text("Model") },
-        description = { Text("TTS 模型") }
+    formItem(
+        headlineContent = { Text("Model") },
+        supportingContent = { Text("TTS 模型") }
     ) {
         OutlinedTextField(
             value = setting.model,
@@ -1581,9 +1495,9 @@ private fun GeminiVertexTTSConfiguration(
             modifier = Modifier.fillMaxWidth(),
         )
     }
-    FormItem(
-        label = { Text("Voice Name") },
-        description = { Text("音色名称") }
+    formItem(
+        headlineContent = { Text("Voice Name") },
+        supportingContent = { Text("音色名称") }
     ) {
         OutlinedTextField(
             value = setting.voiceName,
@@ -1593,14 +1507,13 @@ private fun GeminiVertexTTSConfiguration(
     }
 }
 
-@Composable
-private fun VertexCloudTTSConfiguration(
+private fun CardGroupScope.vertexCloudTTSItems(
     setting: TTSProviderSetting.VertexCloud,
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
-    FormItem(
-        label = { Text("Service Account Email") },
-        description = { Text("Google Cloud 服务账号邮筱") }
+    formItem(
+        headlineContent = { Text("Service Account Email") },
+        supportingContent = { Text("Google Cloud 服务账号邮筱") }
     ) {
         OutlinedTextField(
             value = setting.serviceAccountEmail,
@@ -1609,9 +1522,9 @@ private fun VertexCloudTTSConfiguration(
             placeholder = { Text("your-account@project.iam.gserviceaccount.com") }
         )
     }
-    FormItem(
-        label = { Text("Private Key") },
-        description = { Text("服务账号私钥 (PEM)") }
+    formItem(
+        headlineContent = { Text("Private Key") },
+        supportingContent = { Text("服务账号私钥 (PEM)") }
     ) {
         OutlinedTextField(
             value = setting.privateKey,
@@ -1620,9 +1533,9 @@ private fun VertexCloudTTSConfiguration(
             minLines = 3,
         )
     }
-    FormItem(
-        label = { Text("Voice Name") },
-        description = { Text("音色名称，如 en-US-Chirp3-HD-Aoede") }
+    formItem(
+        headlineContent = { Text("Voice Name") },
+        supportingContent = { Text("音色名称，如 en-US-Chirp3-HD-Aoede") }
     ) {
         OutlinedTextField(
             value = setting.voiceName,
@@ -1630,9 +1543,9 @@ private fun VertexCloudTTSConfiguration(
             modifier = Modifier.fillMaxWidth(),
         )
     }
-    FormItem(
-        label = { Text("Language Code") },
-        description = { Text("语言代码，如 en-US") }
+    formItem(
+        headlineContent = { Text("Language Code") },
+        supportingContent = { Text("语言代码，如 en-US") }
     ) {
         OutlinedTextField(
             value = setting.languageCode,
