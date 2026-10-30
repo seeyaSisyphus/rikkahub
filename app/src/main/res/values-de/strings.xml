@@ -19,7 +19,6 @@
   <string name="add">Hinzufügen</string>
   <string name="app_name">RikkaHub</string>
   <string name="asr_button_content_description">Spracherkennung</string>
-  <string name="asr_button_stop">Stopp</string>
   <string name="assistant_page_image_url">Bild-URL</string>
   <string name="assistant_page_invalid_json">Ungültiges JSON: %s</string>
   <string name="assistant_page_local_tools_ask_user_desc">Erlaube der KI, dir Fragen zur Klärung zu stellen</string>
