@@ -59,4 +59,43 @@ class MarkdownUtilsTest {
     fun `skip code`() {
         assertEquals("运行 即可\n结束", "运行 `ls` 即可\n\n```kotlin\nval a = 1\n```\n\n结束".stripMarkdown())
     }
+
+    @Test
+    fun `copy strips inline markdown but keeps paragraph structure`() {
+        assertEquals(
+            "标题\n\n这是重点和代码，还有链接。\n\n第二段",
+            "### 标题\n\n这是**重点**和`代码`，还有[链接](https://example.com)。\n\n第二段"
+                .stripMarkdownForCopy()
+        )
+    }
+
+    @Test
+    fun `copy keeps code block content without fences`() {
+        assertEquals(
+            "运行前：\n\nfun main() {\n    println(\"hi\")\n}\n\n结束。",
+            "运行前：\n\n```kotlin\nfun main() {\n    println(\"hi\")\n}\n```\n\n结束。"
+                .stripMarkdownForCopy()
+        )
+    }
+
+    @Test
+    fun `copy keeps list structure as plain text`() {
+        assertEquals(
+            "• 第一项\n• 第二项",
+            "- 第一项\n- 第二项".stripMarkdownForCopy()
+        )
+        assertEquals(
+            "1. 第一项\n2. 第二项",
+            "1. 第一项\n2. 第二项".stripMarkdownForCopy()
+        )
+    }
+
+    @Test
+    fun `copy strips quote markers and table pipes`() {
+        assertEquals("引用", "> 引用".stripMarkdownForCopy())
+        assertEquals(
+            "名称 | 数量\n苹果 | 3",
+            "| 名称 | 数量 |\n| --- | --- |\n| 苹果 | 3 |".stripMarkdownForCopy()
+        )
+    }
 }

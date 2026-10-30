@@ -27,14 +27,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.fastForEach
 import me.rerere.ai.ui.UIMessage
-import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.utils.copyMessageToClipboard
+import me.rerere.rikkahub.utils.toCopyText
 
 @Composable
 fun ChatMessageCopySheet(
@@ -90,10 +89,9 @@ fun ChatMessageCopySheet(
             }
 
             // Content
-            val textParts =
-                message.parts.filterIsInstance<UIMessagePart.Text>().filter { it.text.isNotBlank() }
+            val copyText = message.toCopyText()
 
-            if (textParts.isEmpty()) {
+            if (copyText.isBlank()) {
                 // No text content available
                 Column(
                     modifier = Modifier
@@ -117,12 +115,10 @@ fun ChatMessageCopySheet(
                             .fillMaxWidth()
                             .verticalScroll(rememberScrollState())
                     ) {
-                        textParts.fastForEach { textPart ->
-                            Text(
-                                text = textPart.text,
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                        }
+                        Text(
+                            text = copyText,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                     }
                 }
             }

@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.context.Navigator
 import kotlin.uuid.Uuid
@@ -31,7 +32,18 @@ fun navigateToChatPage(
 }
 
 fun Context.copyMessageToClipboard(message: UIMessage) {
-    this.writeClipboardText(message.toText())
+    this.writeClipboardText(message.toCopyText())
+}
+
+/**
+ * 复制到剪贴板的消息文本：去掉 Markdown 标记，保留段落、列表和代码内容。
+ */
+fun UIMessage.toCopyText(): String {
+    return parts
+        .filterIsInstance<UIMessagePart.Text>()
+        .map { part -> part.text.stripMarkdownForCopy() }
+        .filter { it.isNotBlank() }
+        .joinToString("\n\n")
 }
 
 private val ALLOWED_MIME_TYPES = setOf(

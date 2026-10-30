@@ -21,6 +21,90 @@ fun String.stripMarkdown(): String {
 }
 
 /**
+ * 复制消息时使用的纯文本转换：去掉 Markdown 标记，
+ * 但保留段落、换行、列表和代码内容。
+ *
+ * 与 [stripMarkdown] 的差异：
+ * - 段落之间保留空行，而不是压成单行；
+ * - 代码块和行内代码保留原文（只去掉围栏和反引号），复制出来仍然是可运行的代码；
+ * - 列表保留为普通项目符号/编号，不保留 `-`、`*` 等 Markdown 标记。
+ */
+fun String.stripMarkdownForCopy(): String {
+    return renderCopyBlocks(parseMarkdown(this).blocks).trim()
+}
+
+private fun renderCopyBlocks(blocks: List<MarkdownBlock>): String {
+    return blocks.mapNotNull { block -> renderCopyBlock(block) }
+        .filter { it.isNotBlank() }
+        .joinToString("\n\n")
+}
+
+private fun renderCopyBlock(block: MarkdownBlock): String? = when (block) {
+    is MarkdownBlock.Paragraph -> renderCopyInlines(block.content)
+    is MarkdownBlock.Heading -> renderCopyInlines(block.content)
+    is MarkdownBlock.Quote -> renderCopyBlocks(block.children)
+    is MarkdownBlock.ListBlock -> renderCopyList(block)
+    is MarkdownBlock.Table -> renderCopyTable(block)
+    is MarkdownBlock.Details -> listOf(
+        renderCopyInlines(block.summary),
+        renderCopyBlocks(block.children),
+    ).filter { it.isNotBlank() }.joinToString("\n\n")
+    is MarkdownBlock.Container -> renderCopyBlocks(block.children)
+    // 复制时保留代码正文，只去掉 ``` 围栏和语言标记
+    is MarkdownBlock.CodeBlock -> block.code.trim('\n')
+    is MarkdownBlock.Divider -> null
+}
+
+private fun renderCopyList(block: MarkdownBlock.ListBlock): String {
+    return block.items.mapIndexed { index, item ->
+        val marker = if (block.ordered) "${block.start + index}. " else "• "
+        val body = renderCopyBlocks(item.children).trim()
+        buildString {
+            body.lineSequence().forEachIndexed { lineIndex, line ->
+                if (lineIndex == 0) {
+                    append(marker)
+                } else {
+                    append('\n')
+                    // 多行列表项按标记宽度对齐，嵌套列表也保持缩进
+                    if (line.isNotEmpty()) append(" ".repeat(marker.length))
+                }
+                append(line)
+            }
+        }
+    }.joinToString("\n")
+}
+
+private fun renderCopyTable(block: MarkdownBlock.Table): String {
+    return (listOf(block.header) + block.rows).joinToString("\n") { row ->
+        row.joinToString(" | ") { cell -> renderCopyInlines(cell.content).trim() }
+    }
+}
+
+private fun renderCopyInlines(nodes: List<MarkdownInline>): String = buildString {
+    for (node in nodes) {
+        when (node) {
+            is MarkdownInline.Text -> append(node.text)
+            is MarkdownInline.Styled -> append(renderCopyInlines(node.children))
+            is MarkdownInline.Link -> {
+                val text = renderCopyInlines(node.children)
+                // 搜索引用在正文里写作 [citation,域名](引用 id)，复制时只保留域名
+                append(
+                    when {
+                        text.startsWith("citation,") -> text.substringAfter(',')
+                        text.isNotBlank() -> text
+                        else -> node.destination
+                    }
+                )
+            }
+
+            is MarkdownInline.Code -> append(node.code)
+            is MarkdownInline.Image -> append(node.alt.orEmpty())
+            is MarkdownInline.Math -> append(node.formula)
+        }
+    }
+}
+
+/**
  * 为 TTS 朗读场景剥离 Markdown。
  *
  * 与 stripMarkdown() 的差异:
