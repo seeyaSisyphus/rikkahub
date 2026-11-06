@@ -188,7 +188,7 @@ fun ChatMessage(
             }
         }
         // [FORK] 固定到上下文：被 pin 时在气泡角落显示钉子徽章
-        // USER 消息：右上角；ASSISTANT 消息：右下角
+        // 只标注提问（右上角）；回答的操作区已有高亮的钉住图标，不再重复显示
         // Box 提供 overlay 能力；内部必须有 Column 保证 MessagePartsBlock 的多个子项纵向排列
         Box {
             Column(
@@ -219,15 +219,12 @@ fun ChatMessage(
                     }
                 }
             }
-            if (isPinned) {
-                // USER 消息：钉子徽章显示在气泡右上角；ASSISTANT 消息：显示在气泡右下角
-                val alignment = if (message.role == MessageRole.USER) Alignment.TopEnd else Alignment.BottomEnd
-                val offsetX = 4.dp
-                val offsetY = if (message.role == MessageRole.USER) (-4).dp else 4.dp
+            if (isPinned && message.role == MessageRole.USER) {
+                // 钉子徽章显示在提问气泡右上角
                 Box(
                     modifier = Modifier
-                        .align(alignment)
-                        .offset(x = offsetX, y = offsetY)
+                        .align(Alignment.TopEnd)
+                        .offset(x = 4.dp, y = (-4).dp)
                         .size(18.dp)
                         .background(
                             color = MaterialTheme.colorScheme.tertiary,
