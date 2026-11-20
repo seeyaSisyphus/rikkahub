@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemColors
 import androidx.compose.material3.LocalContentColor
@@ -29,7 +28,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -43,6 +41,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -62,6 +61,7 @@ private data class CardGroupItem(
     val colors: ListItemColors?,
     // 不为空时是表单项，标题行下方接这块内容
     val formContent: (@Composable ColumnScope.() -> Unit)? = null,
+    val formContentSpacing: Dp = 12.dp,
 )
 
 @DslMarker
@@ -87,6 +87,7 @@ interface CardGroupScope {
         supportingContent: (@Composable () -> Unit)? = null,
         leadingContent: (@Composable () -> Unit)? = null,
         trailingContent: (@Composable () -> Unit)? = null,
+        contentSpacing: Dp = 12.dp,
         content: @Composable ColumnScope.() -> Unit,
     )
 }
@@ -124,6 +125,7 @@ private class CardGroupScopeImpl : CardGroupScope {
         supportingContent: (@Composable () -> Unit)?,
         leadingContent: (@Composable () -> Unit)?,
         trailingContent: (@Composable () -> Unit)?,
+        contentSpacing: Dp,
         content: @Composable ColumnScope.() -> Unit,
     ) {
         items.add(
@@ -137,6 +139,7 @@ private class CardGroupScopeImpl : CardGroupScope {
                 trailingContent = trailingContent,
                 colors = null,
                 formContent = content,
+                formContentSpacing = contentSpacing,
             )
         )
     }
@@ -159,7 +162,7 @@ fun CardGroupScope.switchItem(
     supportingContent = supportingContent,
     leadingContent = leadingContent,
     trailingContent = {
-        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
+        AppSwitch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
     },
     headlineContent = headlineContent,
 )
@@ -171,32 +174,27 @@ fun cardGroupItemShape(index: Int, count: Int): Shape {
     return RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)
 }
 
-// 列表项开头带圆形底色的图标
+// 列表项开头的图标（无底色圆圈）
 @Composable
 fun CardGroupIcon(
     icon: ImageVector,
     modifier: Modifier = Modifier,
+    @Suppress("UNUSED_PARAMETER")
     containerColor: Color = MaterialTheme.colorScheme.secondaryContainer,
     contentColor: Color = MaterialTheme.colorScheme.onSecondaryContainer,
 ) {
-    val animatedContainerColor by animateColorAsState(
-        targetValue = containerColor,
-        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
-    )
     val animatedContentColor by animateColorAsState(
         targetValue = contentColor,
         animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
     )
     Box(
-        modifier = modifier
-            .size(40.dp)
-            .background(animatedContainerColor, CircleShape),
+        modifier = modifier.size(24.dp),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            modifier = Modifier.size(20.dp),
+            modifier = Modifier.size(22.dp),
             tint = animatedContentColor,
         )
     }
@@ -238,7 +236,7 @@ private fun CardGroupFormItem(
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(item.formContentSpacing),
         ) {
             if (item.headlineContent != null || item.leadingContent != null || item.trailingContent != null) {
                 Row(
@@ -359,7 +357,7 @@ fun CardGroup(
 private fun CardGroupPreview() {
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = {
                     Text("Card Group")
                 },

@@ -17,6 +17,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.Placeable
@@ -53,9 +55,11 @@ fun DataTable(
     outerBorder: BorderStroke? = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     shape: Shape = MaterialTheme.shapes.small,
     stretchToFillWidth: Boolean = true,
+    horizontalDividersOnly: Boolean = false,
 ) {
     val hScroll = rememberScrollState()
-    val surfaceContainer = MaterialTheme.colorScheme.surfaceContainer
+    val surfaceContainer = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.65f)
+    val dividerColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
 
     BoxWithConstraints(
         modifier = modifier
@@ -88,6 +92,7 @@ fun DataTable(
                     CellBox(
                         padding = cellPadding,
                         border = cellBorder,
+                        horizontalDividerColor = if (horizontalDividersOnly) dividerColor else null,
                         background = headerBackground,
                         alignment = columnAlignments.getOrNull(c) ?: cellAlignment
                     ) {
@@ -110,6 +115,7 @@ fun DataTable(
                     CellBox(
                         padding = cellPadding,
                         border = cellBorder,
+                        horizontalDividerColor = if (horizontalDividersOnly && r < rowCount - 1) dividerColor else null,
                         background = bg,
                         alignment = bodyCellAlignment?.invoke(r, c) ?: columnAlignments.getOrNull(c) ?: cellAlignment
                     ) {
@@ -176,6 +182,7 @@ fun DataTable(
                     CellBox(
                         padding = cellPadding,
                         border = cellBorder,
+                        horizontalDividerColor = if (horizontalDividersOnly) dividerColor else null,
                         background = headerBackground,
                         alignment = columnAlignments.getOrNull(c) ?: cellAlignment
                     ) {
@@ -194,6 +201,7 @@ fun DataTable(
                     CellBox(
                         padding = cellPadding,
                         border = cellBorder,
+                        horizontalDividerColor = if (horizontalDividersOnly && r < rowCount - 1) dividerColor else null,
                         background = bg,
                         alignment = bodyCellAlignment?.invoke(r, c) ?: columnAlignments.getOrNull(c) ?: cellAlignment
                     ) {
@@ -234,6 +242,7 @@ fun DataTable(
 private fun CellBox(
     padding: Dp,
     border: BorderStroke?,
+    horizontalDividerColor: Color?,
     background: Color,
     alignment: Alignment,
     content: @Composable () -> Unit,
@@ -241,7 +250,22 @@ private fun CellBox(
     Box(
         modifier = Modifier
             .then(if (background != Color.Transparent) Modifier.background(background) else Modifier)
-            .then(if (border != null) Modifier.border(border) else Modifier)
+            .then(
+                when {
+                    horizontalDividerColor != null -> Modifier.drawBehind {
+                        val strokePx = 0.5.dp.toPx()
+                        val y = size.height - strokePx / 2f
+                        drawLine(
+                            color = horizontalDividerColor,
+                            start = Offset(0f, y),
+                            end = Offset(size.width, y),
+                            strokeWidth = strokePx,
+                        )
+                    }
+                    border != null -> Modifier.border(border)
+                    else -> Modifier
+                }
+            )
             .padding(padding),
         contentAlignment = alignment,
     ) {

@@ -1,12 +1,10 @@
 package me.rerere.rikkahub.ui.components.ui
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -17,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.rikkahub.R
@@ -49,21 +48,30 @@ fun ItemActionMenu(
                 contentDescription = stringResource(R.string.more_options),
             )
         }
-        DropdownMenu(
+        AppDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
         ) {
-            actions.forEach { action ->
-                DropdownMenuItem(
-                    text = { Text(action.text) },
-                    leadingIcon = { Icon(action.icon, contentDescription = null) },
-                    enabled = action.enabled,
-                    colors = if (action.destructive) {
-                        val errorColor = MaterialTheme.colorScheme.error
-                        MenuDefaults.itemColors(textColor = errorColor, leadingIconColor = errorColor)
-                    } else {
-                        MenuDefaults.itemColors()
+            actions.forEachIndexed { index, action ->
+                if (action.destructive && index > 0 && !actions[index - 1].destructive) {
+                    AppMenuDivider()
+                }
+                AppDropdownMenuItem(
+                    text = {
+                        Text(
+                            text = action.text,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                     },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = action.icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    },
+                    enabled = action.enabled,
+                    colors = appMenuItemColors(destructive = action.destructive),
                     onClick = {
                         expanded = false
                         action.onClick()

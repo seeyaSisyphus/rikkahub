@@ -1,10 +1,12 @@
 package me.rerere.ui.components
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,9 +45,13 @@ fun Switch(
     size: SwitchSize = SwitchSize.Medium,
     enabled: Boolean = true,
     trackColor: Color = MaterialTheme.colorScheme.primary,
-    trackColorUnchecked: Color = MaterialTheme.colorScheme.surfaceVariant,
+    trackColorUnchecked: Color = if (isSystemInDarkTheme()) {
+        MaterialTheme.colorScheme.surfaceContainerHighest
+    } else {
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f)
+    },
     thumbColor: Color = MaterialTheme.colorScheme.onPrimary,
-    thumbColorUnchecked: Color = MaterialTheme.colorScheme.outline
+    thumbColorUnchecked: Color = Color.White
 ) {
     val dimensions = when (size) {
         SwitchSize.Small -> SwitchDimensions(
@@ -56,9 +62,9 @@ fun Switch(
         )
 
         SwitchSize.Medium -> SwitchDimensions(
-            trackWidth = 44.dp,
-            trackHeight = 24.dp,
-            thumbSize = 20.dp,
+            trackWidth = 46.dp,
+            trackHeight = 26.dp,
+            thumbSize = 22.dp,
             thumbPadding = 2.dp
         )
 
@@ -76,21 +82,29 @@ fun Switch(
         } else {
             0.dp
         },
-        animationSpec = tween(durationMillis = 150),
+        animationSpec = tween(durationMillis = 160),
         label = "thumbOffset"
     )
 
-    val currentTrackColor = when {
-        !enabled -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        checked -> trackColor
-        else -> trackColorUnchecked
-    }
+    val currentTrackColor by animateColorAsState(
+        targetValue = when {
+            !enabled -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            checked -> trackColor
+            else -> trackColorUnchecked
+        },
+        animationSpec = tween(durationMillis = 160),
+        label = "trackColor"
+    )
 
-    val currentThumbColor = when {
-        !enabled -> MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-        checked -> thumbColor
-        else -> thumbColorUnchecked
-    }
+    val currentThumbColor by animateColorAsState(
+        targetValue = when {
+            !enabled -> Color.White.copy(alpha = 0.65f)
+            checked -> thumbColor
+            else -> thumbColorUnchecked
+        },
+        animationSpec = tween(durationMillis = 160),
+        label = "thumbColor"
+    )
 
     Box(
         modifier = modifier

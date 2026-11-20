@@ -3,9 +3,13 @@ package me.rerere.rikkahub.ui.theme
 import android.os.Build
 import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material.ripple.RippleAlpha
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MotionScheme
+import androidx.compose.material3.RippleConfiguration
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
@@ -41,6 +45,17 @@ enum class ColorMode {
     DARK,
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+private val SoftRippleConfiguration = RippleConfiguration(
+    rippleAlpha = RippleAlpha(
+        draggedAlpha = 0.08f,
+        focusedAlpha = 0.06f,
+        hoveredAlpha = 0.04f,
+        pressedAlpha = 0.06f,
+    )
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RikkahubTheme(
     colorMode: ColorMode = rememberCurrentColorMode(),
@@ -108,9 +123,12 @@ fun RikkahubTheme(
         MaterialExpressiveTheme(
             colorScheme = colorSchemeConverted,
             typography = Typography,
-            content = content,
-            motionScheme = MotionScheme.expressive()
-        )
+            motionScheme = MotionScheme.expressive(),
+        ) {
+            CompositionLocalProvider(LocalRippleConfiguration provides SoftRippleConfiguration) {
+                content()
+            }
+        }
     }
 }
 
