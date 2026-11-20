@@ -12,6 +12,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.content.MediaType
@@ -152,6 +153,8 @@ import kotlin.uuid.Uuid
 /** 参考 CyberSlots 移动端输入框原地上浮/回落的阻尼曲线 */
 private val ComposerExpandEasing = CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
 
+internal fun isStopGenerationAction(loading: Boolean, inputEmpty: Boolean): Boolean = loading && inputEmpty
+
 @Composable
 fun ChatInput(
     state: ChatInputState,
@@ -228,14 +231,14 @@ fun ChatInput(
         isExpanded = false
         focusManager.clearFocus(force = true)
         keyboardController?.hide()
-        if (loading && state.isEmpty()) onCancelClick() else onSendClick()
+        if (isStopGenerationAction(loading, state.isEmpty())) onCancelClick() else onSendClick()
     }
 
     fun sendMessageWithoutAnswer() {
         isExpanded = false
         focusManager.clearFocus(force = true)
         keyboardController?.hide()
-        if (loading && state.isEmpty()) onCancelClick() else onLongSendClick()
+        if (isStopGenerationAction(loading, state.isEmpty())) onCancelClick() else onLongSendClick()
     }
 
     val asr = LocalASRState.current
@@ -584,7 +587,7 @@ private fun SendButton(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val showStop = loading
+    val showStop = isStopGenerationAction(loading, empty)
     val containerColor = when {
         showStop -> MaterialTheme.colorScheme.onSurface
         empty -> MaterialTheme.colorScheme.surfaceContainerHigh
@@ -613,13 +616,12 @@ private fun SendButton(
             color = containerColor,
             content = {},
         )
-        if (loading) {
+        if (showStop) {
             KeepScreenOn()
-            Icon(
-                imageVector = HugeIcons.Cancel01,
-                contentDescription = stringResource(R.string.stop),
-                tint = contentColor,
-                modifier = Modifier.size(17.dp)
+            Box(
+                modifier = Modifier
+                    .size(11.dp)
+                    .background(contentColor, RoundedCornerShape(2.5.dp)),
             )
         } else if (editSaving) {
             // [FORK] 编辑且点击仅保存（不触发重试）时显示保存图标，区分“发送并重试”语义
