@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
+import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.launch
 import me.rerere.ai.core.MessageRole
@@ -413,17 +414,48 @@ private fun ChatListNormal(
                             null
                         }
                     }
+                    val answerNode = conversation.messageNodes.getOrNull(index + 1)
+                    // [FORK] 提问跳回答：回答超过一屏时把回答底部（含操作按钮区）带到输入栏上方，
+                    // 一屏内放得下时则回答顶部对齐即可
                     val answerScrollAction: (() -> Unit)? =
-                        remember(node.id, index, conversation.messageNodes.size) {
-                        if (node.currentMessage.role == MessageRole.USER && index < conversation.messageNodes.lastIndex) {
-                            {
-                                shouldAutoFollow = false
-                                scope.launch { state.animateScrollToItem(index + 1) }
+                        remember(node.id, index, answerNode?.id) {
+                            if (
+                                node.currentMessage.role == MessageRole.USER &&
+                                answerNode?.currentMessage?.role == MessageRole.ASSISTANT
+                            ) {
+                                {
+                                    shouldAutoFollow = false
+                                    scope.launch {
+                                        // 记录当前位置，测量后可无痕还原
+                                        val savedIndex = state.firstVisibleItemIndex
+                                        val savedOffset = state.firstVisibleItemScrollOffset
+                                        // 先瞬时定位到回答完成组合与测量；同一协程内立即还原，
+                                        // 中间不让出帧，这一步不会被真正绘制出来
+                                        state.scrollToItem(index + 1)
+                                        val info = state.layoutInfo.visibleItemsInfo
+                                            .firstOrNull { it.index == index + 1 }
+                                        val scrollOffset = if (info != null) {
+                                            val composerHeightPx = with(density) {
+                                                innerPadding.calculateBottomPadding().toPx()
+                                            }
+                                            val viewportBottom =
+                                                state.layoutInfo.viewportEndOffset - composerHeightPx
+                                            val itemBottom = info.offset + info.size
+                                            // 回答比可视区高时需要额外下滚的距离；否则为 0（回答顶部对齐即可）
+                                            (itemBottom - viewportBottom).coerceAtLeast(0f).roundToInt()
+                                        } else {
+                                            0
+                                        }
+                                        // 还原到原始位置，让动画从当前位置出发
+                                        state.scrollToItem(savedIndex, savedOffset)
+                                        // 单段平滑动画：带 scrollOffset 直接把回答底部(操作按钮区)带到输入栏上方
+                                        state.animateScrollToItem(index + 1, scrollOffset)
+                                    }
+                                }
+                            } else {
+                                null
                             }
-                        } else {
-                            null
                         }
-                    }
                     Column {
                         ListSelectableItem(
                             key = node.id,
