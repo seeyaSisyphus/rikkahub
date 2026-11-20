@@ -20,6 +20,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,16 +59,18 @@ fun <T> Select(
         onExpandedChange = { expanded = it }
     ) {
         Surface(
-            tonalElevation = 4.dp,
-            shape = RoundedCornerShape(50),
+            tonalElevation = 0.dp,
+            shape = RoundedCornerShape(14.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.55f),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)),
             modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(4.dp))
+                    .clip(RoundedCornerShape(14.dp))
                     .clickable { expanded = true }
-                    .padding(vertical = 8.dp, horizontal = 16.dp),
+                    .padding(vertical = 10.dp, horizontal = 14.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -144,6 +147,13 @@ fun <T> SelectTextField(
             readOnly = readOnly,
             label = label,
             placeholder = placeholder,
+            shape = RoundedCornerShape(14.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.35f),
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.35f),
+                focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
+            ),
             modifier = Modifier
                 .fillMaxWidth()
                 .onGloballyPositioned { anchorWidth = it.size.width },

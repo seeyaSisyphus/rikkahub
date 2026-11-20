@@ -1,6 +1,8 @@
 package me.rerere.ui.components
 
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -14,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
 
 @Composable
 fun <T : Number> OutlinedNumberInput(
@@ -21,7 +24,12 @@ fun <T : Number> OutlinedNumberInput(
     onValueChange: (T) -> Unit,
     modifier: Modifier = Modifier,
     label: String = "",
-    colors: TextFieldColors = OutlinedTextFieldDefaults.colors()
+    colors: TextFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.35f),
+        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.35f),
+        focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
+    )
 ) {
     var textFieldValue by remember(value) { mutableStateOf(value.toString()) }
     OutlinedTextField(
@@ -47,6 +55,7 @@ fun <T : Number> OutlinedNumberInput(
         label = { Text(label) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         isError = !textFieldValue.isValidNumberInput(),
+        shape = RoundedCornerShape(14.dp),
         colors = colors
     )
 }

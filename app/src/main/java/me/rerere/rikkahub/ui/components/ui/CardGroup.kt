@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.components.ui
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -209,14 +210,15 @@ fun CardGroupValue(
     Surface(
         modifier = modifier,
         shape = CircleShape,
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
     ) {
         Text(
             text = text,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             // 等宽数字，拖动滑块时标签宽度不跳
-            style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+            style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
             maxLines = 1,
         )
     }

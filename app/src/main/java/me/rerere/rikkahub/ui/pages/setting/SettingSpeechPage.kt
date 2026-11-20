@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.annotation.StringRes
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -21,10 +22,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.TopAppBar
@@ -459,11 +460,11 @@ private fun SpeechProviderItem(
     // 跟在标签后面的操作，比如试听
     action: (@Composable () -> Unit)? = null,
 ) {
-    val containerColor by animateColorAsState(
+    val borderColor by animateColorAsState(
         targetValue = if (isSelected) {
-            MaterialTheme.colorScheme.primaryContainer
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
         } else {
-            CustomColors.listItemColors.containerColor
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
         },
         animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
     )
@@ -472,13 +473,10 @@ private fun SpeechProviderItem(
         onClick = onEdit,
         modifier = modifier,
         shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(if (isSelected) 1.5.dp else 0.5.dp, borderColor),
         colors = CardDefaults.cardColors(
-            containerColor = containerColor,
-            contentColor = if (isSelected) {
-                MaterialTheme.colorScheme.onPrimaryContainer
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
+            containerColor = CustomColors.listItemColors.containerColor,
+            contentColor = MaterialTheme.colorScheme.onSurface,
         )
     ) {
         Row(
@@ -498,7 +496,7 @@ private fun SpeechProviderItem(
             ) {
                 Text(
                     text = name,
-                    style = MaterialTheme.typography.titleMediumEmphasized,
+                    style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -551,7 +549,7 @@ private fun TTSTestButton() {
 
     val testText = stringResource(R.string.setting_tts_page_test_text)
     val height = ButtonDefaults.ExtraSmallContainerHeight
-    Button(
+    FilledTonalButton(
         onClick = {
             if (!isSpeaking) {
                 tts.speak(testText)
@@ -563,11 +561,16 @@ private fun TTSTestButton() {
         shapes = ButtonDefaults.shapesFor(height),
         modifier = Modifier.heightIn(min = height),
         colors = if (isSpeaking) {
-            ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.error,
-                contentColor = MaterialTheme.colorScheme.onError,
+            ButtonDefaults.filledTonalButtonColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.onErrorContainer,
             )
-        } else ButtonDefaults.buttonColors(),
+        } else {
+            ButtonDefaults.filledTonalButtonColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            )
+        },
         contentPadding = ButtonDefaults.contentPaddingFor(height, hasStartIcon = true),
     ) {
         Icon(

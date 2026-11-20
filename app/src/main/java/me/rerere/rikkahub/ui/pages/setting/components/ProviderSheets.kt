@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,6 +33,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
+import me.rerere.rikkahub.ui.theme.CustomColors
 
 // 新建服务商时先选类型的面板
 @Composable
@@ -67,7 +69,8 @@ internal fun <T> ProviderTypeSheet(
                     Surface(
                         onClick = { onSelect(type) },
                         shape = cardGroupItemShape(index, types.size),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        color = CustomColors.listItemColors.containerColor,
+                        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
                     ) {
                         Row(
                             modifier = Modifier
@@ -82,7 +85,7 @@ internal fun <T> ProviderTypeSheet(
                             )
                             Text(
                                 text = name,
-                                style = MaterialTheme.typography.titleMediumEmphasized,
+                                style = MaterialTheme.typography.titleMedium,
                                 modifier = Modifier.weight(1f),
                             )
                             Icon(HugeIcons.ArrowRight01, contentDescription = null)
@@ -123,7 +126,7 @@ internal fun <T> ProviderEditSheet(
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
 
