@@ -1079,10 +1079,10 @@ private fun TopBar(
         onUpdateTitle(it)
     }
 
-    val hasCustomBackground = assistant.useGradientBackground || assistant.background != null
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = if (hasCustomBackground) Color.Transparent else MaterialTheme.colorScheme.background,
+            containerColor = MaterialTheme.colorScheme.background,
+            scrolledContainerColor = MaterialTheme.colorScheme.background,
         ),
             navigationIcon = {
                 if (!bigScreen) {

@@ -50,7 +50,7 @@
 上游更新最容易在以下高频文件触发冲突；合并时**只移植上游的新业务逻辑/状态管理，保留本地 UI 结构与布局参数**：
 
 1. **聊天页顶栏与列表边界**（[ChatPage.kt](file:///home/mytit/ai-agent/rikkahub/app/src/main/java/me/rerere/rikkahub/ui/pages/chat/ChatPage.kt)、[ChatList.kt](file:///home/mytit/ai-agent/rikkahub/app/src/main/java/me/rerere/rikkahub/ui/pages/chat/ChatList.kt)）
-   - 顶栏使用无底部 `HorizontalDivider` 的干净 `TopAppBar`；列表顶部使用柔和 `topFadingEdge(18.dp)`（不与硬分隔线混用）。
+   - 顶栏使用无底部 `HorizontalDivider` 的不透明 `TopAppBar`（`containerColor = MaterialTheme.colorScheme.background`）；列表顶部不使用 `topFadingEdge` 羽化，保证阅读区顶部文字清晰锐利裁切。
    - `ChatPage` / `ChatList` / `ChatListPreview` 对 `Scaffold.innerPadding` 统一采用**布局期代理 `PaddingValues`**（如 `stabilizedInnerPadding`、`listContentPadding`、`topInsetPadding`），并由 `ChatPage` 向 `ChatList` 传入 `suppressBottomPaddingAutoScroll: () -> Boolean`，禁止在组合期快照 `innerPadding.calculateBottomPadding()`。
 2. **输入法跟滚补偿**（[ImeAutoScroller.kt](file:///home/mytit/ai-agent/rikkahub/app/src/main/java/me/rerere/rikkahub/ui/hooks/ImeAutoScroller.kt)）
    - 保留 `computeImeAutoScrollDelta` 与 `scrollBy` 期间不吞连续键盘帧的逻辑，配套单元测试 `ImeAutoScrollerTest`。

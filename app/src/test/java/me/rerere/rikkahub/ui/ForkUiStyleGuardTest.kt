@@ -345,16 +345,20 @@ class ForkUiStyleGuardTest {
             "app/src/main/java/me/rerere/rikkahub/ui/components/ui/AppSwitch.kt" to listOf(
                 "fun AppSwitch(",
             ),
+            "app/src/main/java/me/rerere/rikkahub/ui/components/ui/AppTextField.kt" to listOf(
+                "fun AppOutlinedTextField(",
+                "RoundedCornerShape(14.dp)",
+            ),
             "app/src/main/java/me/rerere/rikkahub/ui/components/ui/CardGroup.kt" to listOf(
                 "AppSwitch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)",
             ),
             "app/src/main/java/me/rerere/rikkahub/ui/pages/chat/ChatPage.kt" to listOf(
                 "TopAppBar(",
+                "TopAppBarDefaults.topAppBarColors(",
                 "stabilizedInnerPadding",
                 "suppressBottomPaddingAutoScroll =",
             ),
             "app/src/main/java/me/rerere/rikkahub/ui/pages/chat/ChatList.kt" to listOf(
-                "topFadingEdge(18.dp)",
                 "listContentPadding",
                 "topInsetPadding",
             ),
@@ -412,6 +416,9 @@ class ForkUiStyleGuardTest {
             ),
             "app/src/main/java/me/rerere/rikkahub/ui/components/ui/CardGroup.kt" to listOf(
                 ".background(animatedContainerColor, CircleShape)",
+            ),
+            "app/src/main/java/me/rerere/rikkahub/ui/pages/chat/ChatList.kt" to listOf(
+                "topFadingEdge",
             ),
         )
 
