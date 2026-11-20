@@ -11,6 +11,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -347,24 +350,88 @@ class RouteActivity : ComponentActivity() {
                         // 同一帧内连续两次返回时 NavDisplay 的返回状态还没更新，会多回调一次，不加判断会把栈弹空
                         onBack = { if (backStack.size > 1) backStack.removeLastOrNull() },
                         transitionSpec = {
-                            if (backStack.size == 1) fadeIn() togetherWith fadeOut()
-                            else {
-                                slideInHorizontally { it } togetherWith
-                                    slideOutHorizontally { -it / 2 } + scaleOut(targetScale = 0.7f) + fadeOut()
+                            if (backStack.size == 1) {
+                                fadeIn(tween(280)) togetherWith fadeOut(tween(220))
+                            } else {
+                                (slideInHorizontally(
+                                    animationSpec = tween(
+                                        durationMillis = PAGE_PUSH_DURATION_MS,
+                                        easing = PagePushEasing,
+                                    )
+                                ) { it } + fadeIn(tween(240, easing = PagePushEasing))) togetherWith
+                                    (slideOutHorizontally(
+                                        animationSpec = tween(
+                                            durationMillis = PAGE_PUSH_DURATION_MS,
+                                            easing = PagePushEasing,
+                                        )
+                                    ) { -it / 4 } + scaleOut(
+                                        targetScale = 0.94f,
+                                        animationSpec = tween(
+                                            durationMillis = PAGE_PUSH_DURATION_MS,
+                                            easing = PagePushEasing,
+                                        ),
+                                    ) + fadeOut(tween(280)))
                             }
                         },
                         popTransitionSpec = {
-                            slideInHorizontally { -it / 2 } + scaleIn(initialScale = 0.7f) + fadeIn() togetherWith
-                                slideOutHorizontally { it }
+                            (slideInHorizontally(
+                                animationSpec = tween(
+                                    durationMillis = PAGE_POP_DURATION_MS,
+                                    easing = PagePopEasing,
+                                )
+                            ) { -it / 4 } + scaleIn(
+                                initialScale = 0.94f,
+                                animationSpec = tween(
+                                    durationMillis = PAGE_POP_DURATION_MS,
+                                    easing = PagePopEasing,
+                                ),
+                            ) + fadeIn(tween(340, easing = PagePopEasing))) togetherWith
+                                (slideOutHorizontally(
+                                    animationSpec = tween(
+                                        durationMillis = PAGE_POP_DURATION_MS,
+                                        easing = PagePopEasing,
+                                    )
+                                ) { it } + fadeOut(
+                                    tween(
+                                        durationMillis = 260,
+                                        delayMillis = 120,
+                                        easing = PagePopEasing,
+                                    )
+                                ))
                         },
                         predictivePopTransitionSpec = {
-                            slideInHorizontally { -it / 2 } + scaleIn(initialScale = 0.7f) + fadeIn() togetherWith
-                                slideOutHorizontally { it }
+                            (slideInHorizontally(
+                                animationSpec = tween(
+                                    durationMillis = PAGE_POP_DURATION_MS,
+                                    easing = LinearOutSlowInEasing,
+                                )
+                            ) { -it / 4 } + scaleIn(
+                                initialScale = 0.94f,
+                                animationSpec = tween(
+                                    durationMillis = PAGE_POP_DURATION_MS,
+                                    easing = LinearOutSlowInEasing,
+                                ),
+                            ) + fadeIn(tween(320, easing = LinearOutSlowInEasing))) togetherWith
+                                (slideOutHorizontally(
+                                    animationSpec = tween(
+                                        durationMillis = PAGE_POP_DURATION_MS,
+                                        easing = LinearOutSlowInEasing,
+                                    )
+                                ) { it } + fadeOut(
+                                    tween(
+                                        durationMillis = 260,
+                                        delayMillis = 100,
+                                        easing = LinearOutSlowInEasing,
+                                    )
+                                ))
                         },
                         entryProvider = entryProvider {
                             entry<Screen.Chat>(
-                                metadata = NavDisplay.transitionSpec { fadeIn() togetherWith fadeOut() }
-                                    + NavDisplay.popTransitionSpec { fadeIn() togetherWith fadeOut() }
+                                metadata = NavDisplay.transitionSpec {
+                                    fadeIn(tween(280)) togetherWith fadeOut(tween(220))
+                                } + NavDisplay.popTransitionSpec {
+                                    fadeIn(tween(300)) togetherWith fadeOut(tween(240))
+                                }
                             ) { key ->
                                 ChatPage(
                                     id = Uuid.parse(key.id),
@@ -452,9 +519,9 @@ class RouteActivity : ComponentActivity() {
 
                             // 从会话列表展开（容器变换），页面本身只做淡入淡出，避免和平移打架
                             entry<Screen.MediaCreation>(
-                                metadata = NavDisplay.transitionSpec { fadeIn() togetherWith fadeOut() }
-                                    + NavDisplay.popTransitionSpec { fadeIn() togetherWith fadeOut() }
-                                    + NavDisplay.predictivePopTransitionSpec { fadeIn() togetherWith fadeOut() }
+                                metadata = NavDisplay.transitionSpec { fadeIn(tween(280)) togetherWith fadeOut(tween(220)) }
+                                    + NavDisplay.popTransitionSpec { fadeIn(tween(300)) togetherWith fadeOut(tween(240)) }
+                                    + NavDisplay.predictivePopTransitionSpec { fadeIn(tween(300)) togetherWith fadeOut(tween(240)) }
                             ) { key ->
                                 MediaCreationPage(key.id)
                             }
@@ -670,6 +737,11 @@ class RouteActivity : ComponentActivity() {
         }
     }
 }
+
+private const val PAGE_PUSH_DURATION_MS = 360
+private const val PAGE_POP_DURATION_MS = 420
+private val PagePushEasing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
+private val PagePopEasing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
 
 sealed interface Screen : NavKey {
     @Serializable
