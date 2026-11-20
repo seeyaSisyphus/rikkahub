@@ -2,6 +2,7 @@ package me.rerere.ai.provider
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import me.rerere.ai.core.ReasoningLevel
 import kotlin.uuid.Uuid
 
 @Serializable
@@ -19,6 +20,8 @@ data class Model(
     val providerOverwrite: ProviderSetting? = null,
     // 上下文窗口大小(token)
     val contextLength: Int = 1_000_000,
+    // 模型声明支持的思考深度档位（为空时由 ModelRegistry 根据模型与提供商推断）
+    val supportedReasoningLevels: List<ReasoningLevel> = emptyList(),
 )
 
 /**

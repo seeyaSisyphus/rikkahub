@@ -105,6 +105,7 @@ class GrokProviderTest {
         val grok43 = models[0]
         assertEquals("Grok 4.3", grok43.displayName)
         assertTrue(ModelAbility.REASONING in grok43.abilities)
+        assertEquals(listOf(ReasoningLevel.LOW, ReasoningLevel.HIGH), grok43.supportedReasoningLevels)
         assertEquals(1_000_000, grok43.contextLength)
         assertFalse(ModelAbility.REASONING in models[1].abilities)
         assertEquals(512_000, models[1].contextLength)

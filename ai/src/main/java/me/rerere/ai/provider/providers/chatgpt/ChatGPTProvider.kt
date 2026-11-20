@@ -10,6 +10,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.longOrNull
 import me.rerere.ai.core.MessageRole
+import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.provider.AccountCredentialProvider
 import me.rerere.ai.provider.CustomHeader
 import me.rerere.ai.provider.Modality
@@ -157,6 +158,15 @@ internal fun parseCodexModels(body: String): List<Model> {
             }
             ?.ifEmpty { null }
             ?: listOf(Modality.TEXT, Modality.IMAGE)
+        val supportedLevels = model["supported_reasoning_levels"]?.jsonArray
+            ?.mapNotNull { item ->
+                val effort = (item as? JsonObject)?.stringOrNull("effort")
+                    ?: item.jsonPrimitiveOrNull?.contentOrNull
+                    ?: return@mapNotNull null
+                ReasoningLevel.fromEffort(effort)
+            }
+            ?.distinct()
+            .orEmpty()
         val reasoning = model["supported_reasoning_levels"]?.jsonArray?.isNotEmpty() == true
         Model(
             modelId = slug,
@@ -164,6 +174,7 @@ internal fun parseCodexModels(body: String): List<Model> {
             inputModalities = inputModalities,
             abilities = if (reasoning) listOf(ModelAbility.TOOL, ModelAbility.REASONING) else listOf(ModelAbility.TOOL),
             contextLength = model["context_window"]?.jsonPrimitiveOrNull?.intOrNull ?: Model().contextLength,
+            supportedReasoningLevels = supportedLevels,
         )
     }
 }

@@ -1,5 +1,6 @@
 package me.rerere.ai.registry
 
+import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.ModelAbility
 
@@ -12,7 +13,8 @@ class ModelDefinition(
     val inputModalities: Set<Modality>,
     val outputModalities: Set<Modality>,
     val abilities: Set<ModelAbility>,
-    val contextLength: Int? = null
+    val contextLength: Int? = null,
+    val reasoningLevels: List<ReasoningLevel>? = null,
 ) : ModelSelector {
     override fun match(modelId: String): Boolean {
         val tokens = tokenize(modelId)
@@ -43,6 +45,7 @@ class ModelDefinitionBuilder {
     private val outputModalities = mutableSetOf(Modality.TEXT)
     private val abilities = mutableSetOf<ModelAbility>()
     private var contextLength: Int? = null
+    private var reasoningLevels: List<ReasoningLevel>? = null
 
     fun tokens(vararg specs: String) {
         matchers += TokenSequenceMatcher(specs.map(::parseTokenSpec))
@@ -82,6 +85,10 @@ class ModelDefinitionBuilder {
         contextLength = tokens
     }
 
+    fun reasoningLevels(vararg levels: ReasoningLevel) {
+        reasoningLevels = levels.toList()
+    }
+
     fun build(): ModelDefinition {
         val matcher = when {
             matchers.isEmpty() -> MatchNone
@@ -93,7 +100,8 @@ class ModelDefinitionBuilder {
             inputModalities = inputModalities.toSet(),
             outputModalities = outputModalities.toSet(),
             abilities = abilities.toSet(),
-            contextLength = contextLength
+            contextLength = contextLength,
+            reasoningLevels = reasoningLevels,
         )
     }
 }

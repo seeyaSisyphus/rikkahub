@@ -1,12 +1,76 @@
 package me.rerere.ai.registry
 
+import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Modality
+import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
+import me.rerere.ai.provider.ProviderSetting
+import java.net.URI
+import kotlin.math.abs
 
 fun interface ModelData<T> {
     fun getData(modelId: String): T
 }
+
+private val LEVELS_BINARY = arrayOf(ReasoningLevel.OFF, ReasoningLevel.AUTO)
+private val LEVELS_O_SERIES = arrayOf(
+    ReasoningLevel.AUTO, ReasoningLevel.LOW, ReasoningLevel.MEDIUM, ReasoningLevel.HIGH
+)
+private val LEVELS_STANDARD = arrayOf(
+    ReasoningLevel.OFF, ReasoningLevel.AUTO, ReasoningLevel.LOW, ReasoningLevel.MEDIUM, ReasoningLevel.HIGH
+)
+private val LEVELS_WITH_XHIGH = arrayOf(
+    ReasoningLevel.OFF,
+    ReasoningLevel.AUTO,
+    ReasoningLevel.LOW,
+    ReasoningLevel.MEDIUM,
+    ReasoningLevel.HIGH,
+    ReasoningLevel.XHIGH,
+)
+private val LEVELS_WITH_MAX = arrayOf(
+    ReasoningLevel.OFF,
+    ReasoningLevel.AUTO,
+    ReasoningLevel.LOW,
+    ReasoningLevel.MEDIUM,
+    ReasoningLevel.HIGH,
+    ReasoningLevel.MAX,
+)
+private val LEVELS_ALL = arrayOf(
+    ReasoningLevel.OFF,
+    ReasoningLevel.AUTO,
+    ReasoningLevel.LOW,
+    ReasoningLevel.MEDIUM,
+    ReasoningLevel.HIGH,
+    ReasoningLevel.XHIGH,
+    ReasoningLevel.MAX,
+)
+private val LEVELS_GEMINI_2_5_PRO = arrayOf(
+    ReasoningLevel.AUTO,
+    ReasoningLevel.LOW,
+    ReasoningLevel.MEDIUM,
+    ReasoningLevel.HIGH,
+    ReasoningLevel.XHIGH,
+    ReasoningLevel.MAX,
+)
+private val LEVELS_DEEPSEEK_V4 = arrayOf(
+    ReasoningLevel.AUTO,
+    ReasoningLevel.HIGH,
+    ReasoningLevel.MAX,
+)
+
+private val BINARY_THINKING_HOSTS = setOf(
+    "ark.cn-beijing.volces.com",
+    "open.bigmodel.cn",
+    "api.xiaomimimo.com",
+    "token-plan-cn.xiaomimimo.com",
+    "api.moonshot.cn",
+    "api.siliconflow.cn",
+    "aiping.cn",
+    "chat.intern-ai.org.cn",
+)
+
+private val GROK_4_20_NO_EFFORT_REGEX = Regex("""^grok-4\.20(-\d{4})?-(non-)?reasoning$""")
 
 object ModelRegistry {
     private val GPT4O = defineModel {
@@ -25,11 +89,13 @@ object ModelRegistry {
         tokens(tokenRegex("^o$"), tokenRegex("^\\d+$"))
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_O_SERIES)
     }
 
     private val GPT_OSS = defineModel {
         tokens("gpt", "oss")
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_O_SERIES)
     }
 
     val GPT_5 = defineModel {
@@ -38,60 +104,70 @@ object ModelRegistry {
         notTokens("gpt", "5", "chat")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_O_SERIES)
     }
 
     private val GPT_5_1 = defineModel {
         tokens("gpt", "5", "1")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_STANDARD)
     }
 
     private val GPT_5_2 = defineModel {
         tokens("gpt", "5", "2")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_WITH_XHIGH)
     }
 
     private val GPT_5_3 = defineModel {
         tokens("gpt", "5", "3")
         visionInput()
         toolAbility()
+        reasoningLevels(*LEVELS_WITH_XHIGH)
     }
 
     private val GPT_5_4 = defineModel {
         tokens("gpt", "5", "4")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_WITH_XHIGH)
     }
 
     private val GPT_5_4_MINI = defineModel {
         tokens("gpt", "5", "4", "mini")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_WITH_XHIGH)
     }
 
     private val GPT_5_4_NANO = defineModel {
         tokens("gpt", "5", "4", "nano")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_WITH_XHIGH)
     }
 
     private val GPT_5_5 = defineModel {
         tokens("gpt", "5", "5")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_WITH_XHIGH)
     }
 
     private val GPT_5_6 = defineModel {
         tokens("gpt", "5", "6")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_WITH_XHIGH)
     }
 
     private val GPT_6 = defineModel {
         tokens("gpt", "6")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_WITH_XHIGH)
     }
 
     private val GEMINI_20_FLASH = defineModel {
@@ -105,12 +181,14 @@ object ModelRegistry {
         notTokens("image")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_ALL)
     }
 
     val GEMINI_2_5_PRO = defineModel {
         tokens("gemini", "2", "5", "pro")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_GEMINI_2_5_PRO)
     }
 
     val GEMINI_2_5_IMAGE = defineModel {
@@ -135,24 +213,28 @@ object ModelRegistry {
         tokens("gemini", "3", "pro")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_O_SERIES)
     }
 
     val GEMINI_3_FLASH = defineModel {
         tokens("gemini", "3", "flash")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_STANDARD)
     }
 
     val GEMINI_3_1_PRO_PREVIEW = defineModel {
         tokens("gemini", "3", "1", "pro", "preview")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_O_SERIES)
     }
 
     val GEMINI_3_1_PRO_PREVIEW_CUSTOMTOOLS = defineModel {
         tokens("gemini", "3", "1", "pro", "preview", "customtools")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_O_SERIES)
     }
 
     val GEMINI_3_1_FLASH_IMAGE = defineModel {
@@ -160,30 +242,53 @@ object ModelRegistry {
         visionInput()
         imageOutput()
         reasoningAbility()
+        reasoningLevels(*LEVELS_STANDARD)
     }
 
     val GEMINI_3_5 = defineModel {
         tokens("gemini", "3", "5")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_STANDARD)
     }
 
     val GEMINI_4 = defineModel {
         tokens("gemini", "4")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_STANDARD)
+    }
+
+    val GEMINI_4_HYDROGEN = defineModel {
+        tokens("gemini", "4", "hydrogen")
+        visionInput()
+        toolReasoningAbility()
+        reasoningLevels(*LEVELS_WITH_XHIGH)
+    }
+
+    val GEMINI_4_NEON = defineModel {
+        tokens("gemini", "4", "neon")
+        visionInput()
+        toolReasoningAbility()
+        reasoningLevels(*LEVELS_WITH_XHIGH)
+    }
+
+    val GEMINI_4_XHIGH_SERIES = defineGroup {
+        add(GEMINI_4_HYDROGEN, GEMINI_4_NEON)
     }
 
     val GEMINI_FLASH_LATEST = defineModel {
         exact("gemini-flash-latest")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_STANDARD)
     }
 
     val GEMINI_PRO_LATEST = defineModel {
         exact("gemini-pro-latest")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_O_SERIES)
     }
 
     val GEMINI_LATEST = defineGroup {
@@ -210,36 +315,42 @@ object ModelRegistry {
         tokens("claude", "4")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_STANDARD)
     }
 
     val CLAUDE_4_5 = defineModel {
         tokens("claude", "4", "5")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_STANDARD)
     }
 
     private val CLAUDE_SONNET_4_6 = defineModel {
         tokens("claude", "sonnet", "4", "6")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_WITH_MAX)
     }
 
     private val CLAUDE_OPUS_4_6 = defineModel {
         tokens("claude", "opus", "4", "6")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_WITH_MAX)
     }
 
     private val CLAUDE_OPUS_4_7 = defineModel {
         tokens("claude", "opus", "4", "7")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_ALL)
     }
 
     private val CLAUDE_OPUS_4_8 = defineModel {
         tokens("claude", "opus", "4", "8")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_ALL)
     }
 
     private val CLAUDE_SONNET_5 = defineModel {
@@ -247,6 +358,7 @@ object ModelRegistry {
         notTokens("claude", "sonnet", "4")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_ALL)
         contextLength(1.m)
     }
 
@@ -255,6 +367,7 @@ object ModelRegistry {
         notTokens("claude", "opus", "4")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_ALL)
         contextLength(1.m)
     }
 
@@ -263,6 +376,7 @@ object ModelRegistry {
         notTokens("claude", "sonnet", "4")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_ALL)
         contextLength(1.m)
     }
 
@@ -271,6 +385,7 @@ object ModelRegistry {
         notTokens("claude", "opus", "4")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_ALL)
         contextLength(1.m)
     }
 
@@ -306,22 +421,26 @@ object ModelRegistry {
     private val DEEPSEEK_R1_MODEL = defineModel {
         tokens("deepseek", "r", "1")
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_BINARY)
     }
 
     private val DEEPSEEK_REASONER = defineModel {
         tokens("deepseek", "reasoner")
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_BINARY)
     }
 
     private val DEEPSEEK_FLASH = defineModel {
         tokens("deepseek", "flash")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_DEEPSEEK_V4)
     }
 
     private val DEEPSEEK_V4_FLASH = defineModel {
         tokens("deepseek", "v", "4", "flash")
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_DEEPSEEK_V4)
         contextLength(1.m)
     }
 
@@ -329,6 +448,7 @@ object ModelRegistry {
         tokens("deepseek", "v", "4", "flash", "vision", "exp")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_DEEPSEEK_V4)
         contextLength(1.m)
     }
 
@@ -336,12 +456,14 @@ object ModelRegistry {
         tokens("deepseek", "v", "4", "1", "flash")
         visionInput()
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_DEEPSEEK_V4)
         contextLength(1.m)
     }
 
     private val DEEPSEEK_V4_PRO = defineModel {
         tokens("deepseek", "v", "4", "pro")
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_DEEPSEEK_V4)
         contextLength(1.m)
     }
 
@@ -352,11 +474,13 @@ object ModelRegistry {
     private val DEEPSEEK_V3_1 = defineModel {
         tokens("deepseek", "v", "3", "1")
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_BINARY)
     }
 
     private val DEEPSEEK_V3_2 = defineModel {
         tokens("deepseek", "v", "3", "2")
         toolReasoningAbility()
+        reasoningLevels(*LEVELS_BINARY)
     }
 
     private val QWEN_3 = defineModel {
@@ -658,6 +782,8 @@ object ModelRegistry {
         GEMINI_3_1_FLASH_IMAGE,
         GEMINI_3_5,
         GEMINI_4,
+        GEMINI_4_HYDROGEN,
+        GEMINI_4_NEON,
         GEMINI_FLASH_LATEST,
         GEMINI_PRO_LATEST,
         CLAUDE_4,
@@ -780,6 +906,56 @@ object ModelRegistry {
     val MODEL_CONTEXT_LENGTH = ModelData { modelId ->
         catalog?.find(modelId)?.contextLength
             ?: resolveModels(modelId).firstNotNullOfOrNull { it.contextLength }
+    }
+
+    /**
+     * 解析模型实际支持的思考深度档位：
+     * 1. 模型元数据中由接口直接下发的档位（如 Codex / Grok）；
+     * 2. 提供商特定限制（如仅支持思考开关的国内平台、DeepSeek V4、Grok 特殊版本）；
+     * 3. ModelRegistry 中按模型定义声明的档位；
+     * 4. 未知模型回退为全量 [ReasoningLevel.entries]。
+     */
+    fun resolveReasoningLevels(
+        model: Model?,
+        providerSetting: ProviderSetting? = null,
+    ): List<ReasoningLevel> {
+        if (model == null) return ReasoningLevel.entries
+        if (model.supportedReasoningLevels.isNotEmpty()) return model.supportedReasoningLevels
+
+        val lowerId = model.modelId.lowercase()
+        val host = (providerSetting as? ProviderSetting.OpenAI)
+            ?.takeIf { !it.useResponseApi }
+            ?.baseUrl
+            ?.let { runCatching { URI(it).host?.lowercase() }.getOrNull() }
+
+        if (host != null) {
+            if (host in BINARY_THINKING_HOSTS) return LEVELS_BINARY.toList()
+            if (host == "api.deepseek.com") return LEVELS_DEEPSEEK_V4.toList()
+            if (host == "integrate.api.nvidia.com" && "deepseek-v4" in lowerId) {
+                return listOf(ReasoningLevel.OFF, ReasoningLevel.HIGH, ReasoningLevel.MAX)
+            }
+        }
+
+        if (GROK_4.match(model.modelId) || lowerId.startsWith("grok-")) {
+            return when {
+                GROK_4_20_NO_EFFORT_REGEX.matches(model.modelId) -> listOf(ReasoningLevel.AUTO)
+                lowerId == "grok-4.6" -> LEVELS_WITH_XHIGH.toList()
+                else -> LEVELS_STANDARD.toList()
+            }
+        }
+
+        return resolveModels(model.modelId).firstNotNullOfOrNull { it.reasoningLevels }
+            ?: ReasoningLevel.entries
+    }
+
+    /** 将已有档位映射到受支持列表中最接近的档位 */
+    fun closestReasoningLevel(
+        target: ReasoningLevel,
+        supported: List<ReasoningLevel>,
+    ): ReasoningLevel {
+        if (supported.isEmpty()) return target
+        if (target in supported) return target
+        return supported.minByOrNull { abs(it.ordinal - target.ordinal) } ?: supported.first()
     }
 
     private fun resolveModels(modelId: String): List<ModelDefinition> {

@@ -264,7 +264,10 @@ internal class InteractionsAPI(
         }
         ReasoningLevel.LOW -> "low"
         ReasoningLevel.MEDIUM -> "medium"
-        else -> "high" // HIGH, XHIGH, MAX
+        ReasoningLevel.XHIGH, ReasoningLevel.MAX -> {
+            if (ModelRegistry.GEMINI_4_XHIGH_SERIES.match(modelId = params.model.modelId)) "xhigh" else "high"
+        }
+        else -> "high"
     }
 
     internal fun buildInput(messages: List<UIMessage>): JsonArray = buildJsonArray {

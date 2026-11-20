@@ -3,6 +3,7 @@ package me.rerere.ai.provider.providers.chatgpt
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
@@ -148,6 +149,7 @@ class ChatGPTProviderTest {
         assertEquals("GPT-5.5", full.displayName)
         assertEquals(listOf(Modality.TEXT, Modality.IMAGE), full.inputModalities)
         assertEquals(listOf(ModelAbility.TOOL, ModelAbility.REASONING), full.abilities)
+        assertEquals(listOf(ReasoningLevel.LOW), full.supportedReasoningLevels)
         assertEquals(272000, full.contextLength)
         val mini = models[1]
         assertEquals(listOf(Modality.TEXT), mini.inputModalities)

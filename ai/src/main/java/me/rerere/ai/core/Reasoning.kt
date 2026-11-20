@@ -32,6 +32,10 @@ enum class ReasoningLevel(
     val isEnabled: Boolean
         get() = this != OFF
 
+    /** 原始档位名称，不做本地化映射 */
+    val rawLabel: String
+        get() = name.lowercase()
+
     companion object {
         fun fromBudgetTokens(budgetTokens: Int?): ReasoningLevel {
             return entries.minByOrNull {
@@ -39,6 +43,17 @@ enum class ReasoningLevel(
                     it.budgetTokens - (budgetTokens ?: AUTO.budgetTokens)
                 )
             } ?: AUTO
+        }
+
+        fun fromEffort(effort: String): ReasoningLevel? = when (effort.trim().lowercase()) {
+            "off", "none", "minimal", "disabled" -> OFF
+            "auto" -> AUTO
+            "low" -> LOW
+            "medium" -> MEDIUM
+            "high" -> HIGH
+            "xhigh" -> XHIGH
+            "max" -> MAX
+            else -> null
         }
     }
 }

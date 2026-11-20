@@ -173,6 +173,15 @@ internal fun parseGrokModels(cliCatalog: JsonObject?, apiCatalog: JsonObject?): 
             if (hidden || NON_CHAT_MODEL.containsMatchIn(id) || id in models) return@forEach
             val efforts = (row["reasoningEfforts"] ?: row["reasoning_efforts"] ?: meta?.get("reasoningEfforts"))
                 as? JsonArray
+            val supportedLevels = efforts
+                ?.mapNotNull { item ->
+                    val effort = (item as? JsonObject)?.string("value")
+                        ?: item.jsonPrimitiveOrNull?.contentOrNull
+                        ?: return@mapNotNull null
+                    ReasoningLevel.fromEffort(effort)
+                }
+                ?.distinct()
+                .orEmpty()
             val contextWindow = listOf(
                 row["contextWindow"],
                 row["context_window"],
@@ -190,6 +199,7 @@ internal fun parseGrokModels(cliCatalog: JsonObject?, apiCatalog: JsonObject?): 
                     listOf(ModelAbility.TOOL, ModelAbility.REASONING)
                 },
                 contextLength = contextWindow ?: Model().contextLength,
+                supportedReasoningLevels = supportedLevels,
             )
         }
     }

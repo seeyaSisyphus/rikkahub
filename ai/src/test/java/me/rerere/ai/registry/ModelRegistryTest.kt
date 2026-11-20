@@ -1,7 +1,10 @@
 package me.rerere.ai.registry
 
+import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.provider.Modality
+import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
+import me.rerere.ai.provider.ProviderSetting
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -215,6 +218,85 @@ class ModelRegistryTest {
             tokens("custom", "default")
         }
         assertEquals(null, defaultModel.contextLength)
+    }
+
+    @Test
+    fun testResolveReasoningLevels() {
+        // 模型自身携带的 supportedReasoningLevels 优先
+        val customLevels = listOf(ReasoningLevel.LOW, ReasoningLevel.HIGH, ReasoningLevel.XHIGH)
+        assertEquals(
+            customLevels,
+            ModelRegistry.resolveReasoningLevels(
+                Model(modelId = "gpt-5.4", supportedReasoningLevels = customLevels)
+            ),
+        )
+
+        // Gemini 3 Pro 不支持 off，最高 high；Gemini 4 支持 off..high
+        assertEquals(
+            listOf(ReasoningLevel.AUTO, ReasoningLevel.LOW, ReasoningLevel.MEDIUM, ReasoningLevel.HIGH),
+            ModelRegistry.resolveReasoningLevels(Model(modelId = "gemini-3-pro")),
+        )
+        assertEquals(
+            listOf(
+                ReasoningLevel.OFF,
+                ReasoningLevel.AUTO,
+                ReasoningLevel.LOW,
+                ReasoningLevel.MEDIUM,
+                ReasoningLevel.HIGH,
+            ),
+            ModelRegistry.resolveReasoningLevels(Model(modelId = "gemini-4-argon")),
+        )
+        assertEquals(
+            listOf(
+                ReasoningLevel.OFF,
+                ReasoningLevel.AUTO,
+                ReasoningLevel.LOW,
+                ReasoningLevel.MEDIUM,
+                ReasoningLevel.HIGH,
+                ReasoningLevel.XHIGH,
+            ),
+            ModelRegistry.resolveReasoningLevels(Model(modelId = "gemini-4-hydrogen")),
+        )
+
+        // GPT-5.4 支持 off/auto/low/medium/high/xhigh；DeepSeek V4 仅 auto/high/max
+        assertEquals(
+            listOf(
+                ReasoningLevel.OFF,
+                ReasoningLevel.AUTO,
+                ReasoningLevel.LOW,
+                ReasoningLevel.MEDIUM,
+                ReasoningLevel.HIGH,
+                ReasoningLevel.XHIGH,
+            ),
+            ModelRegistry.resolveReasoningLevels(Model(modelId = "gpt-5.4")),
+        )
+        assertEquals(
+            listOf(ReasoningLevel.AUTO, ReasoningLevel.HIGH, ReasoningLevel.MAX),
+            ModelRegistry.resolveReasoningLevels(Model(modelId = "deepseek-v4-flash")),
+        )
+
+        // 国内仅开关思考的提供商限制为 off/auto
+        val moonshot = ProviderSetting.OpenAI(baseUrl = "https://api.moonshot.cn/v1")
+        assertEquals(
+            listOf(ReasoningLevel.OFF, ReasoningLevel.AUTO),
+            ModelRegistry.resolveReasoningLevels(Model(modelId = "kimi-k2.6"), moonshot),
+        )
+
+        // 未知模型回退全量档位
+        assertEquals(
+            ReasoningLevel.entries,
+            ModelRegistry.resolveReasoningLevels(Model(modelId = "unknown-custom-model")),
+        )
+
+        // closestReasoningLevel 就近回落
+        assertEquals(
+            ReasoningLevel.XHIGH,
+            ModelRegistry.closestReasoningLevel(ReasoningLevel.MAX, customLevels),
+        )
+        assertEquals(
+            ReasoningLevel.LOW,
+            ModelRegistry.closestReasoningLevel(ReasoningLevel.OFF, customLevels),
+        )
     }
 
 }

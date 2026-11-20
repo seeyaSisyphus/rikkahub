@@ -422,10 +422,15 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
 
                         else -> {
                             if (useThinkingLevel) {
+                                val supportsXHigh =
+                                    ModelRegistry.GEMINI_4_XHIGH_SERIES.match(modelId = params.model.modelId)
                                 when (params.reasoningLevel) {
                                     ReasoningLevel.LOW -> put("thinkingLevel", "low")
                                     ReasoningLevel.MEDIUM -> put("thinkingLevel", "medium")
-                                    else -> put("thinkingLevel", "high") // HIGH, XHIGH
+                                    ReasoningLevel.XHIGH, ReasoningLevel.MAX -> {
+                                        put("thinkingLevel", if (supportsXHigh) "xhigh" else "high")
+                                    }
+                                    else -> put("thinkingLevel", "high")
                                 }
                             } else {
                                 put("thinkingBudget", params.reasoningLevel.budgetTokens)
