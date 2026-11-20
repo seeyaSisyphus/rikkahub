@@ -16,7 +16,9 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
+import me.rerere.rikkahub.ui.components.ui.rememberVertexServiceAccountImporter
 import me.rerere.rikkahub.ui.components.ui.switchItem
+import me.rerere.rikkahub.ui.components.ui.vertexServiceAccountImportItem
 import me.rerere.ui.components.OutlinedNumberInput
 import me.rerere.ui.components.SelectTextField
 
@@ -37,6 +39,20 @@ fun ASRProviderConfigure(
     modifier: Modifier = Modifier,
     onValueChange: (ASRProviderSetting) -> Unit
 ) {
+    // Chirp 3 与模型配置里的 Vertex 共用服务账号鉴权，导入 JSON 后自动回填邮箱 / 私钥 / 项目 ID
+    val importVertexServiceAccount = rememberVertexServiceAccountImporter { account ->
+        val current = setting
+        if (current is ASRProviderSetting.Chirp3) {
+            onValueChange(
+                current.copy(
+                    serviceAccountEmail = account.clientEmail,
+                    privateKey = account.privateKey,
+                    projectId = account.projectId.ifBlank { current.projectId },
+                )
+            )
+        }
+    }
+
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = modifier.verticalScroll(rememberScrollState())
@@ -69,7 +85,13 @@ fun ASRProviderConfigure(
                 is ASRProviderSetting.Volcengine -> volcengineASRItems(setting, onValueChange)
                 is ASRProviderSetting.MiMo -> miMoASRItems(setting, onValueChange)
                 is ASRProviderSetting.Step -> stepASRItems(setting, onValueChange)
-                is ASRProviderSetting.Chirp3 -> chirp3ASRItems(setting, onValueChange)
+                is ASRProviderSetting.Chirp3 -> {
+                    vertexServiceAccountImportItem(
+                        onClick = importVertexServiceAccount,
+                        supportingContent = { Text("选择服务账号 JSON，自动填充邮箱、私钥和项目 ID") },
+                    )
+                    chirp3ASRItems(setting, onValueChange)
+                }
                 is ASRProviderSetting.Tencent -> tencentASRItems(setting, onValueChange)
             }
         }

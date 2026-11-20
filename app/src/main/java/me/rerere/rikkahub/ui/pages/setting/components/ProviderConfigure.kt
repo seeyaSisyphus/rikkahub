@@ -1,7 +1,5 @@
 package me.rerere.rikkahub.ui.pages.setting.components
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -46,7 +44,6 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.DashboardSpeed02
-import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.hugeicons.stroke.Login03
 import me.rerere.hugeicons.stroke.Logout03
 import me.rerere.hugeicons.stroke.Refresh03
@@ -60,15 +57,13 @@ import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
+import me.rerere.rikkahub.ui.components.ui.rememberVertexServiceAccountImporter
 import me.rerere.rikkahub.ui.components.ui.switchItem
+import me.rerere.rikkahub.ui.components.ui.vertexServiceAccountImportItem
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.ui.components.SelectTextField
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.koinInject
@@ -570,29 +565,15 @@ private fun ProviderConfigureGoogle(
     provider: ProviderSetting.Google,
     onEdit: (provider: ProviderSetting) -> Unit
 ) {
-    val context = LocalContext.current
-    val toaster = LocalToaster.current
-    val serviceAccountJsonLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        uri ?: return@rememberLauncherForActivityResult
-        try {
-            val content = context.contentResolver.openInputStream(uri)
-                ?.bufferedReader()
-                ?.readText()
-                ?: return@rememberLauncherForActivityResult
-            val json = Json.parseToJsonElement(content).jsonObject
-            onEdit(
-                provider.copy(
-                    projectId = json["project_id"]?.jsonPrimitive?.contentOrNull?.ifEmpty { null } ?: provider.projectId,
-                    serviceAccountEmail = json["client_email"]?.jsonPrimitive?.contentOrNull?.ifEmpty { null } ?: provider.serviceAccountEmail,
-                    privateKey = json["private_key"]?.jsonPrimitive?.contentOrNull?.ifEmpty { null } ?: provider.privateKey,
-                )
+    // 选择服务账号 JSON 后自动解析并回填；保留 JSON 里没有、用户已手填的字段
+    val importServiceAccount = rememberVertexServiceAccountImporter { account ->
+        onEdit(
+            provider.copy(
+                projectId = account.projectId.ifBlank { provider.projectId },
+                serviceAccountEmail = account.clientEmail,
+                privateKey = account.privateKey,
             )
-            toaster.show("Service account imported", type = ToastType.Success)
-        } catch (e: Exception) {
-            toaster.show("Failed to import: ${e.message}", type = ToastType.Error)
-        }
+        )
     }
     val useServiceAccount = provider.vertexAI && provider.useServiceAccount
 
@@ -642,11 +623,7 @@ private fun ProviderConfigureGoogle(
 
     if (useServiceAccount) {
         CardGroup {
-            item(
-                onClick = { serviceAccountJsonLauncher.launch(arrayOf("application/json", "*/*")) },
-                headlineContent = { Text(stringResource(R.string.setting_provider_page_import_service_account_json)) },
-                trailingContent = { Icon(HugeIcons.FileImport, contentDescription = null) },
-            )
+            vertexServiceAccountImportItem(onClick = importServiceAccount)
             textFieldItem(
                 label = R.string.setting_provider_page_service_account_email,
                 value = provider.serviceAccountEmail,

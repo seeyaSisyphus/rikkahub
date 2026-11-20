@@ -25,7 +25,9 @@ import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
+import me.rerere.rikkahub.ui.components.ui.rememberVertexServiceAccountImporter
 import me.rerere.rikkahub.ui.components.ui.switchItem
+import me.rerere.rikkahub.ui.components.ui.vertexServiceAccountImportItem
 import me.rerere.tts.provider.TTSProviderSetting
 import me.rerere.ui.components.OutlinedNumberInput
 import me.rerere.ui.components.SelectTextField
@@ -36,6 +38,28 @@ fun TTSProviderConfigure(
     modifier: Modifier = Modifier,
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
+    // 与模型配置共用同一套服务账号 JSON 导入能力，导入后自动回填邮箱 / 私钥 / 项目 ID
+    val importVertexServiceAccount = rememberVertexServiceAccountImporter { account ->
+        when (val current = setting) {
+            is TTSProviderSetting.GeminiVertex -> onValueChange(
+                current.copy(
+                    serviceAccountEmail = account.clientEmail,
+                    privateKey = account.privateKey,
+                    projectId = account.projectId.ifBlank { current.projectId },
+                )
+            )
+
+            is TTSProviderSetting.VertexCloud -> onValueChange(
+                current.copy(
+                    serviceAccountEmail = account.clientEmail,
+                    privateKey = account.privateKey,
+                )
+            )
+
+            else -> Unit
+        }
+    }
+
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = modifier.verticalScroll(rememberScrollState())
@@ -187,8 +211,21 @@ fun TTSProviderConfigure(
                 is TTSProviderSetting.XAI -> xAITTSItems(setting, onValueChange)
                 is TTSProviderSetting.MiMo -> miMoTTSItems(setting, onValueChange)
                 is TTSProviderSetting.ElevenLabs -> elevenLabsTTSItems(setting, onValueChange)
-                is TTSProviderSetting.GeminiVertex -> geminiVertexTTSItems(setting, onValueChange)
-                is TTSProviderSetting.VertexCloud -> vertexCloudTTSItems(setting, onValueChange)
+                is TTSProviderSetting.GeminiVertex -> {
+                    vertexServiceAccountImportItem(
+                        onClick = importVertexServiceAccount,
+                        supportingContent = { Text("选择服务账号 JSON，自动填充邮箱、私钥和项目 ID") },
+                    )
+                    geminiVertexTTSItems(setting, onValueChange)
+                }
+
+                is TTSProviderSetting.VertexCloud -> {
+                    vertexServiceAccountImportItem(
+                        onClick = importVertexServiceAccount,
+                        supportingContent = { Text("选择服务账号 JSON，自动填充邮箱和私钥") },
+                    )
+                    vertexCloudTTSItems(setting, onValueChange)
+                }
                 is TTSProviderSetting.FishAudio -> fishAudioTTSItems(setting, onValueChange)
                 is TTSProviderSetting.Step -> stepTTSItems(setting, onValueChange)
                 is TTSProviderSetting.Volcengine -> volcengineTTSItems(setting, onValueChange)
