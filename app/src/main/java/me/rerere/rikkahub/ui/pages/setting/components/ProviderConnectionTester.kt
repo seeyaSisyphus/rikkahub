@@ -10,12 +10,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.SheetValue
@@ -50,6 +48,8 @@ import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.UiState
 import org.koin.compose.koinInject
+import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
+import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
 
 @Composable
 fun ProviderConnectionTester(
@@ -80,7 +80,7 @@ fun ProviderConnectionTester(
             streamingText = ""
         }
 
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { showTestDialog = false },
             title = {
                 Text(stringResource(R.string.setting_provider_page_test_connection))
@@ -291,7 +291,7 @@ private fun TestResultItem(
         val stackTrace = remember(state.error) {
             state.error.stackTraceToString()
         }
-        ModalBottomSheet(
+        AppModalBottomSheet(
             onDismissRequest = { showErrorSheet = false },
             sheetState = sheetState,
         ) {

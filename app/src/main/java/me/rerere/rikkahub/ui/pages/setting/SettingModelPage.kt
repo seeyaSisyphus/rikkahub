@@ -10,17 +10,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -35,6 +34,7 @@ import me.rerere.hugeicons.stroke.Translate
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
+import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.ui.components.ai.ModelField
 import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.ModelListState
@@ -64,20 +64,17 @@ private enum class ModelSettingTab(
 @Composable
 fun SettingModelPage(vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val pagerState = rememberPagerState { ModelSettingTab.entries.size }
 
     Scaffold(
         containerColor = CustomColors.topBarColors.containerColor,
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_model_page_title)) },
                 navigationIcon = { BackButton() },
-                scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors,
             )
         },
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -186,11 +183,17 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
                 item(
                     headlineContent = { Text(stringResource(R.string.assistant_page_thinking_budget)) },
                     trailingContent = {
+                        val currentFastModel = fastModel.currentModel
+                        val fastProvider = remember(currentFastModel, settings.providers) {
+                            currentFastModel?.findProvider(settings.providers)
+                        }
                         ReasoningButton(
                             reasoningLevel = settings.fastModelReasoningLevel,
                             onUpdateReasoningLevel = {
                                 vm.updateSettings { latest -> latest.copy(fastModelReasoningLevel = it) }
                             },
+                            model = currentFastModel,
+                            providerSetting = fastProvider,
                         )
                     },
                 )
@@ -231,11 +234,17 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
                     item(
                         headlineContent = { Text(stringResource(R.string.assistant_page_thinking_budget)) },
                         trailingContent = {
+                            val currentMemoryModel = memoryModel.currentModel
+                            val memoryProvider = remember(currentMemoryModel, settings.providers) {
+                                currentMemoryModel?.findProvider(settings.providers)
+                            }
                             ReasoningButton(
                                 reasoningLevel = settings.memoryModelReasoningLevel,
                                 onUpdateReasoningLevel = {
                                     vm.updateSettings { latest -> latest.copy(memoryModelReasoningLevel = it) }
                                 },
+                                model = currentMemoryModel,
+                                providerSetting = memoryProvider,
                             )
                         },
                     )

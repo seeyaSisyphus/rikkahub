@@ -22,13 +22,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,7 +36,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -84,8 +82,6 @@ fun MemoryFilePage(memoryId: String, path: String?) {
     val state by vm.state.collectAsStateWithLifecycle()
     val navController = LocalNavController.current
     val toaster = LocalToaster.current
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-
     val isNew = path == null
     val file = (state as? MemoryFileState.Loaded)?.file
     // 新文件没有内容可看，直接进编辑
@@ -139,18 +135,24 @@ fun MemoryFilePage(memoryId: String, path: String?) {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = {
-                    Text(
-                        text = (file?.title ?: MemoryFile(path = path ?: draftPath, content = "", updatedAt = 0).title)
-                            .ifEmpty { stringResource(R.string.memory_file_page_new) },
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-                subtitle = {
-                    if (path != null) {
-                        Text(text = file?.path ?: path, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Column {
+                        Text(
+                            text = (file?.title ?: MemoryFile(path = path ?: draftPath, content = "", updatedAt = 0).title)
+                                .ifEmpty { stringResource(R.string.memory_file_page_new) },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (path != null) {
+                            Text(
+                                text = file?.path ?: path,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
                 },
                 navigationIcon = {
@@ -209,11 +211,9 @@ fun MemoryFilePage(memoryId: String, path: String?) {
                         }
                     }
                 },
-                scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors,
             )
         },
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = CustomColors.topBarColors.containerColor,
     ) { innerPadding ->
         when {

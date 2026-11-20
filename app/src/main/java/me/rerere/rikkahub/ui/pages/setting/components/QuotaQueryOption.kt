@@ -14,10 +14,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -37,7 +33,10 @@ import me.rerere.ai.provider.renderQuotaTemplate
 import me.rerere.common.http.isJsonExprValid
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DEFAULT_PROVIDERS
+import me.rerere.rikkahub.ui.components.ui.AppSwitch
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
@@ -68,7 +67,7 @@ fun SettingProviderQuotaQuery(
                             contentDescription = null,
                         )
                     }
-                    Switch(
+                    AppSwitch(
                         checked = query.enabled,
                         onCheckedChange = { onEdit(query.copy(enabled = it)) },
                     )
@@ -79,16 +78,13 @@ fun SettingProviderQuotaQuery(
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        QuotaQueryMethod.entries.forEachIndexed { index, method ->
-                            SegmentedButton(
-                                selected = query.method == method,
-                                onClick = { onEdit(query.copy(method = method)) },
-                                shape = SegmentedButtonDefaults.itemShape(index, QuotaQueryMethod.entries.size),
-                            ) {
-                                Text(method.name)
-                            }
-                        }
+                    ConnectedChoiceButtons(
+                        options = QuotaQueryMethod.entries,
+                        selected = query.method,
+                        onSelect = { method -> onEdit(query.copy(method = method)) },
+                        minHeight = 40.dp,
+                    ) { method, selected ->
+                        ConnectedChoiceLabel(text = method.name, selected = selected)
                     }
                     OutlinedTextField(
                         value = query.url,

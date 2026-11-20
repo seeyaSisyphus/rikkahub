@@ -38,7 +38,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -138,6 +137,7 @@ import me.rerere.workspace.WorkspaceStorageArea
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import java.io.File
+import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
 
 private enum class WorkspaceDetailTab(
     override val icon: ImageVector,
@@ -335,7 +335,7 @@ fun WorkspaceDetailPage(id: String) {
     }
 
     state.exportResult?.let { result ->
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = vm::dismissExportResult,
             title = { Text("导出结果") },
             text = { Text(result, modifier = Modifier.verticalScroll(rememberScrollState())) },
@@ -359,7 +359,7 @@ fun WorkspaceDetailPage(id: String) {
     }
 
     installError?.let { message ->
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = vm::dismissInstallError,
             title = { Text(stringResource(R.string.workspace_detail_rootfs_install_failed)) },
             text = { Text(message) },
@@ -372,7 +372,7 @@ fun WorkspaceDetailPage(id: String) {
     }
 
     settingsError?.let { message ->
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = vm::dismissSettingsError,
             title = { Text(stringResource(R.string.workspace_detail_settings_save_failed)) },
             text = { Text(message.ifBlank { stringResource(R.string.workspace_detail_settings_save_failed) }) },
@@ -673,7 +673,7 @@ private fun InstallRootfsDialog(
 ) {
     var url by rememberSaveable(workspace.id) { mutableStateOf(DEFAULT_ROOTFS_URL) }
 
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.workspace_detail_install_rootfs)) },
         text = {

@@ -34,7 +34,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
@@ -49,12 +48,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -117,6 +114,7 @@ import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.ai.ModelTypeTag
 import me.rerere.rikkahub.ui.components.ai.ProviderQuotaText
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.AppSwitch
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
@@ -151,6 +149,8 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
+import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
 
 private enum class ProviderDetailTab(
     override val icon: ImageVector,
@@ -407,7 +407,7 @@ private fun SettingProviderConfigPage(
 
     // Delete confirmation dialog
     if (showDeleteDialog) {
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = {
                 Text(stringResource(R.string.confirm_delete))
@@ -826,7 +826,7 @@ private fun AddModelButton(
     if (dialogState.isEditing) {
         dialogState.currentState?.let { modelState ->
             val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded))
-            ModalBottomSheet(
+            AppModalBottomSheet(
                 onDismissRequest = {
                     dialogState.dismiss()
                 },
@@ -910,7 +910,7 @@ private fun ModelPicker(
 ) {
     var showModal by remember { mutableStateOf(false) }
     if (showModal) {
-        ModalBottomSheet(
+        AppModalBottomSheet(
             onDismissRequest = { showModal = false },
             sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)),
         ) {
@@ -1281,7 +1281,7 @@ private fun ModelCard(
     if (dialogState.isEditing) {
         dialogState.currentState?.let { editingModel ->
             val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded))
-            ModalBottomSheet(
+            AppModalBottomSheet(
                 onDismissRequest = {
                     dialogState.dismiss()
                 },
@@ -1488,7 +1488,7 @@ private fun BuiltInToolsSettings(
                     onClick = { toggle(!checked) },
                     colors = itemColors,
                     supportingContent = { Text(description) },
-                    trailingContent = { Switch(checked = checked, onCheckedChange = toggle) },
+                    trailingContent = { AppSwitch(checked = checked, onCheckedChange = toggle) },
                     headlineContent = { Text(title) },
                 )
             }
@@ -1583,7 +1583,7 @@ private fun ProviderOverrideSettings(
 
         // Provider configuration modal
         if (showProviderConfig && editingProvider != null) {
-            ModalBottomSheet(
+            AppModalBottomSheet(
                 onDismissRequest = {
                     showProviderConfig = false
                     editingProvider = null

@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -36,6 +35,7 @@ import me.rerere.hugeicons.stroke.Image02
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.files.FilesManager
 import org.koin.compose.koinInject
+import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
 
 @Composable
 fun BackgroundPicker(
@@ -113,7 +113,7 @@ fun BackgroundPicker(
     }
 
     if (showPickOption) {
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = {
                 showPickOption = false
             },
@@ -169,7 +169,7 @@ fun BackgroundPicker(
     }
 
     if (showUrlInput) {
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = {
                 showUrlInput = false
             },

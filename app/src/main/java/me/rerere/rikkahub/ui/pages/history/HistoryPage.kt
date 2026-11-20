@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -68,6 +67,7 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.SwipeToDelete
 import me.rerere.rikkahub.ui.context.LocalNavController
+import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.rikkahub.utils.plus
 import me.rerere.rikkahub.utils.toLocalDateTime
@@ -75,6 +75,7 @@ import me.rerere.ui.components.RikkaConfirmDialog
 import me.rerere.ui.components.Tooltip
 import org.koin.androidx.compose.koinViewModel
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
 
 @Composable
 fun HistoryPage(vm: HistoryVM = koinViewModel()) {
@@ -151,6 +152,7 @@ fun HistoryPage(vm: HistoryVM = koinViewModel()) {
                 navigationIcon = {
                     BackButton()
                 },
+                colors = CustomColors.topBarColors,
                 actions = {
                     if (selectedIds == null) {
                         IconButton(
@@ -219,7 +221,8 @@ fun HistoryPage(vm: HistoryVM = koinViewModel()) {
         },
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState)
-        }
+        },
+        containerColor = CustomColors.topBarColors.containerColor,
     ) { contentPadding ->
         LazyColumn(
             contentPadding = contentPadding + PaddingValues(16.dp),
@@ -256,7 +259,7 @@ fun HistoryPage(vm: HistoryVM = koinViewModel()) {
     }
 
     if (showDeleteAllDialog) {
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { showDeleteAllDialog = false },
             title = { Text(stringResource(R.string.history_page_delete_all_conversations)) },
             text = { Text(stringResource(R.string.history_page_delete_all_confirmation)) },
@@ -406,7 +409,7 @@ private fun SwipeableConversationItem(
         SwipeToDelete(
             onDelete = onDelete,
             modifier = modifier,
-            shape = RoundedCornerShape(25),
+            shape = RoundedCornerShape(18.dp),
         ) {
             ConversationItem(
                 conversation = conversation,
@@ -431,10 +434,14 @@ private fun ConversationItem(
     onClick: () -> Unit = {},
     onLongClick: () -> Unit = {},
 ) {
-    val shape = RoundedCornerShape(25)
+    val shape = RoundedCornerShape(18.dp)
     Surface(
-        tonalElevation = 2.dp,
-        color = if (selected == true) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+        color = if (selected == true) {
+            MaterialTheme.colorScheme.secondaryContainer
+        } else {
+            CustomColors.listItemColors.containerColor
+        },
+        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
         shape = shape,
         modifier = modifier
             .clip(shape)

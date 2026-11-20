@@ -11,18 +11,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,7 +25,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -44,7 +37,10 @@ import me.rerere.rikkahub.data.datastore.ChatFontFamily
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
+import me.rerere.rikkahub.ui.components.ui.AppSlider
+import me.rerere.rikkahub.ui.components.ui.AppSwitch
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionNotification
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
@@ -67,8 +63,6 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
         vm.updateSettings { it.copy(displaySetting = setting) }
     }
 
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-
     val permissionState = rememberPermissionState(
         permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) setOf(
             PermissionNotification
@@ -78,18 +72,16 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = {
                     Text(stringResource(R.string.setting_display_page_title))
                 },
                 navigationIcon = {
                     BackButton()
                 },
-                scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors
             )
         },
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = CustomColors.topBarColors.containerColor
     ) { contentPadding ->
         LazyColumn(
@@ -122,7 +114,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         headlineContent = { Text(stringResource(R.string.setting_page_dynamic_color)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_dynamic_color_desc)) },
                         trailingContent = {
-                            Switch(
+                            AppSwitch(
                                 checked = settings.dynamicColor,
                                 onCheckedChange = { enabled -> vm.updateSettings { it.copy(dynamicColor = enabled) } },
                             )
@@ -154,7 +146,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         headlineContent = { Text(stringResource(R.string.setting_display_page_amoled_dark_mode_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_amoled_dark_mode_desc)) },
                         trailingContent = {
-                            Switch(
+                            AppSwitch(
                                 checked = amoledDarkMode,
                                 onCheckedChange = { amoledDarkMode = it }
                             )
@@ -185,7 +177,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         headlineContent = { Text(stringResource(R.string.setting_display_page_create_new_conversation_on_start_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_create_new_conversation_on_start_desc)) },
                         trailingContent = {
-                            Switch(
+                            AppSwitch(
                                 checked = createNewConversationOnStart,
                                 onCheckedChange = { createNewConversationOnStart = it }
                             )
@@ -195,7 +187,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         headlineContent = { Text(stringResource(R.string.setting_display_page_notification_message_generated)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_notification_message_generated_desc)) },
                         trailingContent = {
-                            Switch(
+                            AppSwitch(
                                 checked = displaySetting.enableNotificationOnMessageGeneration,
                                 onCheckedChange = {
                                     if (it && !permissionState.allPermissionsGranted) {
@@ -211,7 +203,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             headlineContent = { Text(stringResource(R.string.setting_display_page_live_update_notification)) },
                             supportingContent = { Text(stringResource(R.string.setting_display_page_live_update_notification_desc)) },
                             trailingContent = {
-                                Switch(
+                                AppSwitch(
                                     checked = displaySetting.enableLiveUpdateNotification,
                                     onCheckedChange = {
                                         updateDisplaySetting(displaySetting.copy(enableLiveUpdateNotification = it))
@@ -235,7 +227,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             headlineContent = { Text(stringResource(R.string.setting_display_page_show_user_avatar_title)) },
                             supportingContent = { Text(stringResource(R.string.setting_display_page_show_user_avatar_desc)) },
                             trailingContent = {
-                                Switch(
+                                AppSwitch(
                                     checked = displaySetting.showUserAvatar,
                                     onCheckedChange = {
                                         updateDisplaySetting(displaySetting.copy(showUserAvatar = it))
@@ -247,7 +239,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             headlineContent = { Text(stringResource(R.string.setting_display_page_show_assistant_bubble_title)) },
                             supportingContent = { Text(stringResource(R.string.setting_display_page_show_assistant_bubble_desc)) },
                             trailingContent = {
-                                Switch(
+                                AppSwitch(
                                     checked = displaySetting.showAssistantBubble,
                                     onCheckedChange = {
                                         updateDisplaySetting(displaySetting.copy(showAssistantBubble = it))
@@ -259,7 +251,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             headlineContent = { Text(stringResource(R.string.setting_display_page_chat_list_model_icon_title)) },
                             supportingContent = { Text(stringResource(R.string.setting_display_page_chat_list_model_icon_desc)) },
                             trailingContent = {
-                                Switch(
+                                AppSwitch(
                                     checked = displaySetting.showModelIcon,
                                     onCheckedChange = {
                                         updateDisplaySetting(displaySetting.copy(showModelIcon = it))
@@ -271,7 +263,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             headlineContent = { Text(stringResource(R.string.setting_display_page_show_model_name_title)) },
                             supportingContent = { Text(stringResource(R.string.setting_display_page_show_model_name_desc)) },
                             trailingContent = {
-                                Switch(
+                                AppSwitch(
                                     checked = displaySetting.showModelName,
                                     onCheckedChange = {
                                         updateDisplaySetting(displaySetting.copy(showModelName = it))
@@ -284,7 +276,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             headlineContent = { Text(stringResource(R.string.setting_display_page_show_token_usage_title)) },
                             supportingContent = { Text(stringResource(R.string.setting_display_page_show_token_usage_desc)) },
                             trailingContent = {
-                                Switch(
+                                AppSwitch(
                                     checked = displaySetting.showTokenUsage,
                                     onCheckedChange = {
                                         updateDisplaySetting(displaySetting.copy(showTokenUsage = it))
@@ -296,7 +288,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             headlineContent = { Text(stringResource(R.string.setting_display_page_show_thinking_content_title)) },
                             supportingContent = { Text(stringResource(R.string.setting_display_page_show_thinking_content_desc)) },
                             trailingContent = {
-                                Switch(
+                                AppSwitch(
                                     checked = displaySetting.showThinkingContent,
                                     onCheckedChange = {
                                         updateDisplaySetting(displaySetting.copy(showThinkingContent = it))
@@ -308,7 +300,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             headlineContent = { Text(stringResource(R.string.setting_display_page_auto_collapse_thinking_title)) },
                             supportingContent = { Text(stringResource(R.string.setting_display_page_auto_collapse_thinking_desc)) },
                             trailingContent = {
-                                Switch(
+                                AppSwitch(
                                     checked = displaySetting.autoCloseThinking,
                                     onCheckedChange = {
                                         updateDisplaySetting(displaySetting.copy(autoCloseThinking = it))
@@ -320,7 +312,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             headlineContent = { Text(stringResource(R.string.setting_display_page_enable_latex_rendering_title)) },
                             supportingContent = { Text(stringResource(R.string.setting_display_page_enable_latex_rendering_desc)) },
                             trailingContent = {
-                                Switch(
+                                AppSwitch(
                                     checked = displaySetting.enableLatexRendering,
                                     onCheckedChange = {
                                         updateDisplaySetting(displaySetting.copy(enableLatexRendering = it))
@@ -336,31 +328,26 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                                     ChatFontFamily.SERIF to stringResource(R.string.setting_display_page_chat_font_family_serif),
                                     ChatFontFamily.MONOSPACE to stringResource(R.string.setting_display_page_chat_font_family_monospace),
                                 )
-                                SingleChoiceSegmentedButtonRow(
-                                    modifier = Modifier
-                                        .padding(top = 4.dp)
-                                        .fillMaxWidth()
-                                ) {
-                                    chatFontFamilyOptions.forEachIndexed { index, (family, label) ->
-                                        SegmentedButton(
-                                            selected = displaySetting.chatFontFamily == family,
-                                            onClick = { updateDisplaySetting(displaySetting.copy(chatFontFamily = family)) },
-                                            shape = SegmentedButtonDefaults.itemShape(
-                                                index,
-                                                chatFontFamilyOptions.size
-                                            ),
-                                        ) {
-                                            Text(
-                                                text = label,
-                                                fontFamily = when (family) {
-                                                    ChatFontFamily.DEFAULT -> FontFamily.Default
-                                                    ChatFontFamily.SERIF -> FontFamily.Serif
-                                                    ChatFontFamily.MONOSPACE -> FontFamily.Monospace
-                                                    ChatFontFamily.CUSTOM -> FontFamily.Default
-                                                }
-                                            )
+                                ConnectedChoiceButtons(
+                                    options = chatFontFamilyOptions,
+                                    selected = chatFontFamilyOptions.firstOrNull { it.first == displaySetting.chatFontFamily }
+                                        ?: chatFontFamilyOptions.first(),
+                                    onSelect = { (family, _) ->
+                                        updateDisplaySetting(displaySetting.copy(chatFontFamily = family))
+                                    },
+                                    minHeight = 40.dp,
+                                    modifier = Modifier.padding(top = 6.dp),
+                                ) { (family, label), _ ->
+                                    Text(
+                                        text = label,
+                                        maxLines = 1,
+                                        fontFamily = when (family) {
+                                            ChatFontFamily.DEFAULT -> FontFamily.Default
+                                            ChatFontFamily.SERIF -> FontFamily.Serif
+                                            ChatFontFamily.MONOSPACE -> FontFamily.Monospace
+                                            ChatFontFamily.CUSTOM -> FontFamily.Default
                                         }
-                                    }
+                                    )
                                 }
                             }
                         )
@@ -373,7 +360,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     ) {
-                                        Slider(
+                                        AppSlider(
                                             value = displaySetting.fontSizeRatio,
                                             onValueChange = {
                                                 updateDisplaySetting(displaySetting.copy(fontSizeRatio = it))
@@ -413,7 +400,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         headlineContent = { Text(stringResource(R.string.setting_display_page_code_block_auto_wrap_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_code_block_auto_wrap_desc)) },
                         trailingContent = {
-                            Switch(
+                            AppSwitch(
                                 checked = displaySetting.codeBlockAutoWrap,
                                 onCheckedChange = {
                                     updateDisplaySetting(displaySetting.copy(codeBlockAutoWrap = it))
@@ -425,7 +412,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         headlineContent = { Text(stringResource(R.string.setting_display_page_code_block_auto_collapse_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_code_block_auto_collapse_desc)) },
                         trailingContent = {
-                            Switch(
+                            AppSwitch(
                                 checked = displaySetting.codeBlockAutoCollapse,
                                 onCheckedChange = {
                                     updateDisplaySetting(displaySetting.copy(codeBlockAutoCollapse = it))
@@ -437,7 +424,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         headlineContent = { Text(stringResource(R.string.setting_display_page_show_line_numbers_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_show_line_numbers_desc)) },
                         trailingContent = {
-                            Switch(
+                            AppSwitch(
                                 checked = displaySetting.showLineNumbers,
                                 onCheckedChange = {
                                     updateDisplaySetting(displaySetting.copy(showLineNumbers = it))
@@ -460,7 +447,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             headlineContent = { Text(stringResource(R.string.setting_display_page_send_on_enter_title)) },
                             supportingContent = { Text(stringResource(R.string.setting_display_page_send_on_enter_desc)) },
                             trailingContent = {
-                                Switch(
+                                AppSwitch(
                                     checked = displaySetting.sendOnEnter,
                                     onCheckedChange = {
                                         updateDisplaySetting(displaySetting.copy(sendOnEnter = it))
@@ -472,7 +459,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             headlineContent = { Text(stringResource(R.string.setting_display_page_show_message_jumper_title)) },
                             supportingContent = { Text(stringResource(R.string.setting_display_page_show_message_jumper_desc)) },
                             trailingContent = {
-                                Switch(
+                                AppSwitch(
                                     checked = displaySetting.showMessageJumper,
                                     onCheckedChange = {
                                         updateDisplaySetting(displaySetting.copy(showMessageJumper = it))
@@ -485,7 +472,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                                 headlineContent = { Text(stringResource(R.string.setting_display_page_message_jumper_position_title)) },
                                 supportingContent = { Text(stringResource(R.string.setting_display_page_message_jumper_position_desc)) },
                                 trailingContent = {
-                                    Switch(
+                                    AppSwitch(
                                         checked = displaySetting.messageJumperOnLeft,
                                         onCheckedChange = {
                                             updateDisplaySetting(displaySetting.copy(messageJumperOnLeft = it))
@@ -498,7 +485,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             headlineContent = { Text(stringResource(R.string.setting_display_page_enable_auto_scroll_title)) },
                             supportingContent = { Text(stringResource(R.string.setting_display_page_enable_auto_scroll_desc)) },
                             trailingContent = {
-                                Switch(
+                                AppSwitch(
                                     checked = displaySetting.enableAutoScroll,
                                     onCheckedChange = {
                                         updateDisplaySetting(displaySetting.copy(enableAutoScroll = it))
@@ -512,7 +499,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                                 Text(stringResource(R.string.setting_display_page_use_app_icon_style_loading_indicator_desc))
                             },
                             trailingContent = {
-                                Switch(
+                                AppSwitch(
                                     checked = displaySetting.useAppIconStyleLoadingIndicator,
                                     onCheckedChange = {
                                         updateDisplaySetting(displaySetting.copy(useAppIconStyleLoadingIndicator = it))
@@ -524,7 +511,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             headlineContent = { Text(stringResource(R.string.setting_display_page_enable_blur_effect_title)) },
                             supportingContent = { Text(stringResource(R.string.setting_display_page_enable_blur_effect_desc)) },
                             trailingContent = {
-                                Switch(
+                                AppSwitch(
                                     checked = displaySetting.enableBlurEffect,
                                     onCheckedChange = {
                                         updateDisplaySetting(displaySetting.copy(enableBlurEffect = it))
@@ -536,7 +523,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             headlineContent = { Text(stringResource(R.string.setting_display_page_enable_message_generation_haptic_effect_title)) },
                             supportingContent = { Text(stringResource(R.string.setting_display_page_enable_message_generation_haptic_effect_desc)) },
                             trailingContent = {
-                                Switch(
+                                AppSwitch(
                                     checked = displaySetting.enableMessageGenerationHapticEffect,
                                     onCheckedChange = {
                                         updateDisplaySetting(displaySetting.copy(enableMessageGenerationHapticEffect = it))
@@ -548,7 +535,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             headlineContent = { Text(stringResource(R.string.setting_display_page_skip_crop_image_title)) },
                             supportingContent = { Text(stringResource(R.string.setting_display_page_skip_crop_image_desc)) },
                             trailingContent = {
-                                Switch(
+                                AppSwitch(
                                     checked = displaySetting.skipCropImage,
                                     onCheckedChange = {
                                         updateDisplaySetting(displaySetting.copy(skipCropImage = it))
@@ -560,7 +547,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             headlineContent = { Text(stringResource(R.string.setting_display_page_paste_long_text_as_file_title)) },
                             supportingContent = { Text(stringResource(R.string.setting_display_page_paste_long_text_as_file_desc)) },
                             trailingContent = {
-                                Switch(
+                                AppSwitch(
                                     checked = displaySetting.pasteLongTextAsFile,
                                     onCheckedChange = {
                                         updateDisplaySetting(displaySetting.copy(pasteLongTextAsFile = it))
@@ -577,7 +564,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     ) {
-                                        Slider(
+                                        AppSlider(
                                             value = displaySetting.pasteLongTextThreshold.toFloat(),
                                             onValueChange = {
                                                 updateDisplaySetting(displaySetting.copy(pasteLongTextThreshold = it.toInt()))
@@ -595,7 +582,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                             headlineContent = { Text(stringResource(R.string.setting_display_page_volume_key_scroll_title)) },
                             supportingContent = { Text(stringResource(R.string.setting_display_page_volume_key_scroll_desc)) },
                             trailingContent = {
-                                Switch(
+                                AppSwitch(
                                     checked = displaySetting.enableVolumeKeyScroll,
                                     onCheckedChange = {
                                         updateDisplaySetting(displaySetting.copy(enableVolumeKeyScroll = it))
@@ -612,7 +599,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     ) {
-                                        Slider(
+                                        AppSlider(
                                             value = displaySetting.volumeKeyScrollRatio,
                                             onValueChange = {
                                                 updateDisplaySetting(displaySetting.copy(volumeKeyScrollRatio = it))
@@ -639,7 +626,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         headlineContent = { Text(stringResource(R.string.setting_display_page_tts_only_read_quoted_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_tts_only_read_quoted_desc)) },
                         trailingContent = {
-                            Switch(
+                            AppSwitch(
                                 checked = displaySetting.ttsOnlyReadQuoted,
                                 onCheckedChange = {
                                     updateDisplaySetting(displaySetting.copy(ttsOnlyReadQuoted = it))
@@ -651,7 +638,7 @@ fun SettingDisplayPage(vm: SettingVM = koinViewModel()) {
                         headlineContent = { Text(stringResource(R.string.setting_display_page_auto_play_tts_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_auto_play_tts_desc)) },
                         trailingContent = {
-                            Switch(
+                            AppSwitch(
                                 checked = displaySetting.autoPlayTTSAfterGeneration,
                                 onCheckedChange = {
                                     updateDisplaySetting(displaySetting.copy(autoPlayTTSAfterGeneration = it))

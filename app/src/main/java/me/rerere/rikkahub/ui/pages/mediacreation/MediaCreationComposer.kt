@@ -44,11 +44,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ButtonGroupDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -56,7 +52,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SheetValue
@@ -125,12 +120,18 @@ import me.rerere.rikkahub.ui.components.ai.PickerHeader
 import me.rerere.ui.components.FormItem
 import me.rerere.ui.components.Tooltip
 import me.rerere.ui.sketch.SketchDialog
+import me.rerere.rikkahub.ui.components.ui.AppDropdownMenu
+import me.rerere.rikkahub.ui.components.ui.AppDropdownMenuItem
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.Tag
+import me.rerere.rikkahub.ui.components.ui.appMenuItemColors
 import me.rerere.rikkahub.ui.pages.setting.components.label
 import me.rerere.rikkahub.ui.pages.setting.components.typeName
 import java.io.File
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
 
 private const val MAX_PICKED_IMAGES = 8
 
@@ -610,20 +611,22 @@ private fun AssetTile(
                 modifier = Modifier.size(12.dp),
             )
         }
-        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+        AppDropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
             roleOptions.forEach { role ->
-                DropdownMenuItem(
+                AppDropdownMenuItem(
                     text = {
                         Text(
-                            stringResource(
+                            text = stringResource(
                                 when (role) {
                                     ImageRole.FIRST_FRAME -> R.string.media_creation_page_set_as_first_frame
                                     ImageRole.LAST_FRAME -> R.string.media_creation_page_set_as_last_frame
                                     ImageRole.REFERENCE -> R.string.media_creation_page_set_as_reference
                                 }
-                            )
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
                         )
                     },
+                    colors = appMenuItemColors(),
                     onClick = {
                         showMenu = false
                         onSetRole(role)
@@ -631,8 +634,9 @@ private fun AssetTile(
                 )
             }
             if (onDraw != null) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.sketch_draw_on_image)) },
+                AppDropdownMenuItem(
+                    text = { Text(stringResource(R.string.sketch_draw_on_image), style = MaterialTheme.typography.bodyMedium) },
+                    colors = appMenuItemColors(),
                     onClick = {
                         showMenu = false
                         onDraw()
@@ -1169,32 +1173,13 @@ private fun ToggleParam(
         false to stringResource(R.string.media_creation_page_param_off),
     )
     FormItem(label = { Text(label) }) {
-        // 连接式按钮组
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .selectableGroup(),
-            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
-        ) {
-            options.forEachIndexed { index, (option, text) ->
-                ToggleButton(
-                    checked = value == option,
-                    onCheckedChange = { onValueChange(option) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .semantics { role = Role.RadioButton },
-                    shapes = when (index) {
-                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                        options.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-                    },
-                    colors = ToggleButtonDefaults.colors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    ),
-                ) {
-                    Text(text = text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-            }
+        ConnectedChoiceButtons(
+            options = options,
+            selected = options.firstOrNull { it.first == value } ?: options.first(),
+            onSelect = { (option, _) -> onValueChange(option) },
+            minHeight = 40.dp,
+        ) { (_, text), selected ->
+            ConnectedChoiceLabel(text = text, selected = selected)
         }
     }
 }
@@ -1208,10 +1193,9 @@ private fun ComposerSheet(
         initialValue = SheetValue.Hidden,
         enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
     )
-    ModalBottomSheet(
+    AppModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
     ) {
         Column(
             modifier = Modifier

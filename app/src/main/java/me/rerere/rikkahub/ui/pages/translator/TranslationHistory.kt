@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -28,6 +27,7 @@ import me.rerere.rikkahub.ui.components.ui.SwipeToDelete
 import me.rerere.rikkahub.utils.toLocalDateTime
 import java.time.Instant
 import java.util.Locale
+import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
 
 @Composable
 fun TranslationHistoryHeader(
@@ -53,7 +53,7 @@ fun TranslationHistoryHeader(
     }
 
     if (showClearDialog) {
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { showClearDialog = false },
             title = { Text(stringResource(R.string.translator_page_clear_history_title)) },
             text = { Text(stringResource(R.string.translator_page_clear_history_message)) },

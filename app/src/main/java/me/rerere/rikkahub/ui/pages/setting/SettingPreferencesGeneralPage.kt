@@ -5,11 +5,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -17,7 +15,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -27,6 +24,7 @@ import me.rerere.rikkahub.data.datastore.AUTO_COMPRESS_THRESHOLD_RANGE
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.AppSlider
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
@@ -50,22 +48,18 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
         vm.updateSettings { it.copy(displaySetting = setting) }
     }
 
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = {
                     Text(stringResource(R.string.setting_page_preferences_general))
                 },
                 navigationIcon = {
                     BackButton()
                 },
-                scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors
             )
         },
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = CustomColors.topBarColors.containerColor
     ) { contentPadding ->
         LazyColumn(
@@ -112,7 +106,7 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                                 CardGroupValue("${(settings.autoCompressThreshold * 100).roundToInt()}%")
                             },
                         ) {
-                            Slider(
+                            AppSlider(
                                 value = settings.autoCompressThreshold,
                                 onValueChange = {
                                     // 按 5% 取整，避免浮点误差存成 0.79999995 之类的值
@@ -210,7 +204,7 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                             headlineContent = { Text(stringResource(R.string.setting_display_page_paste_long_text_threshold_title)) },
                             trailingContent = { CardGroupValue("${displaySetting.pasteLongTextThreshold}") },
                         ) {
-                            Slider(
+                            AppSlider(
                                 value = displaySetting.pasteLongTextThreshold.toFloat(),
                                 onValueChange = {
                                     updateDisplaySetting(displaySetting.copy(pasteLongTextThreshold = it.toInt()))
@@ -236,7 +230,7 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                             headlineContent = { Text(stringResource(R.string.setting_display_page_volume_key_scroll_ratio)) },
                             trailingContent = { CardGroupValue("${(displaySetting.volumeKeyScrollRatio * 100).toInt()}%") },
                         ) {
-                            Slider(
+                            AppSlider(
                                 value = displaySetting.volumeKeyScrollRatio,
                                 onValueChange = {
                                     updateDisplaySetting(displaySetting.copy(volumeKeyScrollRatio = it))
@@ -259,7 +253,7 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                         supportingContent = { Text(stringResource(R.string.setting_tts_page_default_playback_speed_description)) },
                         trailingContent = { CardGroupValue("x${"%.1f".format(ttsPlaybackSpeed)}") },
                     ) {
-                        Slider(
+                        AppSlider(
                             value = ttsPlaybackSpeed,
                             onValueChange = {
                                 ttsPlaybackSpeed = (it * 10).roundToInt() / 10f

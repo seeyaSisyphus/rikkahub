@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -44,6 +43,7 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
 
 // 自定义多选文件 Contract，使用 ACTION_GET_CONTENT 而非 ACTION_OPEN_DOCUMENT
 // ACTION_GET_CONTENT 对无 MIME 类型（无后缀名）文件的过滤限制更宽松
@@ -399,7 +399,7 @@ fun ImportExportTab(
     }
 
     if (showImportConfirmDialog) {
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { showImportConfirmDialog = false },
             title = { Text(stringResource(R.string.backup_page_local_backup_import)) },
             text = { Text(stringResource(R.string.backup_page_import_overwrite_confirm)) },

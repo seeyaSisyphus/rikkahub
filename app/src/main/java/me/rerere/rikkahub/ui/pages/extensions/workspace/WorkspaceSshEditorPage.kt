@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -28,9 +27,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -65,6 +61,8 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -74,6 +72,7 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
+import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
 
 private const val MAX_PRIVATE_KEY_BYTES = 64 * 1024
 
@@ -257,7 +256,7 @@ fun WorkspaceSshEditorPage(id: String?) {
             is SshEditorError.Resource -> stringResource(error.id)
             is SshEditorError.Message -> error.text
         }
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = vm::dismissError,
             title = { Text(
                     if (state.canSaveAnyway) {
@@ -384,17 +383,14 @@ private fun CardGroupScope.authItems(
             SshAuthType.PASSWORD to stringResource(R.string.workspace_ssh_editor_password),
             SshAuthType.PRIVATE_KEY to stringResource(R.string.workspace_ssh_editor_private_key),
         )
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            options.forEachIndexed { index, (type, label) ->
-                SegmentedButton(
-                    enabled = enabled,
-                    selected = authType == type,
-                    onClick = { onAuthTypeChange(type) },
-                    shape = SegmentedButtonDefaults.itemShape(index, options.size),
-                ) {
-                    Text(label)
-                }
-            }
+        ConnectedChoiceButtons(
+            options = options,
+            selected = options.firstOrNull { it.first == authType } ?: options.first(),
+            onSelect = { (type, _) -> onAuthTypeChange(type) },
+            enabled = enabled,
+            minHeight = 40.dp,
+        ) { (_, label), selected ->
+            ConnectedChoiceLabel(text = label, selected = selected)
         }
     }
     when (authType) {
@@ -547,7 +543,7 @@ private fun HostKeyDialog(
     onDismiss: () -> Unit,
 ) {
     val changed = pending.expected != null
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(HugeIcons.Key01, contentDescription = null) },
         title = {

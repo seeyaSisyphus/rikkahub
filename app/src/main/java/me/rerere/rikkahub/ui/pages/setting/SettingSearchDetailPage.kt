@@ -19,17 +19,12 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,7 +33,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -50,6 +44,9 @@ import me.rerere.bettertext.highlight.LocalCodeHighlighter
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.HighlightCodeVisualTransformation
+import me.rerere.rikkahub.ui.components.ui.AppSwitch
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
@@ -70,7 +67,6 @@ fun SettingSearchDetailPage(
     vm: SettingVM = koinViewModel()
 ) {
     val settings by vm.settings.collectAsStateWithLifecycle()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val nav = LocalNavController.current
 
     val service = settings.searchServices.find { it.id == serviceId } ?: return
@@ -86,7 +82,7 @@ fun SettingSearchDetailPage(
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = {
                     Text(options.displayName)
                 },
@@ -110,11 +106,9 @@ fun SettingSearchDetailPage(
                         }
                     }
                 },
-                scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors
             )
         },
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = CustomColors.topBarColors.containerColor
     ) { padding ->
         LazyColumn(
@@ -378,20 +372,16 @@ internal fun TavilyOptions(
         }
     ) {
         val depthOptions = listOf("basic", "advanced")
-        SingleChoiceSegmentedButtonRow(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            depthOptions.forEachIndexed { index, depth ->
-                SegmentedButton(
-                    shape = SegmentedButtonDefaults.itemShape(index = index, count = depthOptions.size),
-                    onClick = {
-                        onUpdateOptions(options.copy(depth = depth))
-                    },
-                    selected = options.depth == depth
-                ) {
-                    Text(depth.replaceFirstChar { it.uppercase() })
-                }
-            }
+        ConnectedChoiceButtons(
+            options = depthOptions,
+            selected = options.depth,
+            onSelect = { depth -> onUpdateOptions(options.copy(depth = depth)) },
+            minHeight = 40.dp,
+        ) { depth, selected ->
+            ConnectedChoiceLabel(
+                text = depth.replaceFirstChar { it.uppercase() },
+                selected = selected,
+            )
         }
     }
 
@@ -403,7 +393,7 @@ internal fun TavilyOptions(
             Text("Let Tavily generate an answer summary alongside the search results")
         },
         tail = {
-            Switch(
+            AppSwitch(
                 checked = options.includeAnswer,
                 onCheckedChange = { checked ->
                     onUpdateOptions(options.copy(includeAnswer = checked))
@@ -468,16 +458,16 @@ internal fun DoubaoOptions(
 
     FormItem(label = { Text("Mode") }) {
         val modes = DoubaoSearchMode.entries
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            modes.forEachIndexed { index, mode ->
-                SegmentedButton(
-                    shape = SegmentedButtonDefaults.itemShape(index, modes.size),
-                    onClick = { onUpdateOptions(options.copy(mode = mode)) },
-                    selected = options.mode == mode
-                ) {
-                    Text(mode.name.lowercase().replaceFirstChar(Char::uppercase))
-                }
-            }
+        ConnectedChoiceButtons(
+            options = modes,
+            selected = options.mode,
+            onSelect = { mode -> onUpdateOptions(options.copy(mode = mode)) },
+            minHeight = 40.dp,
+        ) { mode, selected ->
+            ConnectedChoiceLabel(
+                text = mode.name.lowercase().replaceFirstChar(Char::uppercase),
+                selected = selected,
+            )
         }
     }
 }
@@ -583,20 +573,16 @@ internal fun SearchLinkUpOptions(
         }
     ) {
         val depthOptions = listOf("standard", "deep")
-        SingleChoiceSegmentedButtonRow(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            depthOptions.forEachIndexed { index, depth ->
-                SegmentedButton(
-                    shape = SegmentedButtonDefaults.itemShape(index = index, count = depthOptions.size),
-                    onClick = {
-                        onUpdateOptions(options.copy(depth = depth))
-                    },
-                    selected = options.depth == depth
-                ) {
-                    Text(depth.replaceFirstChar { it.uppercase() })
-                }
-            }
+        ConnectedChoiceButtons(
+            options = depthOptions,
+            selected = options.depth,
+            onSelect = { depth -> onUpdateOptions(options.copy(depth = depth)) },
+            minHeight = 40.dp,
+        ) { depth, selected ->
+            ConnectedChoiceLabel(
+                text = depth.replaceFirstChar { it.uppercase() },
+                selected = selected,
+            )
         }
     }
 }
@@ -852,7 +838,7 @@ internal fun BochaOptions(
             Text(stringResource(R.string.search_detail_summary_desc))
         },
         tail = {
-            Switch(
+            AppSwitch(
                 checked = options.summary,
                 onCheckedChange = { checked ->
                     onUpdateOptions(options.copy(summary = checked))
@@ -887,20 +873,16 @@ internal fun RikkaHubOptions(
         }
     ) {
         val depthOptions = listOf("standard", "deep")
-        SingleChoiceSegmentedButtonRow(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            depthOptions.forEachIndexed { index, depth ->
-                SegmentedButton(
-                    shape = SegmentedButtonDefaults.itemShape(index = index, count = depthOptions.size),
-                    onClick = {
-                        onUpdateOptions(options.copy(depth = depth))
-                    },
-                    selected = options.depth == depth
-                ) {
-                    Text(depth.replaceFirstChar { it.uppercase() })
-                }
-            }
+        ConnectedChoiceButtons(
+            options = depthOptions,
+            selected = options.depth,
+            onSelect = { depth -> onUpdateOptions(options.copy(depth = depth)) },
+            minHeight = 40.dp,
+        ) { depth, selected ->
+            ConnectedChoiceLabel(
+                text = depth.replaceFirstChar { it.uppercase() },
+                selected = selected,
+            )
         }
     }
 }

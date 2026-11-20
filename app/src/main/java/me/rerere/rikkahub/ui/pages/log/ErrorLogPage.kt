@@ -21,14 +21,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -39,7 +37,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.font.FontWeight
@@ -58,16 +55,15 @@ import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
 
 @Composable
 fun ErrorLogPage() {
     val logs by Logging.logsFlow.collectAsState()
     val errorLogs = remember(logs) { logs.filterIsInstance<LogEntry.ErrorLog>() }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text("错误日志") },
                 navigationIcon = { BackButton() },
                 actions = {
@@ -81,11 +77,9 @@ fun ErrorLogPage() {
                         }
                     }
                 },
-                scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors,
             )
         },
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = CustomColors.topBarColors.containerColor,
     ) { contentPadding ->
         if (errorLogs.isEmpty()) {
@@ -156,7 +150,7 @@ private fun ErrorLogList(
     }
 
     selectedLog?.let { log ->
-        ModalBottomSheet(
+        AppModalBottomSheet(
             onDismissRequest = { selectedLog = null },
             sheetState = sheetState
         ) {

@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -56,6 +55,7 @@ import org.koin.androidx.compose.koinViewModel
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
 
 @Composable
 fun TagManagePage(vm: SettingVM = koinViewModel()) {
@@ -187,7 +187,7 @@ fun TagManagePage(vm: SettingVM = koinViewModel()) {
         LaunchedEffect(Unit) {
             focusRequester.requestFocus()
         }
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { showAddDialog = false },
             title = { Text("新建标签") },
             text = {
@@ -234,7 +234,7 @@ fun TagManagePage(vm: SettingVM = koinViewModel()) {
         LaunchedEffect(tag.id) {
             renameFocusRequester.requestFocus()
         }
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { renamingTag = null },
             title = { Text("重命名标签") },
             text = {
@@ -275,7 +275,7 @@ fun TagManagePage(vm: SettingVM = koinViewModel()) {
 
     // 删除确认弹窗
     deletingTag?.let { tag ->
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { deletingTag = null },
             title = { Text("删除标签") },
             text = { Text("确定要删除「${tag.name}」吗？属于该标签的对话将变为未分类。") },

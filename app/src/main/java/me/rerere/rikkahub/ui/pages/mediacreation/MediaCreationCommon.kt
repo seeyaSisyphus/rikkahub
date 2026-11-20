@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -55,6 +54,7 @@ import me.rerere.rikkahub.data.model.MediaCreationParams
 import me.rerere.rikkahub.data.model.MediaCreationStatus
 import me.rerere.rikkahub.utils.getActivity
 import java.io.File
+import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
 
 internal val ImageRole.label: String
     @Composable get() = when (this) {
@@ -312,7 +312,7 @@ internal fun RenameSessionDialog(
     onDismiss: () -> Unit,
 ) {
     var title by remember { mutableStateOf(initialTitle) }
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.media_creation_page_rename_session)) },
         text = {

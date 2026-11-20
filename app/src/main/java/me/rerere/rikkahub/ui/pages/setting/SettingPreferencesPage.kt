@@ -3,18 +3,19 @@ package me.rerere.rikkahub.ui.pages.setting
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.Icon
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Internet
 import me.rerere.hugeicons.stroke.Notification01
 import me.rerere.hugeicons.stroke.PaintBoard
@@ -31,23 +32,20 @@ import me.rerere.rikkahub.utils.plus
 
 @Composable
 fun SettingPreferencesPage() {
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val navController = LocalNavController.current
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = {
                     Text(stringResource(R.string.setting_page_preferences))
                 },
                 navigationIcon = {
                     BackButton()
                 },
-                scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors
             )
         },
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = CustomColors.topBarColors.containerColor
     ) { contentPadding ->
         LazyColumn(
@@ -64,33 +62,48 @@ fun SettingPreferencesPage() {
                         leadingContent = { CardGroupIcon(HugeIcons.Sun01, containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.setting_page_preferences_theme)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_preferences_theme_desc)) },
+                        trailingContent = { PreferenceNavigationArrow() },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingPreferencesNotification) },
                         leadingContent = { CardGroupIcon(HugeIcons.Notification01, containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.setting_page_preferences_notification)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_preferences_notification_desc)) },
+                        trailingContent = { PreferenceNavigationArrow() },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingPreferencesGeneral) },
                         leadingContent = { CardGroupIcon(HugeIcons.Settings03, containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.setting_page_preferences_general)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_preferences_general_desc)) },
+                        trailingContent = { PreferenceNavigationArrow() },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingPreferencesUI) },
                         leadingContent = { CardGroupIcon(HugeIcons.PaintBoard, containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.setting_page_preferences_ui)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_preferences_ui_desc)) },
+                        trailingContent = { PreferenceNavigationArrow() },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingPreferencesNetwork) },
                         leadingContent = { CardGroupIcon(HugeIcons.Internet, containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.setting_page_preferences_network)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_preferences_network_desc)) },
+                        trailingContent = { PreferenceNavigationArrow() },
                     )
                 }
             }
         }
     }
+}
+
+@Composable
+private fun PreferenceNavigationArrow() {
+    Icon(
+        imageVector = HugeIcons.ArrowRight01,
+        contentDescription = null,
+        modifier = Modifier.size(20.dp),
+        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+    )
 }

@@ -10,16 +10,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -37,11 +35,15 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.AppDropdownMenu
+import me.rerere.rikkahub.ui.components.ui.AppDropdownMenuItem
+import me.rerere.rikkahub.ui.components.ui.appMenuItemColors
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.ui.webview.WEB_VIEW_BASE_URL
 import me.rerere.ui.webview.WebView
 import me.rerere.ui.webview.WebViewContentCache
 import me.rerere.ui.webview.rememberWebViewState
+import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,13 +115,14 @@ fun WebViewPage(url: String, contentId: String) {
                     ) {
                         Icon(HugeIcons.MoreVertical, contentDescription = "More options")
 
-                        DropdownMenu(
+                        AppDropdownMenu(
                             expanded = showDropdown,
                             onDismissRequest = { showDropdown = false }
                         ) {
-                            DropdownMenuItem(
-                                text = { Text("Open in Browser") },
-                                leadingIcon = { Icon(HugeIcons.Earth, contentDescription = null) },
+                            AppDropdownMenuItem(
+                                text = { Text("Open in Browser", style = MaterialTheme.typography.bodyMedium) },
+                                leadingIcon = { Icon(HugeIcons.Earth, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                                colors = appMenuItemColors(),
                                 onClick = {
                                     showDropdown = false
                                     state.currentUrl?.let { url ->
@@ -129,9 +132,10 @@ fun WebViewPage(url: String, contentId: String) {
                                     }
                                 }
                             )
-                            DropdownMenuItem(
-                                text = { Text("Console Logs") },
-                                leadingIcon = { Icon(HugeIcons.Bug01, contentDescription = null) },
+                            AppDropdownMenuItem(
+                                text = { Text("Console Logs", style = MaterialTheme.typography.bodyMedium) },
+                                leadingIcon = { Icon(HugeIcons.Bug01, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                                colors = appMenuItemColors(),
                                 onClick = {
                                     showDropdown = false
                                     showConsoleSheet = true
@@ -152,7 +156,7 @@ fun WebViewPage(url: String, contentId: String) {
     }
 
     if (showConsoleSheet) {
-        ModalBottomSheet(
+        AppModalBottomSheet(
             onDismissRequest = { showConsoleSheet = false },
             sheetState = sheetState
         ) {

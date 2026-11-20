@@ -19,16 +19,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
@@ -63,9 +59,15 @@ import me.rerere.hugeicons.stroke.PinOff
 import me.rerere.hugeicons.stroke.Tag01
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.Tag
+import me.rerere.rikkahub.ui.components.ui.AppDropdownMenu
+import me.rerere.rikkahub.ui.components.ui.AppDropdownMenuItem
+import me.rerere.rikkahub.ui.components.ui.AppMenuDivider
+import me.rerere.rikkahub.ui.components.ui.appMenuItemColors
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
+import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
 
 // -----------------------------------------------------------------------
 // 数据结构
@@ -340,29 +342,31 @@ private fun TagConversationItem(
                             modifier = Modifier.size(18.dp),
                         )
                     }
-                    DropdownMenu(
+                    AppDropdownMenu(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false },
                     ) {
-                        DropdownMenuItem(
+                        AppDropdownMenuItem(
                             leadingIcon = {
                                 Icon(
                                     imageVector = if (conversation.isPinned) HugeIcons.PinOff else HugeIcons.Pin,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp),
-                                    tint = if (conversation.isPinned)
-                                        MaterialTheme.colorScheme.primary
-                                    else
-                                        MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             },
-                            text = { Text(if (conversation.isPinned) "取消置顶" else "置顶") },
+                            text = {
+                                Text(
+                                    text = if (conversation.isPinned) "取消置顶" else "置顶",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            },
+                            colors = appMenuItemColors(selected = conversation.isPinned),
                             onClick = {
                                 menuExpanded = false
                                 onTogglePin()
                             },
                         )
-                        DropdownMenuItem(
+                        AppDropdownMenuItem(
                             leadingIcon = {
                                 Icon(
                                     imageVector = HugeIcons.Tag01,
@@ -370,25 +374,28 @@ private fun TagConversationItem(
                                     modifier = Modifier.size(18.dp),
                                 )
                             },
-                            text = { Text("设置标签") },
+                            text = {
+                                Text("设置标签", style = MaterialTheme.typography.bodyMedium)
+                            },
+                            colors = appMenuItemColors(),
                             onClick = {
                                 menuExpanded = false
                                 onSetTag()
                             },
                         )
-                        HorizontalDivider()
-                        DropdownMenuItem(
+                        AppMenuDivider()
+                        AppDropdownMenuItem(
                             leadingIcon = {
                                 Icon(
                                     imageVector = HugeIcons.Delete01,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error,
                                     modifier = Modifier.size(18.dp),
                                 )
                             },
                             text = {
-                                Text("删除", color = MaterialTheme.colorScheme.error)
+                                Text("删除", style = MaterialTheme.typography.bodyMedium)
                             },
+                            colors = appMenuItemColors(destructive = true),
                             onClick = {
                                 menuExpanded = false
                                 onDelete()
@@ -418,7 +425,7 @@ fun ConversationTagSheet(
     var newTagName by remember { mutableStateOf("") }
     var showAddField by remember { mutableStateOf(false) }
 
-    ModalBottomSheet(
+    AppModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
     ) {
@@ -594,7 +601,7 @@ fun TagManageSection(
         LaunchedEffect(Unit) {
             renameFocusRequester.requestFocus()
         }
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { renamingTag = null },
             title = { Text("重命名标签") },
             text = {
@@ -622,7 +629,7 @@ fun TagManageSection(
 
     // 删除确认对话框
     deletingTag?.let { tag ->
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { deletingTag = null },
             title = { Text("删除标签") },
             text = { Text("确定要删除「${tag.name}」吗？属于该标签的对话将变为未分类。") },

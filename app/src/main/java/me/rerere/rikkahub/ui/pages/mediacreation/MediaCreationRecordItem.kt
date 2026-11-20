@@ -28,8 +28,6 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.ContainedLoadingIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -84,8 +82,11 @@ import me.rerere.rikkahub.data.model.MediaCreationNode
 import me.rerere.rikkahub.data.model.MediaCreationOutput
 import me.rerere.rikkahub.data.model.MediaCreationRecord
 import me.rerere.rikkahub.data.model.MediaCreationStatus
+import me.rerere.rikkahub.ui.components.ui.AppDropdownMenu
+import me.rerere.rikkahub.ui.components.ui.AppDropdownMenuItem
 import me.rerere.rikkahub.ui.components.ui.ImagePreviewDialog
 import me.rerere.rikkahub.ui.components.ui.VideoPlayerDialog
+import me.rerere.rikkahub.ui.components.ui.appMenuItemColors
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.toMessageTimeString
@@ -470,9 +471,10 @@ private fun OutputMenu(
 
     @Composable
     fun MenuItem(text: String, icon: ImageVector, onClick: () -> Unit) {
-        DropdownMenuItem(
-            text = { Text(text) },
-            leadingIcon = { Icon(icon, contentDescription = null) },
+        AppDropdownMenuItem(
+            text = { Text(text, style = MaterialTheme.typography.bodyMedium) },
+            leadingIcon = { Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp)) },
+            colors = appMenuItemColors(),
             onClick = {
                 expanded = false
                 onClick()
@@ -497,7 +499,7 @@ private fun OutputMenu(
                 modifier = Modifier.size(16.dp),
             )
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        AppDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             if (output.isVideo) {
                 MenuItem(stringResource(R.string.media_creation_page_continue_video_long), HugeIcons.Video01) {
                     vm.continueVideo(output)

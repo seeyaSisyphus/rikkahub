@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -63,6 +62,7 @@ import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
+import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
 
 @Composable
 fun WorkspaceTerminalPage(id: String) {
@@ -102,7 +102,7 @@ fun WorkspaceTerminalPage(id: String) {
 
         val pendingCloseTab = terminalState.tabs.firstOrNull { it.id == pendingCloseTabId }
         if (pendingCloseTab != null) {
-            AlertDialog(
+            AppAlertDialog(
                 onDismissRequest = { pendingCloseTabId = null },
                 title = {
                     Text(

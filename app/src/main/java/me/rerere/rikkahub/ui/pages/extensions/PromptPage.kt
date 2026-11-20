@@ -27,7 +27,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -38,18 +37,15 @@ import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -65,7 +61,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -94,6 +89,7 @@ import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.PromptInjection
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.AppSwitch
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
@@ -117,6 +113,8 @@ import org.koin.androidx.compose.koinViewModel
 import sh.calvin.reorderable.ReorderableColumn
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
+import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
 
 private enum class PromptTab(
     override val icon: ImageVector,
@@ -133,18 +131,14 @@ private enum class PromptTab(
 fun PromptPage(vm: PromptVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val pagerState = rememberPagerState { PromptTab.entries.size }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 navigationIcon = { BackButton() },
                 title = { Text(stringResource(R.string.prompt_page_title)) },
-                scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors,
             )
         },
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = CustomColors.topBarColors.containerColor,
     ) { innerPadding ->
         Column(
@@ -408,7 +402,7 @@ private fun ModeInjectionEditSheet(
     val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded))
     val scope = rememberCoroutineScope()
 
-    ModalBottomSheet(
+    AppModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         sheetGesturesEnabled = false,
@@ -452,7 +446,7 @@ private fun ModeInjectionEditSheet(
                 FormItem(
                     label = { Text(stringResource(R.string.prompt_page_enabled)) },
                     tail = {
-                        Switch(
+                        AppSwitch(
                             checked = injection.enabled,
                             onCheckedChange = { onEdit(injection.copy(enabled = it)) }
                         )
@@ -832,7 +826,7 @@ private fun LorebookEditSheet(
         }
     }
 
-    ModalBottomSheet(
+    AppModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         sheetGesturesEnabled = false,
@@ -883,7 +877,7 @@ private fun LorebookEditSheet(
                 FormItem(
                     label = { Text(stringResource(R.string.prompt_page_enabled)) },
                     tail = {
-                        Switch(
+                        AppSwitch(
                             checked = book.enabled,
                             onCheckedChange = { onEdit(book.copy(enabled = it)) }
                         )
@@ -1032,7 +1026,7 @@ private fun RegexInjectionEditDialog(
 ) {
     var newKeyword by remember { mutableStateOf("") }
 
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.prompt_page_edit_entry)) },
         text = {
@@ -1053,7 +1047,7 @@ private fun RegexInjectionEditDialog(
                 FormItem(
                     label = { Text(stringResource(R.string.prompt_page_enabled)) },
                     tail = {
-                        Switch(
+                        AppSwitch(
                             checked = entry.enabled,
                             onCheckedChange = { onEdit(entry.copy(enabled = it)) }
                         )
@@ -1142,7 +1136,7 @@ private fun RegexInjectionEditDialog(
                 FormItem(
                     label = { Text(stringResource(R.string.prompt_page_use_regex)) },
                     tail = {
-                        Switch(
+                        AppSwitch(
                             checked = entry.useRegex,
                             onCheckedChange = { onEdit(entry.copy(useRegex = it)) }
                         )
@@ -1152,7 +1146,7 @@ private fun RegexInjectionEditDialog(
                 FormItem(
                     label = { Text(stringResource(R.string.prompt_page_case_sensitive)) },
                     tail = {
-                        Switch(
+                        AppSwitch(
                             checked = entry.caseSensitive,
                             onCheckedChange = { onEdit(entry.copy(caseSensitive = it)) }
                         )
@@ -1163,7 +1157,7 @@ private fun RegexInjectionEditDialog(
                     label = { Text(stringResource(R.string.prompt_page_constant_active)) },
                     description = { Text(stringResource(R.string.prompt_page_constant_active_desc)) },
                     tail = {
-                        Switch(
+                        AppSwitch(
                             checked = entry.constantActive,
                             onCheckedChange = { onEdit(entry.copy(constantActive = it)) }
                         )
