@@ -35,9 +35,10 @@ data class AppStats(
 
 /** 用量统计的时间范围；[days] 为空表示全部，按月分桶 */
 enum class UsageRange(val days: Int?) {
+    TODAY(1),
     WEEK(7),
+    TWO_WEEKS(14),
     MONTH(30),
-    QUARTER(90),
     ALL(null),
 }
 
@@ -54,8 +55,13 @@ data class UsagePoint(
 data class ModelUsageItem(
     // 模型已被删除且没有名称快照时为空
     val name: String?,
-    val totalTokens: Long,
-)
+    val requests: Int,
+    val promptTokens: Long,
+    val completionTokens: Long,
+    val cachedTokens: Long,
+) {
+    val totalTokens: Long get() = promptTokens + completionTokens
+}
 
 data class UsageStats(
     val range: UsageRange,
@@ -141,15 +147,31 @@ class StatsVM(
             val buckets = usageRecordDAO.getTotalsByBucket(if (byMonth) "%Y-%m" else "%Y-%m-%d", since)
             val points = if (byMonth) monthlyPoints(buckets, today) else dailyPoints(buckets, startDate!!, today)
             val settings = settingsStore.awaitLoaded()
-            val models = usageRecordDAO.getTotalsByModel(since).map { usage ->
-                val model = usage.modelId
-                    ?.let { runCatching { Uuid.parse(it) }.getOrNull() }
-                    ?.let { settings.findModelById(it) }
-                ModelUsageItem(
-                    name = model?.displayName?.ifBlank { null } ?: model?.modelId ?: usage.modelName,
-                    totalTokens = usage.promptTokens + usage.completionTokens,
-                )
-            }
+            val models = usageRecordDAO.getTotalsByModel(since)
+                .map { usage ->
+                    val model = usage.modelId
+                        ?.let { runCatching { Uuid.parse(it) }.getOrNull() }
+                        ?.let { settings.findModelById(it) }
+                    ModelUsageItem(
+                        name = model?.displayName?.ifBlank { null } ?: model?.modelId ?: usage.modelName,
+                        requests = usage.requests,
+                        promptTokens = usage.promptTokens,
+                        completionTokens = usage.completionTokens,
+                        cachedTokens = usage.cachedTokens,
+                    )
+                }
+                // 同一个模型挂在多个提供商下时流水里各占一行，按显示名合并，避免列表里出现重复名字
+                .groupBy { it.name }
+                .map { (name, items) ->
+                    ModelUsageItem(
+                        name = name,
+                        requests = items.sumOf { it.requests },
+                        promptTokens = items.sumOf { it.promptTokens },
+                        completionTokens = items.sumOf { it.completionTokens },
+                        cachedTokens = items.sumOf { it.cachedTokens },
+                    )
+                }
+                .sortedByDescending { it.totalTokens }
             _usage.value = UsageStats(
                 range = range,
                 totals = totals,

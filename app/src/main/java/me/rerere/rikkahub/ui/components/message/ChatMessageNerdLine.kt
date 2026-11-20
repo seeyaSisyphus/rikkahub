@@ -44,9 +44,10 @@ import kotlinx.datetime.toJavaLocalDateTime
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.ui.UIMessage
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Layers01
-import me.rerere.hugeicons.stroke.Repeat
-import me.rerere.hugeicons.stroke.Zap
+import me.rerere.hugeicons.stroke.Clock02
+import me.rerere.hugeicons.stroke.Download04
+import me.rerere.hugeicons.stroke.Text as TextIcon
+import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -59,7 +60,7 @@ import java.time.Duration
 /**
  * 显示消息的技术统计信息（如 token 使用量），点击查看详情
  *
- * 多轮工具调用时 usage 是各步累计值，行内只显示最后一次请求的上下文占用，累计值放在详情里。
+ * 多轮工具调用时 usage 是各步累计值，行内显示累计输入、输出、字数和耗时，最后一次请求的上下文占用放在详情里。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,35 +97,38 @@ fun ChatMessageNerdLine(
         ProvideTextStyle(MaterialTheme.typography.labelSmall.copy(color = color)) {
             CompositionLocalProvider(LocalContentColor provides color) {
                 FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                     itemVerticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
                         .clickable { scope.launch { tooltipState.show() } }
                         .padding(horizontal = 4.dp, vertical = 2.dp),
                 ) {
-                    if (stats.steps > 1) {
-                        StatsItem(
-                            icon = { StatsIcon(HugeIcons.Repeat, stringResource(R.string.chat_message_usage_step_count)) },
-                            content = { Text(text = stringResource(R.string.chat_message_usage_steps, stats.steps)) }
-                        )
-                    }
-                    if (stats.tps != null) {
-                        StatsItem(
-                            icon = { StatsIcon(HugeIcons.Zap, stringResource(R.string.chat_message_usage_speed)) },
-                            content = { Text(text = "${stats.tps.toFixed(1)} tok/s") }
-                        )
-                    }
                     StatsItem(
-                        icon = { StatsIcon(HugeIcons.Layers01, stringResource(R.string.chat_message_usage_context)) },
+                        icon = { StatsIcon(HugeIcons.Upload02, stringResource(R.string.chat_message_usage_input)) },
                         content = {
-                            Text(text = stringResource(R.string.chat_message_usage_context_short, stats.contextTokens.formatNumber()))
-                            val cached = stats.lastUsage.cachedTokens
-                            if (cached > 0) {
-                                Text(text = stringResource(R.string.chat_message_usage_cached_short, cached.formatNumber()))
+                            Text(text = "${stats.total.promptTokens.formatNumber()} tokens")
+                            if (stats.total.cachedTokens > 0) {
+                                Text(text = "(${stats.total.cachedTokens.formatNumber()} cached)")
                             }
                         }
                     )
+                    StatsItem(
+                        icon = { StatsIcon(HugeIcons.Download04, stringResource(R.string.chat_message_usage_output)) },
+                        content = { Text(text = "${stats.total.completionTokens.formatNumber()} tokens") }
+                    )
+                    if (stats.charCount > 0) {
+                        StatsItem(
+                            icon = { StatsIcon(HugeIcons.TextIcon, "Characters") },
+                            content = { Text(text = "${stats.charCount}字") }
+                        )
+                    }
+                    if (stats.durationMillis != null) {
+                        StatsItem(
+                            icon = { StatsIcon(HugeIcons.Clock02, stringResource(R.string.chat_message_usage_duration)) },
+                            content = { Text(text = "${(stats.durationMillis / 1000f).toFixed(1)}s") }
+                        )
+                    }
                 }
             }
         }
@@ -298,7 +302,6 @@ private data class NerdStats(
     val total: TokenUsage,
     val lastUsage: TokenUsage,
     val steps: Int,
-    val contextTokens: Int,
     val durationMillis: Long?,
     val tps: Float?,
     // [FORK] 回答字数
@@ -318,7 +321,6 @@ private fun UIMessage.nerdStats(usage: TokenUsage): NerdStats {
         total = usage,
         lastUsage = last,
         steps = stepCount ?: 1,
-        contextTokens = last.promptTokens + last.completionTokens,
         durationMillis = durationMillis,
         tps = durationMillis?.let { usage.completionTokens.toFloat() / it * 1000 },
         charCount = toText().wordCount(),

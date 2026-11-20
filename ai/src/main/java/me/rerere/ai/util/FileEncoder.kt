@@ -1,9 +1,9 @@
 package me.rerere.ai.util
 
-import android.media.ExifInterface
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
+import android.media.ExifInterface
 import android.util.Base64
 import android.util.Base64OutputStream
 import androidx.core.net.toUri
@@ -207,12 +207,21 @@ private fun File.compressAndEncode(
         return Pair(encodeToBase64Streaming(), mimeType)
     }
 
+    // 历史图片每轮请求都会重新编码，命中缓存时跳过解码和 JPEG 重编码
+    val cacheKey =
+        "$absolutePath|${lastModified()}|${length()}|$maxDimension|$maxPixels"
+    // 缓存文件可能在命中后、读取前被系统清理，读取失败按未命中处理，继续从原图编码
+    ImageEncodeCache.get(cacheKey)
+        ?.let { cached -> runCatching { cached.encodeToBase64Streaming() }.getOrNull() }
+        ?.let { encoded -> return Pair(encoded, "image/jpeg") }
+
     val bitmap = decodeFileBounded(absolutePath, maxDimension, maxPixels)
     val normalizedBitmap = normalizeByExif(bitmap)
 
     return try {
         // 强制使用 JPEG 格式，因为很多提供商不支持 webp
         val jpegBytes = normalizedBitmap.encodeJpegWithinBudget()
+        ImageEncodeCache.put(cacheKey, jpegBytes)
         Pair(Base64.encodeToString(jpegBytes, Base64.NO_WRAP), "image/jpeg")
     } finally {
         if (normalizedBitmap !== bitmap) {
@@ -384,7 +393,7 @@ private fun File.guessMimeType(): Result<String> = runCatching {
                 "heic", "heix", "heim", "heis",
                 "hevc", "hevx", "hevm", "hevs",
                 "mif1", "msf1", "heif",
-                    -> return@runCatching "image/heic"
+                -> return@runCatching "image/heic"
 
                 "avif", "avis" -> return@runCatching "image/avif"
             }

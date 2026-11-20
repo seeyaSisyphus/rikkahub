@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
@@ -32,7 +33,11 @@ import androidx.compose.material3.AlertDialog
 
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.DropdownMenuGroup
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -64,10 +69,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -98,6 +105,8 @@ import me.rerere.hugeicons.stroke.LeftToRightListBullet
 import me.rerere.hugeicons.stroke.Menu03
 import me.rerere.hugeicons.stroke.MessageAdd01
 import me.rerere.hugeicons.stroke.Crane
+import me.rerere.hugeicons.stroke.MoreVertical
+import me.rerere.hugeicons.stroke.Share04
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.common.android.Logging
@@ -117,10 +126,14 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
+import me.rerere.rikkahub.service.BackgroundShellStatus
 import me.rerere.rikkahub.service.ChatError
+import me.rerere.rikkahub.service.SessionActivity
 import me.rerere.rikkahub.service.collectProtectedMessageIds
 import me.rerere.rikkahub.ui.components.ai.ChatAttachmentPickerActions
+import me.rerere.rikkahub.ui.components.ai.BackgroundTasksSheet
 import me.rerere.rikkahub.ui.components.ai.ChatInput
+import me.rerere.rikkahub.ui.components.ai.ChatTopBarCapsule
 import me.rerere.rikkahub.ui.components.ai.FilesPicker
 import me.rerere.rikkahub.ui.components.ai.SearchMode
 import me.rerere.rikkahub.ui.components.ai.rememberChatAttachmentPickerActions
@@ -134,6 +147,8 @@ import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.ui.components.RikkaConfirmDialog
+import dev.chrisbanes.haze.HazeState
 import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.hooks.EditStateContent
@@ -399,11 +414,24 @@ private fun ChatPageContent(
     val workspaceRepository: WorkspaceRepository = koinInject()
 
     var previewMode by rememberSaveable { mutableStateOf(false) }
+    // 消息多选（导出）状态放在这里，顶栏菜单也能直接进入多选
+    val selectionState = rememberChatSelectionState()
+    // 概览列表的滚动位置提升到这里：顶栏胶囊要读它判断是否显示背景
+    val previewListState = rememberLazyListState()
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    val sessionActivity by vm.sessionActivity.collectAsStateWithLifecycle()
     var showMessageJumperOverlay by rememberSaveable { mutableStateOf(false) }
     // 缩略页跳转请求：nonce 保证同一 index 重复点击时 LaunchedEffect 也能重新触发
     var jumpNonce by remember { mutableIntStateOf(0) }
     var jumpRequest by remember { mutableStateOf<JumpRequest?>(null) }
     val hazeState = rememberHazeState()
+    // 列表滚到标题栏下面时才显示胶囊背景，空页面或在顶部时按钮直接浮在背景上
+    // 概览页有自己的列表，切过去后跟着它判断
+    val listScrolledUnderTopBar by remember(chatListState, previewListState) {
+        derivedStateOf {
+            if (previewMode) previewListState.canScrollBackward else chatListState.canScrollBackward
+        }
+    }
     var showFilesSheet by remember { mutableStateOf(false) }
     val attachmentPickerActions = rememberChatAttachmentPickerActions(
         inputState = inputState,
@@ -426,6 +454,11 @@ private fun ChatPageContent(
     }
 
     TTSAutoPlay(vm = vm, setting = setting, conversation = conversation)
+
+    // 概览页用返回键退出，和左滑手势一致
+    BackHandler(previewMode) {
+        previewMode = false
+    }
 
     @Suppress("DEPRECATION")
     val noopBringIntoViewResponder = remember {
@@ -460,10 +493,24 @@ private fun ChatPageContent(
                         conversation = conversation,
                         bigScreen = bigScreen,
                         drawerState = drawerState,
+                        hazeState = hazeState,
+                        showCapsuleBackground = listScrolledUnderTopBar,
                         previewMode = previewMode,
                         vm = vm,
                         onClickMenu = {
                             previewMode = !previewMode
+                        },
+                        onShowOverview = {
+                            selectionState.cancel()
+                            previewMode = true
+                        },
+                        onExport = {
+                            // 跟消息上的分享一样进入多选，默认全选，用户可以再挑
+                            previewMode = false
+                            selectionState.start(conversation.messageNodes.map { it.id })
+                        },
+                        onDelete = {
+                            showDeleteConfirm = true
                         },
                         onUpdateTitle = {
                             vm.updateTitle(it)
@@ -482,6 +529,15 @@ private fun ChatPageContent(
                     }
                     val messageQueue by vm.messageQueue.collectAsStateWithLifecycle()
                     val voiceState by vm.voiceSession.state.collectAsStateWithLifecycle()
+                    val backgroundTasks by vm.backgroundTasks.collectAsStateWithLifecycle()
+                    var showBackgroundTasks by remember { mutableStateOf(false) }
+                    if (showBackgroundTasks) {
+                        BackgroundTasksSheet(
+                            tasks = backgroundTasks,
+                            onStop = vm::stopBackgroundTask,
+                            onDismiss = { showBackgroundTasks = false },
+                        )
+                    }
                     ChatInput(
                         state = inputState,
                         editWillRegenerate = editWillRegenerate,
@@ -538,6 +594,8 @@ private fun ChatPageContent(
                         onJumperClick = {
                             showMessageJumperOverlay = !showMessageJumperOverlay
                         },
+                        runningBackgroundTasks = backgroundTasks.count { it.status == BackgroundShellStatus.RUNNING },
+                        onShowBackgroundTasks = { showBackgroundTasks = true },
                     )
                 },
                 containerColor = Color.Transparent,
@@ -547,9 +605,13 @@ private fun ChatPageContent(
                     innerPadding = innerPadding,
                     conversation = conversation,
                     state = chatListState,
+                    previewListState = previewListState,
+                    selectionState = selectionState,
                     loading = loadingJob != null || hasActiveSlots,
+                    compressing = sessionActivity == SessionActivity.Compressing,
                     processingStatus = processingStatus,
                     previewMode = previewMode,
+                    onPreviewModeChange = { previewMode = it },
                     settings = setting,
                     hazeState = hazeState,
                     showJumper = showMessageJumperOverlay,
@@ -645,6 +707,23 @@ private fun ChatPageContent(
                 )
             }
         }
+
+        // 顶栏菜单里的删除：确认后删掉整个会话并回到聊天页
+        RikkaConfirmDialog(
+            show = showDeleteConfirm,
+            title = stringResource(R.string.chat_page_delete),
+            confirmText = stringResource(R.string.delete),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = {
+                showDeleteConfirm = false
+                scope.launch {
+                    vm.deleteConversation(conversation).join()
+                    navigateToChatPage(navController)
+                }
+            },
+            onDismiss = { showDeleteConfirm = false },
+            text = { Text(stringResource(R.string.chat_page_delete_conversation_confirm)) },
+        )
 
         // 记住本对话内上次选择的相册文件夹与排序方式（切换对话或重启后回到默认）。
         // 状态放在 ChatFilesPickerSheet 之外，避免文件选择弹窗关闭时被销毁。
@@ -948,9 +1027,14 @@ private fun TopBar(
     conversation: Conversation,
     drawerState: DrawerState,
     bigScreen: Boolean,
+    hazeState: HazeState,
+    showCapsuleBackground: Boolean,
     previewMode: Boolean,
     vm: ChatVM,
     onClickMenu: () -> Unit,
+    onShowOverview: () -> Unit,
+    onExport: () -> Unit,
+    onDelete: () -> Unit,
     onUpdateTitle: (String) -> Unit,
     onUpdateConversationParams: (ConversationParams) -> Unit,
     onSaveTemporary: () -> Unit,
@@ -963,16 +1047,24 @@ private fun TopBar(
     }
 
     TopAppBar(
-        // 消息会滚动到标题栏下面，底色必须不透明，否则标题/状态栏时间会和消息文字互相干扰
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+        // 顶栏透明，消息滚动到下面时靠 ChatList 的顶部渐隐保证标题可读；
+        // 按钮放在浮动胶囊里，内容滚到下面时才出现背景
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
         navigationIcon = {
             if (!bigScreen) {
-                IconButton(
-                    onClick = {
-                        scope.launch { drawerState.open() }
-                    }
+                ChatTopBarCapsule(
+                    hazeState = hazeState,
+                    displaySetting = settings.displaySetting,
+                    showBackground = showCapsuleBackground,
+                    modifier = Modifier.padding(start = 8.dp, end = 4.dp),
                 ) {
-                    Icon(HugeIcons.Menu03, "Messages")
+                    IconButton(
+                        onClick = {
+                            scope.launch { drawerState.open() }
+                        }
+                    ) {
+                        Icon(HugeIcons.Menu03, "Messages")
+                    }
                 }
             }
         },
@@ -1014,24 +1106,38 @@ private fun TopBar(
             var showParamsSheet by remember { mutableStateOf(false) }
             var showTemporaryDialog by remember { mutableStateOf(false) }
 
-            if (conversation.isTemporary) {
-                IconButton(onClick = { showTemporaryDialog = true }) {
-                    Icon(HugeIcons.Hourglass, contentDescription = "临时对话")
-                }
-            }
-
-            IconButton(
-                onClick = { showParamsSheet = true }
+            ChatTopBarCapsule(
+                hazeState = hazeState,
+                displaySetting = settings.displaySetting,
+                showBackground = showCapsuleBackground,
+                modifier = Modifier.padding(start = 4.dp, end = 8.dp),
             ) {
-                Icon(HugeIcons.Crane, "Conversation Params")
-            }
-
-            IconButton(
-                onClick = {
-                    onClickMenu()
+                if (conversation.isTemporary) {
+                    IconButton(onClick = { showTemporaryDialog = true }) {
+                        Icon(HugeIcons.Hourglass, contentDescription = "临时对话")
+                    }
                 }
-            ) {
-                Icon(if (previewMode) HugeIcons.Cancel01 else HugeIcons.LeftToRightListBullet, "Chat Options")
+
+                IconButton(
+                    onClick = { showParamsSheet = true }
+                ) {
+                    Icon(HugeIcons.Crane, "Conversation Params")
+                }
+
+                IconButton(
+                    onClick = {
+                        onClickMenu()
+                    }
+                ) {
+                    Icon(if (previewMode) HugeIcons.Cancel01 else HugeIcons.LeftToRightListBullet, "Chat Options")
+                }
+
+                ChatPageMenu(
+                    enabled = conversation.messageNodes.isNotEmpty(),
+                    onShowOverview = onShowOverview,
+                    onExport = onExport,
+                    onDelete = onDelete,
+                )
             }
 
             if (showParamsSheet) {
@@ -1461,6 +1567,80 @@ private fun ConversationParamsSheet(
             }
             HorizontalDivider()
 
+        }
+    }
+}
+@Composable
+private fun ChatPageMenu(
+    enabled: Boolean,
+    onShowOverview: () -> Unit,
+    onExport: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    @Composable
+    fun MenuItem(
+        text: String,
+        icon: ImageVector,
+        index: Int,
+        count: Int,
+        destructive: Boolean = false,
+        onClick: () -> Unit,
+    ) {
+        DropdownMenuItem(
+            text = { Text(text) },
+            onClick = {
+                expanded = false
+                onClick()
+            },
+            shape = MenuDefaults.itemShape(index = index, count = count).shape,
+            leadingIcon = { Icon(icon, contentDescription = null) },
+            enabled = enabled,
+            colors = if (destructive) {
+                val errorColor = MaterialTheme.colorScheme.error
+                MenuDefaults.itemColors(textColor = errorColor, leadingIconColor = errorColor)
+            } else {
+                MenuDefaults.itemColors()
+            },
+        )
+    }
+
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(HugeIcons.MoreVertical, stringResource(R.string.more_options))
+        }
+        DropdownMenuPopup(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            DropdownMenuGroup(shapes = MenuDefaults.groupShape(index = 0, count = 2)) {
+                MenuItem(
+                    text = stringResource(R.string.chat_page_conversation_map),
+                    icon = HugeIcons.LeftToRightListBullet,
+                    index = 0,
+                    count = 2,
+                    onClick = onShowOverview,
+                )
+                MenuItem(
+                    text = stringResource(R.string.export_title),
+                    icon = HugeIcons.Share04,
+                    index = 1,
+                    count = 2,
+                    onClick = onExport,
+                )
+            }
+            Spacer(Modifier.height(MenuDefaults.GroupSpacing))
+            DropdownMenuGroup(shapes = MenuDefaults.groupShape(index = 1, count = 2)) {
+                MenuItem(
+                    text = stringResource(R.string.delete),
+                    icon = HugeIcons.Delete01,
+                    index = 0,
+                    count = 1,
+                    destructive = true,
+                    onClick = onDelete,
+                )
+            }
         }
     }
 }

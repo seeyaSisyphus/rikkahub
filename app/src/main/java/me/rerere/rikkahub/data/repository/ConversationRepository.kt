@@ -372,16 +372,25 @@ class ConversationRepository(
         } else {
             conversation
         }
-        messageFtsManager.deleteConversation(conversation.id.toString())
+        val conversationId = conversation.id.toString()
+        messageFtsManager.deleteConversation(conversationId)
         database.withTransaction {
             // 联动清理该会话所有收藏（与 conversation 删除在同一事务内）
-            favoriteDAO.deleteAllOfConversation(conversation.id.toString())
+            favoriteDAO.deleteAllOfConversation(conversationId)
             // message_node 会通过 CASCADE 自动删除
             conversationDAO.delete(
                 conversationToConversationEntity(conversation)
             )
         }
         filesManager.deleteChatFiles(fullConversation.files)
+    }
+
+    /** 删除这些节点的收藏，节点从会话里移除后调用 */
+    suspend fun deleteNodeFavorites(conversationId: Uuid, nodeIds: Collection<Uuid>) {
+        nodeIds
+            .map { NodeFavoriteAdapter.buildRefKey(conversationId.toString(), it.toString()) }
+            .chunked(500)
+            .forEach { favoriteDAO.deleteByRefKeys(it) }
     }
 
     suspend fun searchMessages(

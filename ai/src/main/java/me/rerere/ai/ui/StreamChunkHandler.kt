@@ -394,31 +394,36 @@ private fun UIMessage.appendMessage(delta: UIMessage): UIMessage {
             is UIMessagePart.Image -> acc + deltaPart
 
             is UIMessagePart.Reasoning -> {
-                if (deltaPart.reasoning.isEmpty() && deltaPart.metadata == null) {
-                    acc
-                } else {
-                    // 查找任意位置且 reasoningType 匹配的已有 Reasoning（不只是 lastPart），
-                    // 防止中间穿插 Text 导致创建新的零时长 Reasoning
-                    val existingIndex = acc.indexOfLast {
-                        it is UIMessagePart.Reasoning && it.reasoningType == deltaPart.reasoningType
-                    }
-                    if (existingIndex >= 0) {
-                        val existing = acc[existingIndex] as UIMessagePart.Reasoning
-                        acc.toMutableList().apply {
-                            this[existingIndex] = UIMessagePart.Reasoning(
-                                reasoning = existing.reasoning + deltaPart.reasoning,
-                                createdAt = existing.createdAt,
-                                finishedAt = null,
-                                metadata = deltaPart.metadata ?: existing.metadata,
-                                reasoningType = existing.reasoningType,
+                // 非流式结果里每个推理块都是完整的，签名等 metadata 只对自己那一块有效，
+                // 拼到相邻的块上回传时会校验失败，所以带 metadata 的块一律独立保留；
+                // 只有两边都没有签名时才合并同 reasoningType 的块，
+                // 避免中间穿插 Text 导致出现多个零时长的推理块。
+                when {
+                    deltaPart.reasoning.isEmpty() && deltaPart.metadata == null -> acc
+
+                    deltaPart.metadata != null -> acc + deltaPart
+
+                    else -> {
+                        val existingIndex = acc.indexOfLast {
+                            it is UIMessagePart.Reasoning &&
+                                it.reasoningType == deltaPart.reasoningType &&
+                                it.metadata == null
+                        }
+                        if (existingIndex >= 0) {
+                            val existing = acc[existingIndex] as UIMessagePart.Reasoning
+                            acc.toMutableList().apply {
+                                this[existingIndex] = existing.copy(
+                                    reasoning = existing.reasoning + deltaPart.reasoning,
+                                    finishedAt = null,
+                                )
+                            }
+                        } else {
+                            // 新建 Reasoning 时把 createdAt 锚定到宿主消息的创建时间，
+                            // 避免非流式响应显示 0.0s 时长
+                            acc + deltaPart.copy(
+                                createdAt = this.createdAt.toInstant(TimeZone.currentSystemDefault())
                             )
                         }
-                    } else {
-                        // 新建 Reasoning 时把 createdAt 锚定到宿主消息的创建时间，
-                        // 避免非流式响应显示 0.0s 时长
-                        acc + deltaPart.copy(
-                            createdAt = this.createdAt.toInstant(TimeZone.currentSystemDefault())
-                        )
                     }
                 }
             }

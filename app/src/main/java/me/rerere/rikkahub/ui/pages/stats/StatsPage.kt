@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -50,13 +53,17 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowDataTransferVertical
+import me.rerere.hugeicons.stroke.BubbleChat
 import me.rerere.hugeicons.stroke.ChartColumn
 import me.rerere.hugeicons.stroke.Download04
 import me.rerere.hugeicons.stroke.Message01
 import me.rerere.hugeicons.stroke.PercentCircle
 import me.rerere.hugeicons.stroke.Rocket01
+import me.rerere.hugeicons.stroke.Sparkles
 import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
@@ -70,6 +77,7 @@ import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.text.NumberFormat
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -142,19 +150,18 @@ fun StatsPage(vm: StatsVM = koinViewModel()) {
                         }
                     } else {
                         item {
-                            UsageTotalsGrid(usage = usage, modifier = Modifier.padding(horizontal = 8.dp))
+                            UsageSummaryCard(usage = usage, modifier = Modifier.padding(horizontal = 8.dp))
                         }
-                        item {
-                            UsageTrendCard(usage = usage, modifier = Modifier.padding(horizontal = 8.dp))
+                        // 只有一天时柱状图只有一根柱子，没有趋势可看
+                        if (usage.points.size > 1) {
+                            item {
+                                UsageTrendCard(usage = usage, modifier = Modifier.padding(horizontal = 8.dp))
+                            }
                         }
-                        item {
-                            RankingCard(
-                                title = stringResource(R.string.stats_page_by_model),
-                                items = usage.models.map { model ->
-                                    (model.name ?: stringResource(R.string.stats_page_unknown_model)) to model.totalTokens
-                                },
-                                modifier = Modifier.padding(horizontal = 8.dp),
-                            )
+                        if (usage.models.any { it.totalTokens > 0 }) {
+                            item {
+                                ModelUsageCard(items = usage.models, modifier = Modifier.padding(horizontal = 8.dp))
+                            }
                         }
                         item {
                             RankingCard(
@@ -392,9 +399,10 @@ private fun UsageHeader(range: UsageRange, onRangeChange: (UsageRange) -> Unit, 
             ConnectedChoiceLabel(
                 text = stringResource(
                     when (option) {
+                        UsageRange.TODAY -> R.string.stats_page_range_today
                         UsageRange.WEEK -> R.string.stats_page_range_7d
+                        UsageRange.TWO_WEEKS -> R.string.stats_page_range_14d
                         UsageRange.MONTH -> R.string.stats_page_range_30d
-                        UsageRange.QUARTER -> R.string.stats_page_range_90d
                         UsageRange.ALL -> R.string.stats_page_range_all
                     }
                 ),
@@ -417,50 +425,250 @@ private fun EmptyUsageCard(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun UsageTotalsGrid(usage: UsageStats, modifier: Modifier = Modifier) {
+private fun UsageSummaryCard(usage: UsageStats, modifier: Modifier = Modifier) {
     val totals = usage.totals
+    val totalTokens = totals.promptTokens + totals.completionTokens
+    val cacheRate = if (totals.promptTokens > 0) {
+        (totals.cachedTokens.toFloat() / totals.promptTokens).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+
+    Card(modifier = modifier.fillMaxWidth(), colors = CustomColors.cardColorsOnSurfaceContainer) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(
+                    imageVector = HugeIcons.Zap,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp),
+                )
+                Text(
+                    text = stringResource(R.string.stats_page_total_tokens),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            // 完整数字看得清具体量，后面跟一个紧凑写法便于和其他卡片比较
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = formatGrouped(totalTokens),
+                    style = MaterialTheme.typography.headlineLarge,
+                    autoSize = TextAutoSize.StepBased(minFontSize = 20.sp, maxFontSize = 32.sp),
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                // 几千以内紧凑写法和完整数字一样，不重复展示
+                if (totalTokens >= 10_000) {
+                    Text(
+                        text = "≈ ${formatTokens(totalTokens)}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        modifier = Modifier.padding(bottom = 3.dp),
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                MetricTile(
+                    modifier = Modifier.weight(1f),
+                    icon = HugeIcons.ArrowDataTransferVertical,
+                    label = stringResource(R.string.stats_page_requests),
+                    value = formatGrouped(totals.requests.toLong()),
+                )
+                MetricTile(
+                    modifier = Modifier.weight(1f),
+                    icon = HugeIcons.BubbleChat,
+                    label = stringResource(R.string.stats_page_conversations),
+                    value = formatGrouped(totals.conversations.toLong()),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                MetricTile(
+                    modifier = Modifier.weight(1f),
+                    icon = HugeIcons.Upload02,
+                    label = stringResource(R.string.stats_page_input_tokens),
+                    value = formatTokens(totals.promptTokens),
+                )
+                MetricTile(
+                    modifier = Modifier.weight(1f),
+                    icon = HugeIcons.Download04,
+                    label = stringResource(R.string.stats_page_output_tokens),
+                    value = formatTokens(totals.completionTokens),
+                )
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                MetricTile(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    icon = HugeIcons.Sparkles,
+                    label = stringResource(R.string.stats_page_cached_tokens),
+                    value = formatTokens(totals.cachedTokens),
+                )
+                MetricTile(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    icon = HugeIcons.PercentCircle,
+                    label = stringResource(R.string.stats_page_cache_hit_rate),
+                    value = "%.1f%%".format(cacheRate * 100),
+                    footer = { RatioBar(fraction = cacheRate, track = true) },
+                )
+            }
+        }
+    }
+}
+
+// 总览里的一块小指标，底色比卡片深一档，和卡片本身区分开
+@Composable
+private fun MetricTile(
+    modifier: Modifier,
+    icon: ImageVector,
+    label: String,
+    value: String,
+    footer: (@Composable () -> Unit)? = null,
+) {
     Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier
+            .clip(MaterialTheme.shapes.large)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            StatCard(
-                modifier = Modifier.weight(1f),
-                icon = HugeIcons.Upload02,
-                label = stringResource(R.string.stats_page_input_tokens),
-                value = formatTokens(totals.promptTokens),
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(14.dp),
             )
-            StatCard(
-                modifier = Modifier.weight(1f),
-                icon = HugeIcons.Download04,
-                label = stringResource(R.string.stats_page_output_tokens),
-                value = formatTokens(totals.completionTokens),
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
             )
         }
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleLarge,
+            autoSize = TextAutoSize.StepBased(minFontSize = 14.sp, maxFontSize = 22.sp),
+            maxLines = 1,
+        )
+        if (footer != null) {
+            Spacer(Modifier.weight(1f))
+            footer()
+        }
+    }
+}
+
+/** 按模型的用量明细：次数、输入/输出/缓存和占比条，长的模型名一行省略 */
+@Composable
+private fun ModelUsageCard(items: List<ModelUsageItem>, modifier: Modifier = Modifier) {
+    val unknownModel = stringResource(R.string.stats_page_unknown_model)
+    val rows = remember(items) {
+        items.filter { it.totalTokens > 0 }.sortedByDescending { it.totalTokens }
+    }
+    if (rows.isEmpty()) return
+    val max = rows.maxOf { it.totalTokens }
+
+    Card(modifier = modifier.fillMaxWidth(), colors = CustomColors.cardColorsOnSurfaceContainer) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(R.string.stats_page_by_model),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = stringResource(R.string.stats_page_model_count, rows.size),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            rows.forEach { item ->
+                ModelUsageRow(
+                    name = item.name ?: unknownModel,
+                    usage = item,
+                    fraction = item.totalTokens.toFloat() / max,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModelUsageRow(name: String, usage: ModelUsageItem, fraction: Float) {
+    val cacheRate = if (usage.promptTokens > 0) {
+        (usage.cachedTokens.toFloat() / usage.promptTokens).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(
+            verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth(),
         ) {
-            StatCard(
+            Text(
+                text = name,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
-                icon = HugeIcons.Zap,
-                label = stringResource(R.string.stats_page_cached_tokens),
-                value = formatTokens(totals.cachedTokens),
             )
-            StatCard(
-                modifier = Modifier.weight(1f),
-                icon = HugeIcons.PercentCircle,
-                label = stringResource(R.string.stats_page_cache_hit_rate),
-                value = if (totals.promptTokens > 0) {
-                    "%.1f%%".format(totals.cachedTokens * 100.0 / totals.promptTokens)
-                } else {
-                    "-"
-                },
+            Text(
+                text = formatTokens(usage.totalTokens),
+                style = MaterialTheme.typography.labelLarge,
             )
         }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            listOf(
+                stringResource(R.string.stats_page_request_count, usage.requests),
+                "${stringResource(R.string.chat_message_usage_input)} ${formatTokens(usage.promptTokens)}",
+                "${stringResource(R.string.chat_message_usage_output)} ${formatTokens(usage.completionTokens)}",
+                "${stringResource(R.string.chat_message_usage_cached)} ${"%.0f".format(cacheRate * 100)}%",
+            ).forEach { text ->
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        RatioBar(fraction = fraction)
     }
 }
 
@@ -667,7 +875,6 @@ private fun RankingCard(title: String, items: List<Pair<String, Long>>, modifier
 
 @Composable
 private fun RankingRow(label: String, tokens: Long, fraction: Float, share: Float) {
-    val barColor = MaterialTheme.colorScheme.primary
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -686,30 +893,55 @@ private fun RankingRow(label: String, tokens: Long, fraction: Float, share: Floa
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(8.dp)
-        ) {
-            val width = (size.width * fraction).coerceAtLeast(size.height)
-            val radius = CornerRadius(minOf(4.dp.toPx(), size.height / 2))
-            // 起点贴着左侧基线保持方角，末端圆角
-            val path = Path().apply {
+        RatioBar(fraction = fraction, modifier = Modifier.height(8.dp))
+    }
+}
+
+/** 左侧贴基线、右侧收圆的占比条；[track] 用来展示百分比的底槽 */
+@Composable
+private fun RatioBar(
+    fraction: Float,
+    modifier: Modifier = Modifier.height(6.dp),
+    track: Boolean = false,
+) {
+    val barColor = MaterialTheme.colorScheme.primary
+    val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+    Canvas(modifier = modifier.fillMaxWidth()) {
+        val radius = CornerRadius(minOf(4.dp.toPx(), size.height / 2))
+        if (track) {
+            val background = Path().apply {
                 addRoundRect(
                     RoundRect(
                         left = 0f,
                         top = 0f,
-                        right = width,
+                        right = size.width,
                         bottom = size.height,
-                        topLeftCornerRadius = CornerRadius.Zero,
-                        bottomLeftCornerRadius = CornerRadius.Zero,
+                        topLeftCornerRadius = radius,
                         topRightCornerRadius = radius,
+                        bottomLeftCornerRadius = radius,
                         bottomRightCornerRadius = radius,
                     )
                 )
             }
-            drawPath(path, barColor)
+            drawPath(background, trackColor)
         }
+        val width = (size.width * fraction.coerceIn(0f, 1f)).coerceAtLeast(size.height)
+        // 起点贴着左侧基线保持方角，末端圆角
+        val path = Path().apply {
+            addRoundRect(
+                RoundRect(
+                    left = 0f,
+                    top = 0f,
+                    right = width,
+                    bottom = size.height,
+                    topLeftCornerRadius = CornerRadius.Zero,
+                    bottomLeftCornerRadius = CornerRadius.Zero,
+                    topRightCornerRadius = radius,
+                    bottomRightCornerRadius = radius,
+                )
+            )
+        }
+        drawPath(path, barColor)
     }
 }
 
@@ -788,6 +1020,10 @@ private fun formatCount(count: Long): String = when {
     count >= 1_000 -> "%.1fK".format(count / 1_000.0)
     else -> count.toString()
 }
+
+// 带千分位的整数，总 Token、请求次数这类要看清具体数字的地方用它
+private fun formatGrouped(count: Long): String =
+    NumberFormat.getIntegerInstance(Locale.getDefault()).format(count)
 
 private fun formatTokens(count: Long): String = when {
     count >= 1_000_000_000 -> "%.2fB".format(count / 1_000_000_000.0)

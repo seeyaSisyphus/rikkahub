@@ -13,7 +13,8 @@ interface UsageRecordDAO {
     @Query(
         "SELECT COALESCE(SUM(prompt_tokens), 0) AS promptTokens, " +
             "COALESCE(SUM(completion_tokens), 0) AS completionTokens, " +
-            "COALESCE(SUM(cached_tokens), 0) AS cachedTokens " +
+            "COALESCE(SUM(cached_tokens), 0) AS cachedTokens, " +
+            "COUNT(*) AS requests, COUNT(DISTINCT conversation_id) AS conversations " +
             "FROM usage_record WHERE created_at >= :since"
     )
     suspend fun getTotals(since: Long = 0): UsageTotals
@@ -36,7 +37,7 @@ interface UsageRecordDAO {
 
     // 回填的旧记录可能只有 model_id 没有 model_name，按 model_id 归并，名称取任意一条非空的
     @Query(
-        "SELECT model_id AS modelId, MAX(model_name) AS modelName, " +
+        "SELECT model_id AS modelId, MAX(model_name) AS modelName, COUNT(*) AS requests, " +
             "SUM(prompt_tokens) AS promptTokens, SUM(completion_tokens) AS completionTokens, " +
             "SUM(cached_tokens) AS cachedTokens " +
             "FROM usage_record WHERE created_at >= :since " +
@@ -58,6 +59,10 @@ data class UsageTotals(
     val promptTokens: Long = 0,
     val completionTokens: Long = 0,
     val cachedTokens: Long = 0,
+    // 请求次数，一次请求（含多步、重试）各算一次
+    val requests: Int = 0,
+    // 本期有用量的会话数
+    val conversations: Int = 0,
 )
 
 data class DayCount(
@@ -75,6 +80,7 @@ data class UsageBucket(
 data class ModelUsage(
     val modelId: String?,
     val modelName: String?,
+    val requests: Int,
     val promptTokens: Long,
     val completionTokens: Long,
     val cachedTokens: Long,

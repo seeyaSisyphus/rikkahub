@@ -44,8 +44,12 @@ class HistoryVM(
     }
 
     fun deleteConversation(conversation: Conversation) {
+        deleteConversations(listOf(conversation.id))
+    }
+
+    fun deleteConversations(conversationIds: Collection<Uuid>) {
         viewModelScope.launch {
-            chatService.deleteConversation(conversation.id)
+            conversationIds.forEach { chatService.deleteConversation(it) }
         }
     }
 
@@ -74,5 +78,4 @@ class HistoryVM(
     suspend fun getFullConversation(conversationId: Uuid): Conversation? {
         return chatService.getConversation(conversationId)
     }
-
 }

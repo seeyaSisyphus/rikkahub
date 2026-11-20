@@ -435,7 +435,7 @@ internal fun ConversationItem(
                 Text(stringResource(id = R.string.chat_page_delete))
             },
             text = {
-                Text(stringResource(id = R.string.chat_page_delete_conversation_confirm, conversationTitle))
+                Text("$conversationTitle\n\n" + stringResource(id = R.string.chat_page_delete_conversation_confirm))
             },
             confirmButton = {
                 TextButton(
