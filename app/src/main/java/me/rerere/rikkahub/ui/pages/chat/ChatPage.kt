@@ -381,6 +381,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null, sh
         else -> {
             ModalNavigationDrawer(
                 drawerState = drawerState,
+                gesturesEnabled = drawerState.isOpen,
                 drawerContent = {
                     ChatDrawerContent(
                         navController = navController,
