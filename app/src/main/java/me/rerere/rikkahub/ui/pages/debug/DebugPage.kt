@@ -22,7 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -249,7 +249,7 @@ private fun MainPage(vm: DebugVM) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = launchCountInput,
                 onValueChange = { launchCountInput = it },
                 label = { Text("launchCount (current: $launchCount)") },
@@ -270,7 +270,7 @@ private fun MainPage(vm: DebugVM) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = dismissedAtInput,
                 onValueChange = { dismissedAtInput = it },
                 label = { Text("sponsorAlertDismissedAt (current: ${settings.sponsorAlertDismissedAt})") },
@@ -289,7 +289,7 @@ private fun MainPage(vm: DebugVM) {
         var markdown by remember { mutableStateOf("") }
         MarkdownBlock(markdown, modifier = Modifier.fillMaxWidth())
         MathBlock(markdown)
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = markdown,
             onValueChange = { markdown = it },
             modifier = Modifier.fillMaxWidth()

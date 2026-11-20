@@ -30,7 +30,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -46,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -83,6 +84,7 @@ import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
 import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
 import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
+import me.rerere.rikkahub.ui.components.ui.rememberAutoFocusRequester
 
 private val themeJson = Json {
     ignoreUnknownKeys = true
@@ -392,6 +394,7 @@ private fun CustomThemeEditSheet(
     var currentTheme by remember {
         mutableStateOf(theme ?: CustomTheme())
     }
+    val focusRequester = rememberAutoFocusRequester()
 
     AppModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -417,11 +420,13 @@ private fun CustomThemeEditSheet(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = currentTheme.name,
                     onValueChange = { currentTheme = currentTheme.copy(name = it) },
                     label = { Text(stringResource(R.string.setting_theme_page_theme_name)) },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
                     singleLine = true,
                 )
 
@@ -498,20 +503,23 @@ private fun ImportThemeDialog(
 ) {
     var jsonText by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    val focusRequester = rememberAutoFocusRequester()
 
     AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.setting_theme_page_import_theme)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = jsonText,
                     onValueChange = {
                         jsonText = it
                         errorMessage = null
                     },
                     label = { Text("JSON") },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
                     minLines = 4,
                     maxLines = 8,
                     isError = errorMessage != null,
@@ -616,7 +624,7 @@ private fun ColorPickerRow(
             }
         }
 
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = hslCode,
             onValueChange = { value ->
                 hslCode = value

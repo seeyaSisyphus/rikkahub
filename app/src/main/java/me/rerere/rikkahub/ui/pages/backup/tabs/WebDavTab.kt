@@ -3,7 +3,7 @@ package me.rerere.rikkahub.ui.pages.backup.tabs
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -108,7 +108,7 @@ fun WebDavTab(
             formItem(
                 headlineContent = { Text(stringResource(R.string.backup_page_webdav_server_address)) },
             ) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = webDavConfig.url,
                     onValueChange = { updateWebDavConfig(webDavConfig.copy(url = it.trim())) },
@@ -119,7 +119,7 @@ fun WebDavTab(
             formItem(
                 headlineContent = { Text(stringResource(R.string.backup_page_username)) },
             ) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = webDavConfig.username,
                     onValueChange = { updateWebDavConfig(webDavConfig.copy(username = it.trim())) },
@@ -130,7 +130,7 @@ fun WebDavTab(
                 headlineContent = { Text(stringResource(R.string.backup_page_password)) },
             ) {
                 var passwordVisible by remember { mutableStateOf(false) }
-                OutlinedTextField(
+                AppOutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = webDavConfig.password,
                     onValueChange = { updateWebDavConfig(webDavConfig.copy(password = it.trim())) },
@@ -151,7 +151,7 @@ fun WebDavTab(
             formItem(
                 headlineContent = { Text(stringResource(R.string.backup_page_path)) },
             ) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = webDavConfig.path,
                     onValueChange = { updateWebDavConfig(webDavConfig.copy(path = it.trim())) },

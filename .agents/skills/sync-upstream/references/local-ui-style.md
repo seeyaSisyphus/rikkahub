@@ -17,6 +17,7 @@
 | `DropdownMenu` / `DropdownMenuItem` / `DropdownMenuPopup` / `DropdownMenuGroup` | `AppDropdownMenu` / `AppDropdownMenuItem` / `AppMenuDivider` | `app/.../ui/components/ui/AppDropdownMenu.kt`：`20.dp` 圆角、浅色 `surfaceBright` / 深色 `surfaceContainerHigh`、`tonalElevation = 0.dp`、`shadowElevation = 8.dp`、`0.5.dp` 发丝边框 |
 | `androidx.compose.material3.Switch` | `AppSwitch`（常规）或 `me.rerere.ui.components.Switch`（仅需 `SwitchSize.Small` 的紧凑行） | `app/.../ui/components/ui/AppSwitch.kt`：`46.dp × 26.dp` iOS 胶囊开关、按压拉伸微动效 |
 | `androidx.compose.material3.Slider` | `AppSlider` / `IntSlider` | `app/.../ui/components/ui/SliderItem.kt`：细轨道胶囊滑块与带环滑块头 |
+| `androidx.compose.material3.OutlinedTextField` | `AppOutlinedTextField` | `app/.../ui/components/ui/AppTextField.kt`：`14.dp` 圆角、柔和边框与微弱填充底色 |
 | `LargeFlexibleTopAppBar` / `MediumFlexibleTopAppBar` / `LargeTopAppBar` / `MediumTopAppBar` / `exitUntilCollapsedScrollBehavior` | 紧凑 `TopAppBar` | 去掉折叠大标题与对应 `nestedScroll`，使用 `CustomColors.topBarColors` |
 | `SingleChoiceSegmentedButtonRow` / `MultiChoiceSegmentedButtonRow` / `SegmentedButton` | `ConnectedChoiceButtons` / `ConnectedMultiChoiceButtons` | `app/.../ui/components/ui/ConnectedChoiceButtons.kt`：滑动胶囊轨道单选 / 独立圆角卡片多选 |
 | `PrimaryTabRow` / `SecondaryTabRow` / `TabRow` / `ScrollableTabRow` | `PagerTabs` | `app/.../ui/components/ui/PagerTabs.kt`：与 `PagerState` 进度实时同步的滑动胶囊选项卡 |

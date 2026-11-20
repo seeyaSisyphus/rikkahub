@@ -22,7 +22,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -39,6 +39,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -72,6 +73,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.components.ui.Tag
+import me.rerere.rikkahub.ui.components.ui.rememberAutoFocusRequester
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -485,6 +487,7 @@ private fun AddSkillDialog(
     onConfirm: (name: String, content: String) -> Unit,
 ) {
     var content by rememberSaveable { mutableStateOf("") }
+    val focusRequester = rememberAutoFocusRequester()
 
     val validation = remember(content) { SkillValidator.validate(content) }
     val name = validation.getOrNull()
@@ -495,7 +498,7 @@ private fun AddSkillDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.skills_page_add_title)) },
         text = {
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = content,
                 onValueChange = { content = it },
                 label = { Text(stringResource(R.string.skills_page_skill_content_label)) },
@@ -518,7 +521,9 @@ private fun AddSkillDialog(
                 minLines = 8,
                 maxLines = 14,
                 textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester),
             )
         },
         confirmButton = {
@@ -542,6 +547,7 @@ private fun ImportSkillDialog(
 ) {
     var url by rememberSaveable { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
+    val focusRequester = rememberAutoFocusRequester()
 
     AppAlertDialog(
         onDismissRequest = { if (!loading) onDismiss() },
@@ -553,7 +559,7 @@ private fun ImportSkillDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = url,
                     onValueChange = { url = it },
                     label = { Text(stringResource(R.string.skills_page_repo_url_label)) },
@@ -562,7 +568,9 @@ private fun ImportSkillDialog(
                     singleLine = true,
                     enabled = !loading,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
                 )
                 if (loading) {
                     Row(

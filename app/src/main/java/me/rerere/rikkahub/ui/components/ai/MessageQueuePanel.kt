@@ -25,6 +25,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -39,6 +40,7 @@ import me.rerere.rikkahub.service.QueuedMessage
 import me.rerere.rikkahub.service.QueuedNotice
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
+import me.rerere.rikkahub.ui.components.ui.rememberAutoFocusRequester
 
 @Composable
 internal fun MessageQueuePanel(
@@ -158,6 +160,7 @@ internal fun MessageQueuePanel(
         DisposableEffect(message.id) {
             onDispose { finishEdit(message.id, null) }
         }
+        val focusRequester = rememberAutoFocusRequester()
         AppAlertDialog(
             onDismissRequest = { editing = null },
             title = { Text(stringResource(R.string.chat_page_queue_edit_title)) },
@@ -168,6 +171,7 @@ internal fun MessageQueuePanel(
                         state = input.textContent,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .focusRequester(focusRequester)
                             .testTag("chat_queue_edit_text"),
                         lineLimits = TextFieldLineLimits.MultiLine(
                             minHeightInLines = 3,

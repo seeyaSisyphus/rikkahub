@@ -16,7 +16,7 @@ import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -38,6 +39,7 @@ import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Remove01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
+import me.rerere.rikkahub.ui.components.ui.rememberAutoFocusRequester
 
 @Composable
 fun CompressContextDialog(
@@ -50,6 +52,7 @@ fun CompressContextDialog(
     val keepRecentMessages = keepRecentText.toIntOrNull() ?: 0
     var currentJob by remember { mutableStateOf<Job?>(null) }
     val isLoading = currentJob?.isActive == true
+    val focusRequester = rememberAutoFocusRequester()
 
     // Monitor job completion
     LaunchedEffect(currentJob) {
@@ -90,7 +93,7 @@ fun CompressContextDialog(
                     Text(stringResource(R.string.chat_page_compress_context_desc))
 
                     // Additional context input
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = additionalPrompt,
                         onValueChange = { additionalPrompt = it },
                         label = {
@@ -99,7 +102,9 @@ fun CompressContextDialog(
                         placeholder = {
                             Text(stringResource(R.string.chat_page_compress_additional_prompt_hint))
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester),
                         maxLines = 4,
                     )
 

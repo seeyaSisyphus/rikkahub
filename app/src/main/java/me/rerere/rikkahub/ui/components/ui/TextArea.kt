@@ -20,7 +20,7 @@ import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -34,6 +34,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -156,7 +157,7 @@ fun TextArea(
             }
 
             // Multi-line text input
-            OutlinedTextField(
+            AppOutlinedTextField(
                 state = state,
                 modifier = Modifier
                     .fillMaxWidth(),
@@ -194,6 +195,7 @@ private fun FullScreenTextEditor(
     var editingText by remember(state.text.toString()) {
         mutableStateOf(state.text.toString())
     }
+    val focusRequester = rememberAutoFocusRequester()
 
     BasicAlertDialog(
         onDismissRequest = onDismiss,
@@ -233,7 +235,8 @@ private fun FullScreenTextEditor(
                         onValueChange = { editingText = it },
                         modifier = Modifier
                             .imePadding()
-                            .fillMaxSize(),
+                            .fillMaxSize()
+                            .focusRequester(focusRequester),
                         shape = RoundedCornerShape(16.dp),
                         placeholder = if (placeholder.isNotEmpty()) {
                             { Text(placeholder) }

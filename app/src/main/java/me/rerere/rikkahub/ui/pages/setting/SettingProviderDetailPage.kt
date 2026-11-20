@@ -48,7 +48,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
@@ -67,6 +67,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -115,6 +116,7 @@ import me.rerere.rikkahub.ui.components.ai.ModelTypeTag
 import me.rerere.rikkahub.ui.components.ai.ProviderQuotaText
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AppSwitch
+import me.rerere.rikkahub.ui.components.ui.rememberAutoFocusRequester
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
@@ -571,6 +573,8 @@ private fun ModelSettingsForm(
     parentProvider: ProviderSetting? = null
 ) {
     val pagerState = rememberPagerState { ModelFormTab.entries.size }
+    // 新增时空的 modelId 是第一个可编辑项；编辑时 modelId 被禁用，聚焦到显示名
+    val focusRequester = rememberAutoFocusRequester()
 
     fun setModelId(id: String) {
         val inputModality = ModelRegistry.MODEL_INPUT_MODALITIES.getData(id)
@@ -607,7 +611,7 @@ private fun ModelSettingsForm(
                             .padding(vertical = 16.dp)
                             .verticalScroll(rememberScrollState())
                     ) {
-                        OutlinedTextField(
+                        AppOutlinedTextField(
                             value = model.modelId,
                             onValueChange = {
                                 if (!isEdit) {
@@ -615,7 +619,9 @@ private fun ModelSettingsForm(
                                 }
                             },
                             label = { Text(stringResource(R.string.setting_provider_page_model_id)) },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(if (isEdit) Modifier else Modifier.focusRequester(focusRequester)),
                             placeholder = {
                                 if (!isEdit) {
                                     Text(stringResource(R.string.setting_provider_page_model_id_placeholder))
@@ -624,13 +630,15 @@ private fun ModelSettingsForm(
                             enabled = !isEdit
                         )
 
-                        OutlinedTextField(
+                        AppOutlinedTextField(
                             value = model.displayName,
                             onValueChange = {
                                 onModelChange(model.copy(displayName = it))
                             },
                             label = { Text(stringResource(if (isEdit) R.string.setting_provider_page_model_name else R.string.setting_provider_page_model_display_name)) },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(if (isEdit) Modifier.focusRequester(focusRequester) else Modifier),
                             placeholder = {
                                 if (!isEdit) {
                                     Text(stringResource(R.string.setting_provider_page_model_display_name_placeholder))
@@ -1068,7 +1076,7 @@ private fun ModelPicker(
                         }
                     }
                 }
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = filterText,
                     onValueChange = {
                         filterText = it
@@ -1248,7 +1256,7 @@ private fun ModelContextLengthSelector(
         )
     }
     AnimatedVisibility(visible = custom) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = customText,
             onValueChange = { value ->
                 customText = value.filter { it.isDigit() }

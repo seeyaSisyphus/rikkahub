@@ -11,7 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -79,7 +79,7 @@ fun MediaGenerationProviderBasicConfigure(
             formItem(
                 headlineContent = { Text(stringResource(R.string.setting_media_page_provider_name)) },
             ) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = setting.name,
                     onValueChange = { onValueChange(setting.copyProvider(name = it)) },
                     modifier = Modifier.fillMaxWidth(),
@@ -88,7 +88,7 @@ fun MediaGenerationProviderBasicConfigure(
             }
 
             formItem(headlineContent = { Text("API Key") }) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = setting.apiKey,
                     onValueChange = { onValueChange(setting.copyProvider(apiKey = it.trim())) },
                     modifier = Modifier.fillMaxWidth(),
@@ -97,7 +97,7 @@ fun MediaGenerationProviderBasicConfigure(
             }
 
             formItem(headlineContent = { Text("Base URL") }) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = setting.baseUrl,
                     onValueChange = { onValueChange(setting.copyProvider(baseUrl = it.trim())) },
                     modifier = Modifier.fillMaxWidth(),
@@ -117,7 +117,7 @@ fun MediaGenerationProviderBasicConfigure(
                         )
                     }
                 ) {
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = setting.workspaceId,
                         onValueChange = { onValueChange(setting.copy(workspaceId = it.trim())) },
                         modifier = Modifier.fillMaxWidth(),
@@ -151,7 +151,7 @@ fun MediaGenerationProviderModelsConfigure(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        OutlinedTextField(
+                        AppOutlinedTextField(
                             value = model.modelId,
                             onValueChange = { value ->
                                 updateModels(models.map { if (it.id == model.id) model.copy(modelId = value.trim()) else it })

@@ -24,7 +24,7 @@ import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -371,7 +371,7 @@ private fun MemoryFileEditor(
                 formItem(
                     headlineContent = { Text(stringResource(R.string.memory_file_page_path)) },
                 ) {
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = path,
                         onValueChange = onPathChange,
                         placeholder = { Text("/topics/food.md") },
@@ -384,7 +384,7 @@ private fun MemoryFileEditor(
             formItem(
                 headlineContent = { Text(stringResource(R.string.memory_file_page_title)) },
             ) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = title,
                     onValueChange = onTitleChange,
                     placeholder = { Text(titlePlaceholder) },
@@ -395,7 +395,7 @@ private fun MemoryFileEditor(
             formItem(
                 headlineContent = { Text(stringResource(R.string.memory_file_page_summary)) },
             ) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = description,
                     onValueChange = onDescriptionChange,
                     modifier = Modifier.fillMaxWidth(),
@@ -426,7 +426,7 @@ private fun MemoryFileEditor(
                         }
                     }
                 }
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = aliasInput,
                     onValueChange = onAliasInputChange,
                     singleLine = true,
@@ -448,7 +448,7 @@ private fun MemoryFileEditor(
             formItem(
                 headlineContent = { Text(stringResource(R.string.memory_file_page_details)) },
             ) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = body,
                     onValueChange = onBodyChange,
                     isError = !contentValid,

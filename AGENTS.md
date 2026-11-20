@@ -15,7 +15,7 @@ Built with Jetpack Compose, Kotlin, and follows Material 3 Expressive (MD3 Expre
 - **全局强制封装组件**（新增或同步页面必须使用，受 `ForkUiStyleGuardTest` 单测守卫）：
   - BottomSheet / Dialog：`AppModalBottomSheet`、`AppAlertDialog`（`app/src/main/java/me/rerere/rikkahub/ui/components/ui/AppOverlays.kt`，`24.dp` 圆角、零 `tonalElevation`、细长 `AppSheetDragHandle`）
   - 下拉菜单：`AppDropdownMenu`、`AppDropdownMenuItem`、`AppMenuDivider`（`app/src/main/java/me/rerere/rikkahub/ui/components/ui/AppDropdownMenu.kt`，`20.dp` 圆角、发丝边框、零 `tonalElevation`）
-  - 开关与滑块：`AppSwitch`（`AppSwitch.kt`，iOS 胶囊开关；仅紧凑小尺寸场景可用已统一样式的 `me.rerere.ui.components.Switch`）、`AppSlider` / `IntSlider`（`SliderItem.kt`）
+  - 开关、滑块与输入框：`AppSwitch`（`AppSwitch.kt`，iOS 胶囊开关；仅紧凑小尺寸场景可用已统一样式的 `me.rerere.ui.components.Switch`）、`AppSlider` / `IntSlider`（`SliderItem.kt`）、`AppOutlinedTextField`（`AppTextField.kt`，`14.dp` 圆角与柔和边框）
   - 顶栏、分段选择与分页签：使用紧凑 `TopAppBar`（禁用 `LargeFlexibleTopAppBar` / `exitUntilCollapsedScrollBehavior`）、`ConnectedChoiceButtons` / `ConnectedMultiChoiceButtons`（替代 `SegmentedButton`）、`PagerTabs`（替代 `*TabRow`）
 - **主题与排印**：保留 `SoftRippleConfiguration`（柔和按压水波纹）与 `AppFontFamily`（`Noto Sans SC` + `DM Sans`）排版层级；`CardGroup` 使用无圆圈底色的 `CardGroupIcon` 与 `AppSwitch`。
 - **同步上游不变量清单**：详见 `.agents/skills/sync-upstream/references/local-ui-style.md`，改动 UI 后应运行 `./gradlew :app:testGithubDebugUnitTest` 验证 `ForkUiStyleGuardTest` 通过。

@@ -28,7 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
@@ -59,6 +60,7 @@ import me.rerere.rikkahub.ui.components.ui.AppDropdownMenu
 import me.rerere.rikkahub.ui.components.ui.AppDropdownMenuItem
 import me.rerere.rikkahub.ui.components.ui.AppMenuDivider
 import me.rerere.rikkahub.ui.components.ui.appMenuItemColors
+import me.rerere.rikkahub.ui.components.ui.rememberAutoFocusRequester
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.mirrorForRtl
 import me.rerere.rikkahub.utils.toLocalString
@@ -487,15 +489,17 @@ internal fun ConversationItem(
     }
 
     if (showRenameDialog) {
+        val focusRequester = rememberAutoFocusRequester()
         AppAlertDialog(
             onDismissRequest = { showRenameDialog = false },
             title = { Text("修改标题") },
             text = {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = renameInput,
                     onValueChange = { renameInput = it },
                     label = { Text("标题") },
                     singleLine = true,
+                    modifier = Modifier.focusRequester(focusRequester),
                 )
             },
             confirmButton = {

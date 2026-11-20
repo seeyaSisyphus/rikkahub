@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -27,7 +29,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -47,8 +49,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -66,6 +71,7 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.SwipeToDelete
+import me.rerere.rikkahub.ui.components.ui.rememberAutoFocusRequester
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.navigateToChatPage
@@ -84,6 +90,8 @@ fun HistoryPage(vm: HistoryVM = koinViewModel()) {
     val snackbarHostState = remember { SnackbarHostState() }
     var isSearchVisible by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
+    // 只在"用户点开搜索"时聚焦；退出多选等场景搜索条重新组合不应弹键盘
+    var searchFocusPending by remember { mutableStateOf(false) }
     var showDeleteAllDialog by remember { mutableStateOf(false) }
     var showDeleteSelectedDialog by remember { mutableStateOf(false) }
     // null 表示不在多选状态
@@ -116,6 +124,13 @@ fun HistoryPage(vm: HistoryVM = koinViewModel()) {
 
     BackHandler(enabled = selectedIds != null) {
         selectedIds = null
+    }
+
+    // 搜索态下返回键先收起搜索，而不是直接退出页面
+    BackHandler(enabled = isSearchVisible && selectedIds == null) {
+        isSearchVisible = false
+        searchText = ""
+        searchFocusPending = false
     }
 
     fun toggleSelection(id: Uuid) {
@@ -168,12 +183,20 @@ fun HistoryPage(vm: HistoryVM = koinViewModel()) {
                         IconButton(
                             onClick = {
                                 isSearchVisible = !isSearchVisible
-                                if (!isSearchVisible) searchText = ""
+                                if (isSearchVisible) {
+                                    searchFocusPending = true
+                                } else {
+                                    searchText = ""
+                                    searchFocusPending = false
+                                }
                             }
                         ) {
                             Icon(
-                                HugeIcons.Search01,
-                                contentDescription = stringResource(R.string.history_page_search)
+                                if (isSearchVisible) HugeIcons.Cancel01 else HugeIcons.Search01,
+                                contentDescription = stringResource(
+                                    if (isSearchVisible) R.string.chat_page_cancel
+                                    else R.string.history_page_search
+                                )
                             )
                         }
                         if (allConversations.isNotEmpty()) {
@@ -214,7 +237,9 @@ fun HistoryPage(vm: HistoryVM = koinViewModel()) {
                 ) {
                     SearchInput(
                         value = searchText,
-                        onValueChange = { searchText = it }
+                        onValueChange = { searchText = it },
+                        autoFocus = searchFocusPending,
+                        onAutoFocusHandled = { searchFocusPending = false },
                     )
                 }
             }
@@ -350,7 +375,15 @@ private fun HistorySelectionBar(
 private fun SearchInput(
     value: String,
     onValueChange: (String) -> Unit,
+    autoFocus: Boolean,
+    onAutoFocusHandled: () -> Unit,
 ) {
+    // 搜索条由顶栏按钮点开才出现，必须显式聚焦，否则输入法不会弹出
+    val focusRequester = rememberAutoFocusRequester(
+        requestKey = autoFocus.takeIf { it },
+        onRequestHandled = onAutoFocusHandled,
+    )
+    val keyboardController = LocalSoftwareKeyboardController.current
     Surface(
         tonalElevation = 4.dp,
         modifier = Modifier.fillMaxWidth()
@@ -361,15 +394,19 @@ private fun SearchInput(
                 .navigationBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = value,
                 onValueChange = onValueChange,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester),
                 placeholder = {
                     Text(stringResource(R.string.history_page_search_placeholder))
                 },
                 shape = RoundedCornerShape(50),
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
                 trailingIcon = {
                     IconButton(
                         onClick = { onValueChange("") },

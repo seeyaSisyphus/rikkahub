@@ -27,7 +27,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -37,14 +37,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.RadioButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -62,6 +60,7 @@ import me.rerere.rikkahub.ui.components.ui.AppDropdownMenuItem
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.appMenuItemColors
+import me.rerere.rikkahub.ui.components.ui.rememberAutoFocusRequester
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.navigateToChatPage
@@ -76,11 +75,9 @@ import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
 @Composable
 fun SearchPage(vm: SearchVM = koinViewModel()) {
     val navController = LocalNavController.current
-    val focusRequester = remember { FocusRequester() }
+    // 进入页面即聚焦搜索框并弹出输入法
+    val focusRequester = rememberAutoFocusRequester()
     var showRebuildDialog by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
-    }
 
     if (showRebuildDialog) {
         AppAlertDialog(
@@ -135,7 +132,7 @@ fun SearchPage(vm: SearchVM = koinViewModel()) {
                 .fillMaxSize()
                 .padding(contentPadding)
         ) {
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = vm.searchQuery,
                 onValueChange = { vm.onQueryChange(it) },
                 modifier = Modifier

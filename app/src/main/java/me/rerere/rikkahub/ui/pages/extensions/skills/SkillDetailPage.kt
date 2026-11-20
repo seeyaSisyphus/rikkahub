@@ -24,7 +24,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
@@ -60,6 +61,7 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
+import me.rerere.rikkahub.ui.components.ui.rememberAutoFocusRequester
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.fileSizeToString
@@ -341,12 +343,13 @@ private fun EditFileDialog(
     onConfirm: (content: String) -> Unit,
 ) {
     var content by remember(skillFile.relativePath) { mutableStateOf(initialContent) }
+    val focusRequester = rememberAutoFocusRequester(showKeyboard = !readOnly)
 
     AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(skillFile.relativePath, fontFamily = FontFamily.Monospace) },
         text = {
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = content,
                 onValueChange = { content = it },
                 readOnly = readOnly,
@@ -354,7 +357,9 @@ private fun EditFileDialog(
                 minLines = 10,
                 maxLines = 20,
                 textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester),
             )
         },
         confirmButton = {
@@ -380,13 +385,14 @@ private fun AddFileDialog(
     var fileName by rememberSaveable { mutableStateOf("") }
     var content by rememberSaveable { mutableStateOf("") }
     val fileNameError = fileName.isNotBlank() && (fileName.contains('\\'))
+    val focusRequester = rememberAutoFocusRequester()
 
     AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.skill_detail_page_new_file)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = fileName,
                     onValueChange = { fileName = it },
                     label = { Text(stringResource(R.string.skill_detail_page_file_name)) },
@@ -401,9 +407,11 @@ private fun AddFileDialog(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                     textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
                 )
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = content,
                     onValueChange = { content = it },
                     label = { Text(stringResource(R.string.skill_detail_page_content)) },

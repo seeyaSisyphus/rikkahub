@@ -1,19 +1,24 @@
 package me.rerere.rikkahub.ui.pages.favorite
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -22,6 +27,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.TopAppBar
@@ -41,9 +48,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,6 +69,7 @@ import me.rerere.hugeicons.stroke.Search01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.SwipeToDelete
+import me.rerere.rikkahub.ui.components.ui.rememberAutoFocusRequester
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
@@ -79,6 +92,15 @@ fun FavoritePage(vm: FavoriteVM = koinViewModel()) {
 
     var isSearchVisible by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    // 只在"用户点开搜索"时聚焦；搜索条因其他原因重新进入组合（返回页面等）不应弹键盘
+    var searchFocusPending by remember { mutableStateOf(false) }
+
+    // 搜索态下返回键先收起搜索，而不是直接退出页面
+    BackHandler(enabled = isSearchVisible) {
+        isSearchVisible = false
+        searchQuery = ""
+        searchFocusPending = false
+    }
 
     val removedMessage = stringResource(R.string.favorite_page_removed)
     val undoLabel = stringResource(R.string.history_page_undo)
@@ -135,12 +157,20 @@ fun FavoritePage(vm: FavoriteVM = koinViewModel()) {
                         IconButton(
                             onClick = {
                                 isSearchVisible = !isSearchVisible
-                                if (!isSearchVisible) searchQuery = ""
+                                if (isSearchVisible) {
+                                    searchFocusPending = true
+                                } else {
+                                    searchQuery = ""
+                                    searchFocusPending = false
+                                }
                             }
                         ) {
                             Icon(
                                 imageVector = if (isSearchVisible) HugeIcons.Cancel01 else HugeIcons.Search01,
-                                contentDescription = stringResource(R.string.history_page_search),
+                                contentDescription = stringResource(
+                                    if (isSearchVisible) R.string.history_page_cancel
+                                    else R.string.history_page_search
+                                ),
                             )
                         }
                     }
@@ -180,7 +210,7 @@ fun FavoritePage(vm: FavoriteVM = koinViewModel()) {
             return@Scaffold
         }
 
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().imePadding()) {
             AnimatedVisibility(
                 visible = isSearchVisible,
                 enter = expandVertically() + fadeIn(),
@@ -189,6 +219,8 @@ fun FavoritePage(vm: FavoriteVM = koinViewModel()) {
                 FavoriteSearchBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
+                    autoFocus = searchFocusPending,
+                    onAutoFocusHandled = { searchFocusPending = false },
                     modifier = Modifier
                         .padding(
                             top = innerPadding.calculateTopPadding() + 4.dp,
@@ -199,9 +231,13 @@ fun FavoritePage(vm: FavoriteVM = koinViewModel()) {
                 )
             }
 
+            // Column 的 imePadding 已经包含导航栏区域，键盘弹出时不要再叠加一份底部 inset
+            val density = LocalDensity.current
+            val imeVisible = WindowInsets.ime.getBottom(density) > 0
+            val bottomInset = if (imeVisible) 0.dp else innerPadding.calculateBottomPadding()
             val listTopPadding = if (isSearchVisible) {
                 PaddingValues(horizontal = 16.dp, vertical = 4.dp) +
-                    PaddingValues(bottom = innerPadding.calculateBottomPadding())
+                    PaddingValues(bottom = bottomInset)
             } else {
                 innerPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp)
             }
@@ -210,7 +246,7 @@ fun FavoritePage(vm: FavoriteVM = koinViewModel()) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(bottom = innerPadding.calculateBottomPadding()),
+                        .padding(bottom = bottomInset),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
@@ -291,15 +327,30 @@ fun FavoritePage(vm: FavoriteVM = koinViewModel()) {
 private fun FavoriteSearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
+    autoFocus: Boolean,
+    onAutoFocusHandled: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
+    // 搜索条由按钮点开才出现，必须显式聚焦，否则输入法不会弹出
+    val focusRequester = rememberAutoFocusRequester(
+        requestKey = autoFocus.takeIf { it },
+        onRequestHandled = onAutoFocusHandled,
+    )
+    val keyboardController = LocalSoftwareKeyboardController.current
     Surface(
         shape = CircleShape,
         color = colors.surfaceContainerHigh,
         modifier = modifier
             .fillMaxWidth()
-            .height(42.dp),
+            .height(42.dp)
+            // 整条胶囊都可点聚焦，且不产生 clickable 的语义合并（避免吞掉输入框/清除按钮的无障碍节点）
+            .pointerInput(Unit) {
+                detectTapGestures {
+                    focusRequester.requestFocus()
+                    keyboardController?.show()
+                }
+            },
     ) {
         Row(
             modifier = Modifier.padding(start = 14.dp, end = 6.dp),
@@ -333,7 +384,11 @@ private fun FavoriteSearchBar(
                         color = colors.onSurface,
                     ),
                     cursorBrush = SolidColor(colors.primary),
-                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
                 )
             }
             if (query.isNotEmpty()) {

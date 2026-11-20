@@ -33,7 +33,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -49,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.toArgb
@@ -74,6 +75,7 @@ import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.Download04
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
+import me.rerere.rikkahub.ui.components.ui.rememberAutoFocusRequester
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalWorkspaceId
 import me.rerere.rikkahub.ui.modifier.onClick
@@ -460,6 +462,7 @@ private fun TableCard(table: MarkdownBlock.Table) {
     if (showExportDialog) {
         var fileName by remember { mutableStateOf(defaultCsvFileName()) }
         val hasInvalidChars = fileName.any { it in INVALID_FILENAME_CHARS }
+        val focusRequester = rememberAutoFocusRequester()
 
         BasicAlertDialog(
             onDismissRequest = { showExportDialog = false },
@@ -483,11 +486,14 @@ private fun TableCard(table: MarkdownBlock.Table) {
                         style = MaterialTheme.typography.titleMedium,
                     )
                     Spacer(Modifier.height(16.dp))
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = fileName,
                         onValueChange = { fileName = it },
                         label = { Text("文件名") },
                         singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester),
                         isError = hasInvalidChars,
                         supportingText = {
                             Text(

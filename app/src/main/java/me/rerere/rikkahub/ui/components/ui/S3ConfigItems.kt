@@ -3,7 +3,7 @@ package me.rerere.rikkahub.ui.components.ui
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,7 +29,7 @@ fun CardGroupScope.s3ConnectionItems(
     formItem(
         headlineContent = { Text(stringResource(R.string.backup_page_s3_endpoint)) },
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = config.endpoint,
             onValueChange = { onUpdate(config.copy(endpoint = it.trim())) },
@@ -40,7 +40,7 @@ fun CardGroupScope.s3ConnectionItems(
     formItem(
         headlineContent = { Text(stringResource(R.string.backup_page_s3_access_key_id)) },
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = config.accessKeyId,
             onValueChange = { onUpdate(config.copy(accessKeyId = it.trim())) },
@@ -51,7 +51,7 @@ fun CardGroupScope.s3ConnectionItems(
         headlineContent = { Text(stringResource(R.string.backup_page_s3_secret_access_key)) },
     ) {
         var passwordVisible by remember { mutableStateOf(false) }
-        OutlinedTextField(
+        AppOutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = config.secretAccessKey,
             onValueChange = { onUpdate(config.copy(secretAccessKey = it.trim())) },
@@ -72,7 +72,7 @@ fun CardGroupScope.s3ConnectionItems(
     formItem(
         headlineContent = { Text(stringResource(R.string.backup_page_s3_bucket)) },
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = config.bucket,
             onValueChange = { onUpdate(config.copy(bucket = it.trim())) },
@@ -89,7 +89,7 @@ fun CardGroupScope.s3ConnectionItems(
     formItem(
         headlineContent = { Text(stringResource(R.string.backup_page_s3_region)) },
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = config.region,
             onValueChange = { onUpdate(config.copy(region = it.trim())) },

@@ -21,7 +21,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -257,7 +257,7 @@ private fun SearchTestSection(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
                     modifier = Modifier.weight(1f),
@@ -357,7 +357,7 @@ internal fun TavilyOptions(
             Text(stringResource(R.string.search_detail_api_key))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.apiKey,
             onValueChange = {
                 onUpdateOptions(options.copy(apiKey = it))
@@ -413,7 +413,7 @@ internal fun ExaOptions(
             Text(stringResource(R.string.search_detail_api_key))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.apiKey,
             onValueChange = {
                 onUpdateOptions(options.copy(apiKey = it))
@@ -433,7 +433,7 @@ internal fun ZhipuOptions(
             Text(stringResource(R.string.search_detail_api_key))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.apiKey,
             onValueChange = {
                 onUpdateOptions(options.copy(apiKey = it))
@@ -449,7 +449,7 @@ internal fun DoubaoOptions(
     onUpdateOptions: (SearchServiceOptions.DoubaoOptions) -> Unit
 ) {
     FormItem(label = { Text(stringResource(R.string.search_detail_api_key)) }) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.apiKey,
             onValueChange = { onUpdateOptions(options.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth()
@@ -482,7 +482,7 @@ internal fun SearXNGOptions(
             Text(stringResource(R.string.search_detail_api_url))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.url,
             onValueChange = {
                 onUpdateOptions(options.copy(url = it))
@@ -496,7 +496,7 @@ internal fun SearXNGOptions(
             Text(stringResource(R.string.search_detail_engines))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.engines,
             onValueChange = {
                 onUpdateOptions(options.copy(engines = it))
@@ -510,7 +510,7 @@ internal fun SearXNGOptions(
             Text(stringResource(R.string.search_detail_language))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.language,
             onValueChange = {
                 onUpdateOptions(options.copy(language = it))
@@ -524,7 +524,7 @@ internal fun SearXNGOptions(
             Text(stringResource(R.string.search_detail_username))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.username,
             onValueChange = {
                 onUpdateOptions(options.copy(username = it))
@@ -538,7 +538,7 @@ internal fun SearXNGOptions(
             Text(stringResource(R.string.search_detail_password))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.password,
             onValueChange = {
                 onUpdateOptions(options.copy(password = it))
@@ -558,7 +558,7 @@ internal fun SearchLinkUpOptions(
             Text(stringResource(R.string.search_detail_api_key))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.apiKey,
             onValueChange = {
                 onUpdateOptions(options.copy(apiKey = it))
@@ -597,7 +597,7 @@ internal fun BraveOptions(
             Text(stringResource(R.string.search_detail_api_key))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.apiKey,
             onValueChange = {
                 onUpdateOptions(options.copy(apiKey = it))
@@ -617,7 +617,7 @@ internal fun SerperOptions(
             Text(stringResource(R.string.search_detail_api_key))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.apiKey,
             onValueChange = {
                 onUpdateOptions(options.copy(apiKey = it))
@@ -637,7 +637,7 @@ internal fun DeepSeekOptions(
             Text(stringResource(R.string.search_detail_api_key))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.apiKey,
             onValueChange = {
                 onUpdateOptions(options.copy(apiKey = it))
@@ -657,7 +657,7 @@ internal fun MetasoOptions(
             Text(stringResource(R.string.search_detail_api_key))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.apiKey,
             onValueChange = {
                 onUpdateOptions(options.copy(apiKey = it))
@@ -677,7 +677,7 @@ internal fun OllamaOptions(
             Text(stringResource(R.string.search_detail_api_key))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.apiKey,
             onValueChange = {
                 onUpdateOptions(options.copy(apiKey = it))
@@ -697,7 +697,7 @@ internal fun PerplexityOptions(
             Text(stringResource(R.string.search_detail_api_key))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.apiKey,
             onValueChange = {
                 onUpdateOptions(options.copy(apiKey = it))
@@ -711,7 +711,7 @@ internal fun PerplexityOptions(
             Text(stringResource(R.string.search_detail_max_tokens))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.maxTokens?.takeIf { it > 0 }?.toString() ?: "",
             onValueChange = { value ->
                 onUpdateOptions(options.copy(maxTokens = value.toIntOrNull()))
@@ -726,7 +726,7 @@ internal fun PerplexityOptions(
             Text(stringResource(R.string.search_detail_max_tokens_per_page))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.maxTokensPerPage?.takeIf { it > 0 }?.toString() ?: "",
             onValueChange = { value ->
                 onUpdateOptions(options.copy(maxTokensPerPage = value.toIntOrNull()))
@@ -747,7 +747,7 @@ internal fun FirecrawlOptions(
             Text(stringResource(R.string.search_detail_api_key))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.apiKey,
             onValueChange = {
                 onUpdateOptions(options.copy(apiKey = it))
@@ -767,7 +767,7 @@ internal fun JinaOptions(
             Text(stringResource(R.string.search_detail_api_key))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.apiKey,
             onValueChange = {
                 onUpdateOptions(options.copy(apiKey = it))
@@ -781,7 +781,7 @@ internal fun JinaOptions(
             Text(stringResource(R.string.search_detail_search_url))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.searchUrl,
             onValueChange = {
                 onUpdateOptions(options.copy(searchUrl = it.trim()))
@@ -798,7 +798,7 @@ internal fun JinaOptions(
             Text(stringResource(R.string.search_detail_scrape_url))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.scrapeUrl,
             onValueChange = {
                 onUpdateOptions(options.copy(scrapeUrl = it.trim()))
@@ -821,7 +821,7 @@ internal fun BochaOptions(
             Text(stringResource(R.string.search_detail_api_key))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.apiKey,
             onValueChange = {
                 onUpdateOptions(options.copy(apiKey = it))
@@ -858,7 +858,7 @@ internal fun RikkaHubOptions(
             Text(stringResource(R.string.search_detail_api_key))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.apiKey,
             onValueChange = {
                 onUpdateOptions(options.copy(apiKey = it))
@@ -897,7 +897,7 @@ internal fun TinyfishOptions(
             Text(stringResource(R.string.search_detail_api_key))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.apiKey,
             onValueChange = {
                 onUpdateOptions(options.copy(apiKey = it))
@@ -917,7 +917,7 @@ internal fun GrokOptions(
             Text(stringResource(R.string.search_detail_api_key))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.apiKey,
             onValueChange = {
                 onUpdateOptions(options.copy(apiKey = it))
@@ -931,7 +931,7 @@ internal fun GrokOptions(
             Text(stringResource(R.string.search_detail_model))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.model,
             onValueChange = {
                 onUpdateOptions(options.copy(model = it))
@@ -945,7 +945,7 @@ internal fun GrokOptions(
             Text(stringResource(R.string.search_detail_custom_url))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.customUrl,
             onValueChange = {
                 onUpdateOptions(options.copy(customUrl = it))
@@ -959,7 +959,7 @@ internal fun GrokOptions(
             Text(stringResource(R.string.search_detail_system_prompt))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.systemPrompt,
             onValueChange = {
                 onUpdateOptions(options.copy(systemPrompt = it))
@@ -980,7 +980,7 @@ internal fun CustomJsOptions(
             Text(stringResource(R.string.search_detail_name))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.name,
             onValueChange = {
                 onUpdateOptions(options.copy(name = it))
@@ -998,7 +998,7 @@ internal fun CustomJsOptions(
             Text(stringResource(R.string.search_detail_search_script))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.searchScript,
             onValueChange = {
                 onUpdateOptions(options.copy(searchScript = it))
@@ -1023,7 +1023,7 @@ internal fun CustomJsOptions(
             Text(stringResource(R.string.search_detail_scrape_script_desc))
         }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = options.scrapeScript,
             onValueChange = {
                 onUpdateOptions(options.copy(scrapeScript = it))

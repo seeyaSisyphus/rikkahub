@@ -41,7 +41,7 @@ import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -378,7 +378,7 @@ private fun McpCommonOptionsConfigure(
             }
         ) {
             val nameInvalid = !isValidMcpName(config.commonOptions.name)
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = config.commonOptions.name,
                 onValueChange = { name ->
                     update(
@@ -475,7 +475,7 @@ private fun McpCommonOptionsConfigure(
                 )
             }
         ) {
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = when (config) {
                     is McpServerConfig.SseTransportServer -> config.url
                     is McpServerConfig.StreamableHTTPServer -> config.url
@@ -525,7 +525,7 @@ private fun McpCommonOptionsConfigure(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            OutlinedTextField(
+                            AppOutlinedTextField(
                                 value = headerName,
                                 onValueChange = {
                                     headerName = it
@@ -550,7 +550,7 @@ private fun McpCommonOptionsConfigure(
                                 placeholder = { Text(stringResource(R.string.setting_mcp_page_header_name_placeholder)) }
                             )
                             Spacer(Modifier.height(8.dp))
-                            OutlinedTextField(
+                            AppOutlinedTextField(
                                 value = headerValue,
                                 onValueChange = {
                                     headerValue = it

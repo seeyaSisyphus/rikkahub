@@ -16,7 +16,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -152,7 +152,7 @@ internal fun AssistantBasicContent(
             formItem(
                 headlineContent = { Text(stringResource(R.string.assistant_page_name)) },
             ) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = assistant.name,
                     onValueChange = {
                         onUpdate(
@@ -274,7 +274,7 @@ internal fun AssistantBasicContent(
                         mutableStateOf(assistant.temperature.toString())
                     }
                     val temperatureValue = temperatureInput.toFloatOrNull()
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = temperatureInput,
                         onValueChange = { value ->
                             temperatureInput = value
@@ -317,7 +317,7 @@ internal fun AssistantBasicContent(
                         mutableStateOf(assistant.topP.toString())
                     }
                     val topPValue = topPInput.toFloatOrNull()
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = topPInput,
                         onValueChange = { value ->
                             topPInput = value
@@ -368,7 +368,7 @@ internal fun AssistantBasicContent(
                     }
                 }
 
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = contextMessageLimitInput,
                     onValueChange = { input ->
                         if (input.all(Char::isDigit) &&
@@ -416,7 +416,7 @@ internal fun AssistantBasicContent(
                 headlineContent = { Text(stringResource(R.string.assistant_page_max_tokens)) },
                 supportingContent = { Text(stringResource(R.string.assistant_page_max_tokens_desc)) },
             ) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = assistant.maxTokens?.toString() ?: "",
                     onValueChange = { text ->
                         val tokens = if (text.isBlank()) {

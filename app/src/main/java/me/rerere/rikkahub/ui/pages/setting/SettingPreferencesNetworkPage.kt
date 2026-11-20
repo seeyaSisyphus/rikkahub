@@ -16,7 +16,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -28,6 +28,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -50,6 +51,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.remote.toProxyOrNull
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.rememberAutoFocusRequester
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -161,6 +163,7 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
     }
 
     if (proxyDialogVisible) {
+        val focusRequester = rememberAutoFocusRequester()
         AppAlertDialog(
             onDismissRequest = { proxyDialogVisible = false },
             modifier = Modifier.imePadding(),
@@ -172,10 +175,12 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                     modifier = Modifier.verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = proxyUrlDraft,
                         onValueChange = { proxyUrlDraft = it },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester),
                         label = {
                             Text(stringResource(R.string.setting_page_preferences_network_proxy))
                         },
@@ -195,14 +200,14 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                         singleLine = true,
                     )
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = proxyUsernameDraft,
                         onValueChange = { proxyUsernameDraft = it },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text(stringResource(R.string.backup_page_username)) },
                         singleLine = true,
                     )
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = proxyPasswordDraft,
                         onValueChange = { proxyPasswordDraft = it },
                         modifier = Modifier.fillMaxWidth(),
@@ -300,7 +305,7 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                     },
                 ) {
                     formItem {
-                        OutlinedTextField(
+                        AppOutlinedTextField(
                             value = userAgent,
                             onValueChange = ::updateUserAgent,
                             modifier = Modifier.fillMaxWidth(),

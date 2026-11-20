@@ -25,14 +25,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -41,7 +40,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
@@ -60,6 +58,7 @@ import me.rerere.hugeicons.stroke.Tag01
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.Tag
 import me.rerere.rikkahub.ui.components.ui.AppDropdownMenu
+import me.rerere.rikkahub.ui.components.ui.rememberAutoFocusRequester
 import me.rerere.rikkahub.ui.components.ui.AppDropdownMenuItem
 import me.rerere.rikkahub.ui.components.ui.AppMenuDivider
 import me.rerere.rikkahub.ui.components.ui.appMenuItemColors
@@ -485,10 +484,7 @@ fun ConversationTagSheet(
         HorizontalDivider()
 
         if (showAddField) {
-            val addFieldFocusRequester = remember { FocusRequester() }
-            LaunchedEffect(Unit) {
-                addFieldFocusRequester.requestFocus()
-            }
+            val addFieldFocusRequester = rememberAutoFocusRequester()
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -496,7 +492,7 @@ fun ConversationTagSheet(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = newTagName,
                     onValueChange = { newTagName = it },
                     placeholder = { Text("标签名称") },
@@ -597,15 +593,12 @@ fun TagManageSection(
 
     // 重命名对话框
     renamingTag?.let { tag ->
-        val renameFocusRequester = remember { FocusRequester() }
-        LaunchedEffect(Unit) {
-            renameFocusRequester.requestFocus()
-        }
+        val renameFocusRequester = rememberAutoFocusRequester()
         AppAlertDialog(
             onDismissRequest = { renamingTag = null },
             title = { Text("重命名标签") },
             text = {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = renameText,
                     onValueChange = { renameText = it },
                     singleLine = true,

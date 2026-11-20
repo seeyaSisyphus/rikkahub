@@ -46,6 +46,11 @@ class ForkUiStyleGuardTest {
                 replacement = "AppSlider / IntSlider",
             ),
             ImportRule(
+                prefix = "androidx.compose.material3.OutlinedTextField",
+                allowedRelativePaths = setOf("ui/components/ui/AppTextField.kt"),
+                replacement = "AppOutlinedTextField",
+            ),
+            ImportRule(
                 prefix = "androidx.compose.material3.LargeFlexibleTopAppBar",
                 allowedRelativePaths = emptySet(),
                 replacement = "TopAppBar",
@@ -149,6 +154,11 @@ class ForkUiStyleGuardTest {
                 replacement = "AppSlider",
             ),
             CallRule(
+                symbol = "OutlinedTextField",
+                allowedRelativePaths = setOf("ui/components/ui/AppTextField.kt"),
+                replacement = "AppOutlinedTextField",
+            ),
+            CallRule(
                 symbol = "LargeFlexibleTopAppBar",
                 allowedRelativePaths = emptySet(),
                 replacement = "TopAppBar",
@@ -233,6 +243,7 @@ class ForkUiStyleGuardTest {
             FqnRule("DropdownMenuGroup", emptySet(), "AppDropdownMenu"),
             FqnRule("Switch", emptySet(), "AppSwitch"),
             FqnRule("Slider", setOf("ui/components/ui/SliderItem.kt"), "AppSlider"),
+            FqnRule("OutlinedTextField", setOf("ui/components/ui/AppTextField.kt"), "AppOutlinedTextField"),
             FqnRule("LargeFlexibleTopAppBar", emptySet(), "TopAppBar"),
             FqnRule("MediumFlexibleTopAppBar", emptySet(), "TopAppBar"),
             FqnRule("LargeTopAppBar", emptySet(), "TopAppBar"),

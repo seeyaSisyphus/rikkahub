@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -69,7 +69,7 @@ fun ASRProviderConfigure(
                 headlineContent = { Text(stringResource(R.string.setting_asr_configure_name)) },
                 supportingContent = { Text(stringResource(R.string.setting_asr_configure_name_desc)) }
             ) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = setting.name,
                     onValueChange = { onValueChange(setting.copyProvider(name = it)) },
                     modifier = Modifier.fillMaxWidth(),
@@ -106,7 +106,7 @@ private fun CardGroupScope.openAIRealtimeASRItems(
         headlineContent = { Text(stringResource(R.string.setting_asr_configure_api_key)) },
         supportingContent = { Text(stringResource(R.string.setting_asr_configure_openai_api_key_desc)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.apiKey,
             onValueChange = { onValueChange(setting.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -118,7 +118,7 @@ private fun CardGroupScope.openAIRealtimeASRItems(
         headlineContent = { Text(stringResource(R.string.setting_asr_configure_websocket_url)) },
         supportingContent = { Text(stringResource(R.string.setting_asr_configure_openai_websocket_desc)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.websocketUrl,
             onValueChange = { onValueChange(setting.copy(websocketUrl = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -130,7 +130,7 @@ private fun CardGroupScope.openAIRealtimeASRItems(
         headlineContent = { Text(stringResource(R.string.setting_asr_configure_model)) },
         supportingContent = { Text(stringResource(R.string.setting_asr_configure_model_desc)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.model,
             onValueChange = { onValueChange(setting.copy(model = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -142,7 +142,7 @@ private fun CardGroupScope.openAIRealtimeASRItems(
         headlineContent = { Text(stringResource(R.string.setting_asr_configure_language)) },
         supportingContent = { Text(stringResource(R.string.setting_asr_configure_language_iso_desc)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.language,
             onValueChange = { onValueChange(setting.copy(language = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -154,7 +154,7 @@ private fun CardGroupScope.openAIRealtimeASRItems(
         headlineContent = { Text(stringResource(R.string.setting_asr_configure_prompt)) },
         supportingContent = { Text(stringResource(R.string.setting_asr_configure_prompt_desc)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.prompt,
             onValueChange = { onValueChange(setting.copy(prompt = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -220,7 +220,7 @@ private fun CardGroupScope.dashScopeASRItems(
         headlineContent = { Text(stringResource(R.string.setting_asr_configure_api_key)) },
         supportingContent = { Text(stringResource(R.string.setting_asr_configure_dashscope_api_key_desc)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.apiKey,
             onValueChange = { onValueChange(setting.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -232,7 +232,7 @@ private fun CardGroupScope.dashScopeASRItems(
         headlineContent = { Text(stringResource(R.string.setting_asr_configure_websocket_url)) },
         supportingContent = { Text(stringResource(R.string.setting_asr_configure_dashscope_websocket_desc)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.websocketUrl,
             onValueChange = { onValueChange(setting.copy(websocketUrl = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -244,7 +244,7 @@ private fun CardGroupScope.dashScopeASRItems(
         headlineContent = { Text(stringResource(R.string.setting_asr_configure_model)) },
         supportingContent = { Text(stringResource(R.string.setting_asr_configure_model_desc)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.model,
             onValueChange = { onValueChange(setting.copy(model = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -256,7 +256,7 @@ private fun CardGroupScope.dashScopeASRItems(
         headlineContent = { Text(stringResource(R.string.setting_asr_configure_language)) },
         supportingContent = { Text(stringResource(R.string.setting_asr_configure_language_iso_desc)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.language,
             onValueChange = { onValueChange(setting.copy(language = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -305,7 +305,7 @@ private fun CardGroupScope.volcengineASRItems(
         headlineContent = { Text(stringResource(R.string.setting_asr_configure_api_key)) },
         supportingContent = { Text(stringResource(R.string.setting_asr_configure_volcengine_api_key_desc)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.apiKey,
             onValueChange = { onValueChange(setting.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -317,7 +317,7 @@ private fun CardGroupScope.volcengineASRItems(
         headlineContent = { Text(stringResource(R.string.setting_asr_configure_websocket_url)) },
         supportingContent = { Text(stringResource(R.string.setting_asr_configure_volcengine_websocket_desc)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.websocketUrl,
             onValueChange = { onValueChange(setting.copy(websocketUrl = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -329,7 +329,7 @@ private fun CardGroupScope.volcengineASRItems(
         headlineContent = { Text(stringResource(R.string.setting_asr_configure_resource_id)) },
         supportingContent = { Text(stringResource(R.string.setting_asr_configure_resource_id_desc)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.resourceId,
             onValueChange = { onValueChange(setting.copy(resourceId = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -341,7 +341,7 @@ private fun CardGroupScope.volcengineASRItems(
         headlineContent = { Text(stringResource(R.string.setting_asr_configure_language)) },
         supportingContent = { Text(stringResource(R.string.setting_asr_configure_language_code_desc)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.language,
             onValueChange = { onValueChange(setting.copy(language = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -372,7 +372,7 @@ private fun CardGroupScope.miMoASRItems(
         headlineContent = { Text(stringResource(R.string.setting_asr_configure_api_key)) },
         supportingContent = { Text(stringResource(R.string.setting_asr_configure_mimo_api_key_desc)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.apiKey,
             onValueChange = { onValueChange(setting.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -384,7 +384,7 @@ private fun CardGroupScope.miMoASRItems(
         headlineContent = { Text(stringResource(R.string.setting_asr_configure_base_url)) },
         supportingContent = { Text(stringResource(R.string.setting_asr_configure_mimo_base_url_desc)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.baseUrl,
             onValueChange = { onValueChange(setting.copy(baseUrl = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -396,7 +396,7 @@ private fun CardGroupScope.miMoASRItems(
         headlineContent = { Text(stringResource(R.string.setting_asr_configure_model)) },
         supportingContent = { Text(stringResource(R.string.setting_asr_configure_mimo_model_desc)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.model,
             onValueChange = { onValueChange(setting.copy(model = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -408,7 +408,7 @@ private fun CardGroupScope.miMoASRItems(
         headlineContent = { Text(stringResource(R.string.setting_asr_configure_language)) },
         supportingContent = { Text(stringResource(R.string.setting_asr_configure_mimo_language_desc)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.language,
             onValueChange = { onValueChange(setting.copy(language = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -457,7 +457,7 @@ private fun CardGroupScope.stepASRItems(
         headlineContent = { Text(stringResource(R.string.setting_asr_configure_api_key)) },
         supportingContent = { Text(stringResource(R.string.setting_asr_configure_step_api_key_desc)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.apiKey,
             onValueChange = { onValueChange(setting.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -469,7 +469,7 @@ private fun CardGroupScope.stepASRItems(
         headlineContent = { Text(stringResource(R.string.setting_asr_configure_base_url)) },
         supportingContent = { Text(stringResource(R.string.setting_asr_configure_step_base_url_desc)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.baseUrl,
             onValueChange = { onValueChange(setting.copy(baseUrl = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -481,7 +481,7 @@ private fun CardGroupScope.stepASRItems(
         headlineContent = { Text(stringResource(R.string.setting_asr_configure_model)) },
         supportingContent = { Text(stringResource(R.string.setting_asr_configure_step_model_desc)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.model,
             onValueChange = { onValueChange(setting.copy(model = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -493,7 +493,7 @@ private fun CardGroupScope.stepASRItems(
         headlineContent = { Text(stringResource(R.string.setting_asr_configure_language)) },
         supportingContent = { Text(stringResource(R.string.setting_asr_configure_step_language_desc)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.language,
             onValueChange = { onValueChange(setting.copy(language = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -551,7 +551,7 @@ private fun CardGroupScope.stepASRItems(
         headlineContent = { Text(stringResource(R.string.setting_asr_configure_step_hotwords)) },
         supportingContent = { Text(stringResource(R.string.setting_asr_configure_step_hotwords_desc)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             // 用逗号分隔展示, 输入时按逗号 split 回 List
             value = setting.hotwords.joinToString(","),
             onValueChange = { text ->
@@ -585,7 +585,7 @@ private fun CardGroupScope.chirp3ASRItems(
         headlineContent = { Text("Service Account Email") },
         supportingContent = { Text("Google Cloud 服务账号邮筱地址") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.serviceAccountEmail,
             onValueChange = { onValueChange(setting.copy(serviceAccountEmail = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -597,7 +597,7 @@ private fun CardGroupScope.chirp3ASRItems(
         headlineContent = { Text("Private Key") },
         supportingContent = { Text("服务账号私钥（PEM 格式）") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.privateKey,
             onValueChange = { onValueChange(setting.copy(privateKey = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -610,7 +610,7 @@ private fun CardGroupScope.chirp3ASRItems(
         headlineContent = { Text("Project ID") },
         supportingContent = { Text("Google Cloud 项目 ID") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.projectId,
             onValueChange = { onValueChange(setting.copy(projectId = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -636,7 +636,7 @@ private fun CardGroupScope.chirp3ASRItems(
         headlineContent = { Text("Language") },
         supportingContent = { Text("识别语言代码（如 cmn-Hans-CN）") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.language,
             onValueChange = { onValueChange(setting.copy(language = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -653,7 +653,7 @@ private fun CardGroupScope.tencentASRItems(
         headlineContent = { Text("SecretId") },
         supportingContent = { Text("腾讯云 SecretId") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.secretId,
             onValueChange = { onValueChange(setting.copy(secretId = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -665,7 +665,7 @@ private fun CardGroupScope.tencentASRItems(
         headlineContent = { Text("SecretKey") },
         supportingContent = { Text("腾讯云 SecretKey，仅保存在本机，用于本地生成签名 URL") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.secretKey,
             onValueChange = { onValueChange(setting.copy(secretKey = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -677,7 +677,7 @@ private fun CardGroupScope.tencentASRItems(
         headlineContent = { Text("AppId") },
         supportingContent = { Text("腾讯云 APPID，实时语音识别必填") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.appId,
             onValueChange = { onValueChange(setting.copy(appId = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -689,7 +689,7 @@ private fun CardGroupScope.tencentASRItems(
         headlineContent = { Text("Engine Model Type") },
         supportingContent = { Text("腾讯云引擎模型，例如 16k_zh / 16k_en / 16k_zh_large") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.engineModelType,
             onValueChange = { onValueChange(setting.copy(engineModelType = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -761,7 +761,7 @@ private fun CardGroupScope.tencentASRItems(
         headlineContent = { Text("Hotword ID") },
         supportingContent = { Text("热词表 ID（可选）") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.hotwordId,
             onValueChange = { onValueChange(setting.copy(hotwordId = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -773,7 +773,7 @@ private fun CardGroupScope.tencentASRItems(
         headlineContent = { Text("Customization ID") },
         supportingContent = { Text("自定义模型 ID（可选）") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.customizationId,
             onValueChange = { onValueChange(setting.copy(customizationId = it)) },
             modifier = Modifier.fillMaxWidth(),

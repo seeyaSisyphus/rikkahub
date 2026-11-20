@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -86,7 +86,7 @@ fun SettingProviderQuotaQuery(
                     ) { method, selected ->
                         ConnectedChoiceLabel(text = method.name, selected = selected)
                     }
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = query.url,
                         onValueChange = { onEdit(query.copy(url = it)) },
                         label = { Text("URL") },
@@ -99,7 +99,7 @@ fun SettingProviderQuotaQuery(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
-                            OutlinedTextField(
+                            AppOutlinedTextField(
                                 value = header.name,
                                 onValueChange = { name ->
                                     onEdit(query.copy(headers = query.headers.replaced(index, header.copy(name = name))))
@@ -109,7 +109,7 @@ fun SettingProviderQuotaQuery(
                                 modifier = Modifier.weight(2f),
                                 textStyle = codeStyle,
                             )
-                            OutlinedTextField(
+                            AppOutlinedTextField(
                                 value = header.value,
                                 onValueChange = { value ->
                                     onEdit(query.copy(headers = query.headers.replaced(index, header.copy(value = value))))
@@ -132,7 +132,7 @@ fun SettingProviderQuotaQuery(
                         }
                     }
                     if (query.method == QuotaQueryMethod.POST) {
-                        OutlinedTextField(
+                        AppOutlinedTextField(
                             value = query.body,
                             onValueChange = { onEdit(query.copy(body = it)) },
                             label = { Text("Body (JSON)") },
@@ -141,7 +141,7 @@ fun SettingProviderQuotaQuery(
                             textStyle = codeStyle,
                         )
                     }
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = query.resultPath,
                         onValueChange = { onEdit(query.copy(resultPath = it)) },
                         label = { Text(stringResource(R.string.setting_provider_page_balance_json_key)) },

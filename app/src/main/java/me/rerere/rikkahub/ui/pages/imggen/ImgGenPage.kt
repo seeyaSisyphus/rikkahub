@@ -44,7 +44,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Surface
@@ -395,7 +395,7 @@ private fun InputBar(
             )
         }
 
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = prompt,
             onValueChange = vm::updatePrompt,
             placeholder = { Text(stringResource(R.string.imggen_page_prompt_placeholder)) },
@@ -868,7 +868,7 @@ private fun SettingsBottomSheet(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = size,
                     onValueChange = vm::updateSize,
                     label = { Text("Custom size") },

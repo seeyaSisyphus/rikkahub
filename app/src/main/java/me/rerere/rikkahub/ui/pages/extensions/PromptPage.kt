@@ -40,7 +40,7 @@ import androidx.compose.material3.InputChip
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
@@ -58,6 +58,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -98,6 +99,7 @@ import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
+import me.rerere.rikkahub.ui.components.ui.rememberAutoFocusRequester
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
@@ -401,6 +403,7 @@ private fun ModeInjectionEditSheet(
 ) {
     val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded))
     val scope = rememberCoroutineScope()
+    val focusRequester = rememberAutoFocusRequester()
 
     AppModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -436,11 +439,13 @@ private fun ModeInjectionEditSheet(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = injection.name,
                     onValueChange = { onEdit(injection.copy(name = it)) },
                     label = { Text(stringResource(R.string.prompt_page_name)) },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester)
                 )
 
                 FormItem(
@@ -453,7 +458,7 @@ private fun ModeInjectionEditSheet(
                     }
                 )
 
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = injection.priority.toString(),
                     onValueChange = {
                         it.toIntOrNull()?.let { p -> onEdit(injection.copy(priority = p)) }
@@ -473,7 +478,7 @@ private fun ModeInjectionEditSheet(
                 )
 
                 AnimatedVisibility(visible = injection.position == InjectionPosition.AT_DEPTH) {
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = injection.injectDepth.toString(),
                         onValueChange = {
                             it.toIntOrNull()?.let { d -> onEdit(injection.copy(injectDepth = d)) }
@@ -497,7 +502,7 @@ private fun ModeInjectionEditSheet(
                     }
                 }
 
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = injection.content,
                     onValueChange = { onEdit(injection.copy(content = it)) },
                     label = { Text(stringResource(R.string.prompt_page_injection_content)) },
@@ -825,6 +830,7 @@ private fun LorebookEditSheet(
             onEdit(book.copy(entries = book.entries + edited))
         }
     }
+    val focusRequester = rememberAutoFocusRequester()
 
     AppModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -860,14 +866,16 @@ private fun LorebookEditSheet(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = book.name,
                     onValueChange = { onEdit(book.copy(name = it)) },
                     label = { Text(stringResource(R.string.prompt_page_name)) },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester)
                 )
 
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = book.description,
                     onValueChange = { onEdit(book.copy(description = it)) },
                     label = { Text(stringResource(R.string.prompt_page_description)) },
@@ -1025,6 +1033,7 @@ private fun RegexInjectionEditDialog(
     onEdit: (PromptInjection.RegexInjection) -> Unit
 ) {
     var newKeyword by remember { mutableStateOf("") }
+    val focusRequester = rememberAutoFocusRequester()
 
     AppAlertDialog(
         onDismissRequest = onDismiss,
@@ -1037,11 +1046,13 @@ private fun RegexInjectionEditDialog(
                     .imePadding(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = entry.name,
                     onValueChange = { onEdit(entry.copy(name = it)) },
                     label = { Text(stringResource(R.string.prompt_page_name)) },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester)
                 )
 
                 FormItem(
@@ -1054,7 +1065,7 @@ private fun RegexInjectionEditDialog(
                     }
                 )
 
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = entry.priority.toString(),
                     onValueChange = {
                         it.toIntOrNull()?.let { p -> onEdit(entry.copy(priority = p)) }
@@ -1074,7 +1085,7 @@ private fun RegexInjectionEditDialog(
                 )
 
                 AnimatedVisibility(visible = entry.position == InjectionPosition.AT_DEPTH) {
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = entry.injectDepth.toString(),
                         onValueChange = {
                             it.toIntOrNull()?.let { d -> onEdit(entry.copy(injectDepth = d)) }
@@ -1114,7 +1125,7 @@ private fun RegexInjectionEditDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = newKeyword,
                         onValueChange = { newKeyword = it },
                         label = { Text(stringResource(R.string.prompt_page_new_keyword)) },
@@ -1164,7 +1175,7 @@ private fun RegexInjectionEditDialog(
                     }
                 )
 
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = entry.scanDepth.toString(),
                     onValueChange = {
                         it.toIntOrNull()?.let { d -> onEdit(entry.copy(scanDepth = d)) }
@@ -1189,7 +1200,7 @@ private fun RegexInjectionEditDialog(
                     }
                 }
 
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = entry.content,
                     onValueChange = { onEdit(entry.copy(content = it)) },
                     label = { Text(stringResource(R.string.prompt_page_injection_content)) },

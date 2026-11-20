@@ -13,7 +13,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -25,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -99,6 +100,7 @@ fun TagsInput(
 
         // 获取未选择的标签
         val unselectedTags = tags.filter { tag -> !value.contains(tag.id) }
+        val focusRequester = rememberAutoFocusRequester()
 
         AppAlertDialog(onDismissRequest = {
             showAddDialog = false
@@ -147,7 +149,7 @@ fun TagsInput(
                 }
 
                 // 输入新标签名称
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = tagName,
                     onValueChange = {
                         tagName = it
@@ -155,7 +157,9 @@ fun TagsInput(
                     },
                     label = { Text(stringResource(R.string.tag_input_dialog_label)) },
                     placeholder = { Text(stringResource(R.string.tag_input_dialog_placeholder)) },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
                     singleLine = true,
                     isError = showError
                 )

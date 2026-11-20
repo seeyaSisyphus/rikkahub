@@ -73,7 +73,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
@@ -133,6 +132,7 @@ import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionList
 import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionProvider
 import me.rerere.rikkahub.ui.components.ui.AppDropdownMenu
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
+import me.rerere.rikkahub.ui.components.ui.rememberAutoFocusRequester
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionRecordAudio
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
@@ -155,6 +155,12 @@ private val ComposerExpandEasing = CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
 @Composable
 fun ChatInput(
     state: ChatInputState,
+    // 每次自增都会让输入框重新聚焦并弹出键盘（编辑消息 / 点建议 / 接收分享文本）
+    autoFocusRequest: Int = 0,
+    // 聚焦完成后由调用方把 autoFocusRequest 复位，避免重建组合时重放旧请求
+    onAutoFocusHandled: () -> Unit = {},
+    // 快捷消息等组件插入文本后，请求一次输入框聚焦
+    onRequestComposerFocus: () -> Unit = {},
     loading: Boolean,
     settings: Settings,
     // 会话视角下的助手和模型：会话开始后以会话上固定的配置为准
@@ -419,6 +425,9 @@ fun ChatInput(
 
                     TextInputRow(
                         state = state,
+                        autoFocusRequest = autoFocusRequest,
+                        onAutoFocusHandled = onAutoFocusHandled,
+                        onRequestComposerFocus = onRequestComposerFocus,
                         assistant = assistant,
                         completionProviders = completionProviders,
                         isExpanded = isExpanded,
@@ -677,6 +686,9 @@ private fun ActionIconButton(
 @Composable
 private fun TextInputRow(
     state: ChatInputState,
+    autoFocusRequest: Int = 0,
+    onAutoFocusHandled: () -> Unit = {},
+    onRequestComposerFocus: () -> Unit = {},
     assistant: Assistant,
     completionProviders: List<ChatCompletionProvider>,
     isExpanded: Boolean,
@@ -726,7 +738,11 @@ private fun TextInputRow(
         }
 
         var isFocused by remember { mutableStateOf(false) }
-        val focusRequester = remember { FocusRequester() }
+        // 外部（编辑消息 / 建议 / 分享）要求聚焦时，主动拉起输入法
+        val focusRequester = rememberAutoFocusRequester(
+            requestKey = autoFocusRequest.takeIf { it > 0 },
+            onRequestHandled = onAutoFocusHandled,
+        )
         var completionList by remember { mutableStateOf<ChatCompletionList?>(null) }
         val receiveContentListener = remember(
             settings.displaySetting.pasteLongTextAsFile, settings.displaySetting.pasteLongTextThreshold
@@ -828,7 +844,11 @@ private fun TextInputRow(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             if (quickMessages.isNotEmpty()) {
-                QuickMessageButton(quickMessages = quickMessages, state = state)
+                QuickMessageButton(
+                    quickMessages = quickMessages,
+                    state = state,
+                    onInsertText = onRequestComposerFocus,
+                )
             }
             val colors = MaterialTheme.colorScheme
             BasicTextField(
@@ -994,6 +1014,7 @@ private fun ChatInputState.applyCompletion(
 private fun QuickMessageButton(
     quickMessages: List<QuickMessage>,
     state: ChatInputState,
+    onInsertText: () -> Unit = {},
 ) {
     var expanded by remember { mutableStateOf(false) }
     val hapticFeedback = LocalHapticFeedback.current
@@ -1021,11 +1042,13 @@ private fun QuickMessageButton(
                             onClick = {
                                 state.appendText(quickMessage.content)
                                 expanded = false
+                                onInsertText()
                             },
                             onLongClick = {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                 state.setMessageText(quickMessage.content)
                                 expanded = false
+                                onInsertText()
                             },
                         ),
                 ) {
@@ -1059,6 +1082,7 @@ private fun FullScreenEditor(
     placeholder: String,
     onDone: () -> Unit
 ) {
+    val focusRequester = rememberAutoFocusRequester()
     BasicAlertDialog(
         onDismissRequest = {
             onDone()
@@ -1099,7 +1123,8 @@ private fun FullScreenEditor(
                         state = textState,
                         modifier = Modifier
                             .padding(bottom = 2.dp)
-                            .fillMaxSize(),
+                            .fillMaxSize()
+                            .focusRequester(focusRequester),
                         shape = RoundedCornerShape(32.dp),
                         placeholder = {
                             Text(placeholder)

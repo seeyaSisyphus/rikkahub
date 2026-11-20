@@ -25,7 +25,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -123,7 +123,7 @@ fun WorkspaceSshEditorPage(id: String?) {
             item {
                 CardGroup(title = { Text(stringResource(R.string.workspace_ssh_editor_basic)) }) {
                     formItem(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_name)) }) {
-                        OutlinedTextField(
+                        AppOutlinedTextField(
                             enabled = editable,
                             value = state.name,
                             onValueChange = { value -> vm.update { it.copy(name = value) } },
@@ -138,7 +138,7 @@ fun WorkspaceSshEditorPage(id: String?) {
             item {
                 CardGroup(title = { Text(stringResource(R.string.workspace_ssh_editor_connection)) }) {
                     formItem(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_host)) }) {
-                        OutlinedTextField(
+                        AppOutlinedTextField(
                             enabled = editable,
                             value = state.host,
                             onValueChange = { value -> vm.update { it.copy(host = value.trim()) } },
@@ -149,7 +149,7 @@ fun WorkspaceSshEditorPage(id: String?) {
                         )
                     }
                     formItem(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_port)) }) {
-                        OutlinedTextField(
+                        AppOutlinedTextField(
                             enabled = editable,
                             value = state.port,
                             onValueChange = { value ->
@@ -161,7 +161,7 @@ fun WorkspaceSshEditorPage(id: String?) {
                         )
                     }
                     formItem(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_username)) }) {
-                        OutlinedTextField(
+                        AppOutlinedTextField(
                             enabled = editable,
                             value = state.username,
                             onValueChange = { value -> vm.update { it.copy(username = value.trim()) } },
@@ -207,7 +207,7 @@ fun WorkspaceSshEditorPage(id: String?) {
                         headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_remote_dir)) },
                         supportingContent = { Text(stringResource(R.string.workspace_ssh_editor_remote_dir_desc)) },
                     ) {
-                        OutlinedTextField(
+                        AppOutlinedTextField(
                             enabled = editable,
                             value = state.remoteDir,
                             onValueChange = { value -> vm.update { it.copy(remoteDir = value.trim()) } },
@@ -317,7 +317,7 @@ private fun JumpHostSection(
         )
         if (!jump.enabled) return@CardGroup
         formItem(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_host)) }) {
-            OutlinedTextField(
+            AppOutlinedTextField(
                 enabled = enabled,
                 value = jump.host,
                 onValueChange = { value -> onUpdate { it.copy(host = value.trim()) } },
@@ -328,7 +328,7 @@ private fun JumpHostSection(
             )
         }
         formItem(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_port)) }) {
-            OutlinedTextField(
+            AppOutlinedTextField(
                 enabled = enabled,
                 value = jump.port,
                 onValueChange = { value -> onUpdate { it.copy(port = value.filter(Char::isDigit).take(5)) } },
@@ -338,7 +338,7 @@ private fun JumpHostSection(
             )
         }
         formItem(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_username)) }) {
-            OutlinedTextField(
+            AppOutlinedTextField(
                 enabled = enabled,
                 value = jump.username,
                 onValueChange = { value -> onUpdate { it.copy(username = value.trim()) } },
@@ -408,7 +408,7 @@ private fun CardGroupScope.authItems(
                 headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_private_key)) },
                 supportingContent = { Text(stringResource(R.string.workspace_ssh_editor_private_key_desc)) },
             ) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     enabled = enabled,
                     value = privateKey,
                     onValueChange = onPrivateKeyChange,
@@ -467,7 +467,7 @@ private fun SecretTextField(
     enabled: Boolean,
 ) {
     var visible by remember { mutableStateOf(false) }
-    OutlinedTextField(
+    AppOutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = Modifier.fillMaxWidth(),

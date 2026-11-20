@@ -15,7 +15,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -36,6 +37,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.files.FilesManager
 import org.koin.compose.koinInject
 import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
+import me.rerere.rikkahub.ui.components.ui.rememberAutoFocusRequester
 
 @Composable
 fun BackgroundPicker(
@@ -169,6 +171,7 @@ fun BackgroundPicker(
     }
 
     if (showUrlInput) {
+        val focusRequester = rememberAutoFocusRequester()
         AppAlertDialog(
             onDismissRequest = {
                 showUrlInput = false
@@ -177,11 +180,13 @@ fun BackgroundPicker(
                 Text(stringResource(R.string.assistant_page_enter_image_url))
             },
             text = {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = urlInput,
                     onValueChange = { urlInput = it },
                     label = { Text(stringResource(R.string.assistant_page_image_url)) },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
                     placeholder = { Text("https://example.com/image.jpg") },
                     singleLine = true
                 )

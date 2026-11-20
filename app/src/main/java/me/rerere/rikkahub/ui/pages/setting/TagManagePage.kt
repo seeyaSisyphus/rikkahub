@@ -21,13 +21,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -35,7 +34,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
@@ -56,6 +54,7 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlin.uuid.Uuid
 import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
+import me.rerere.rikkahub.ui.components.ui.rememberAutoFocusRequester
 
 @Composable
 fun TagManagePage(vm: SettingVM = koinViewModel()) {
@@ -183,15 +182,12 @@ fun TagManagePage(vm: SettingVM = koinViewModel()) {
     // 新建标签弹窗
     if (showAddDialog) {
         var newName by remember { mutableStateOf("") }
-        val focusRequester = remember { FocusRequester() }
-        LaunchedEffect(Unit) {
-            focusRequester.requestFocus()
-        }
+        val focusRequester = rememberAutoFocusRequester()
         AppAlertDialog(
             onDismissRequest = { showAddDialog = false },
             title = { Text("新建标签") },
             text = {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = newName,
                     onValueChange = { newName = it },
                     label = { Text("标签名称") },
@@ -230,15 +226,12 @@ fun TagManagePage(vm: SettingVM = koinViewModel()) {
         var renameText by remember(tag.id) {
             mutableStateOf(TextFieldValue(tag.name, selection = TextRange(tag.name.length)))
         }
-        val renameFocusRequester = remember(tag.id) { FocusRequester() }
-        LaunchedEffect(tag.id) {
-            renameFocusRequester.requestFocus()
-        }
+        val renameFocusRequester = rememberAutoFocusRequester()
         AppAlertDialog(
             onDismissRequest = { renamingTag = null },
             title = { Text("重命名标签") },
             text = {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = renameText,
                     onValueChange = { renameText = it },
                     label = { Text("标签名称") },

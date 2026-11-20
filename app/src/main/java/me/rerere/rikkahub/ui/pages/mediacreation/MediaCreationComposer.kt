@@ -53,7 +53,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -1104,7 +1104,7 @@ private fun TextParam(
             onValueChange = onValueChange,
             icon = presetIcon,
         )
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = value.orEmpty(),
             onValueChange = { text -> onValueChange(text.trim().ifEmpty { null }) },
             modifier = Modifier.fillMaxWidth(),
@@ -1139,7 +1139,7 @@ private fun NumberParam(
                 label = { preset -> special?.takeIf { it.first == preset }?.second ?: preset.toString() },
             )
         }
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = value?.toString().orEmpty(),
             onValueChange = { text ->
                 val input = text.trim()

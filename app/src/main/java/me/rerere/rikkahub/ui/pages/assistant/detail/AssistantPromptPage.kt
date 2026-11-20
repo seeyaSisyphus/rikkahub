@@ -33,7 +33,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -267,7 +267,7 @@ private fun AssistantPromptContent(
                 },
             ) {
                 val missingMessage = "{{ message }}" !in assistant.messageTemplate
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = assistant.messageTemplate,
                     onValueChange = {
                         onUpdate(
@@ -419,7 +419,7 @@ private fun AssistantPromptContent(
                             Icon(HugeIcons.Cancel01, stringResource(R.string.delete))
                         }
                     }
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = presetMessage.toText(),
                         onValueChange = { text ->
                             onUpdate(
@@ -577,7 +577,7 @@ private fun AssistantRegexCard(
                     modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = regex.name,
                         onValueChange = { name ->
                             onUpdate(
@@ -596,7 +596,7 @@ private fun AssistantRegexCard(
                         label = { Text(stringResource(R.string.assistant_page_regex_name)) }
                     )
 
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = regex.findRegex,
                         onValueChange = { findRegex ->
                             onUpdate(
@@ -616,7 +616,7 @@ private fun AssistantRegexCard(
                         placeholder = { Text("e.g., \\b\\w+@\\w+\\.\\w+\\b") },
                     )
 
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = regex.replaceString,
                         onValueChange = { replaceString ->
                             onUpdate(

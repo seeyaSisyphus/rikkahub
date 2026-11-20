@@ -39,7 +39,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -57,6 +57,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -131,6 +132,7 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlin.uuid.Uuid
 import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
 import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
+import me.rerere.rikkahub.ui.components.ui.rememberAutoFocusRequester
 
 @Composable
 fun ChatDrawerContent(
@@ -653,6 +655,7 @@ fun ChatDrawerContent(
 
     // 昵称编辑对话框
     nicknameEditState.EditStateContent { nickname, onUpdate ->
+        val focusRequester = rememberAutoFocusRequester()
         AppAlertDialog(
             onDismissRequest = {
                 nicknameEditState.dismiss()
@@ -661,10 +664,12 @@ fun ChatDrawerContent(
                 Text(stringResource(R.string.chat_page_edit_nickname))
             },
             text = {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = nickname,
                     onValueChange = onUpdate,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
                     singleLine = true,
                     placeholder = { Text(stringResource(R.string.chat_page_nickname_placeholder)) }
                 )
@@ -790,14 +795,17 @@ fun ChatDrawerContent(
     // 新建文件夹对话框
     if (showCreateFolderDialog) {
         var name by remember { mutableStateOf("") }
+        val focusRequester = rememberAutoFocusRequester()
         AppAlertDialog(
             onDismissRequest = { showCreateFolderDialog = false },
             title = { Text(stringResource(R.string.chat_page_create_folder)) },
             text = {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
                     singleLine = true,
                     placeholder = { Text(stringResource(R.string.chat_page_folder_name)) }
                 )
@@ -822,14 +830,17 @@ fun ChatDrawerContent(
     // 重命名文件夹对话框
     folderToRename?.let { folder ->
         var name by remember(folder.id) { mutableStateOf(folder.name) }
+        val focusRequester = rememberAutoFocusRequester()
         AppAlertDialog(
             onDismissRequest = { folderToRename = null },
             title = { Text(stringResource(R.string.chat_page_rename_folder)) },
             text = {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
                     singleLine = true,
                 )
             },

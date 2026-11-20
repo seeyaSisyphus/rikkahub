@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -109,7 +109,7 @@ fun CustomHeaders(headers: List<CustomHeader>, onUpdate: (List<CustomHeader>) ->
                                 label = { Text(stringResource(R.string.assistant_page_header_name)) },
                                 modifier = Modifier.fillMaxWidth()
                             )
-                            OutlinedTextField(
+                            AppOutlinedTextField(
                                 value = headerValue,
                                 onValueChange = {
                                     headerValue = it
@@ -176,7 +176,7 @@ fun CustomBodies(customBodies: List<CustomBody>, onUpdate: (List<CustomBody>) ->
                             modifier = Modifier.weight(1f),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            OutlinedTextField(
+                            AppOutlinedTextField(
                                 value = bodyKey,
                                 onValueChange = {
                                     bodyKey = it
@@ -187,7 +187,7 @@ fun CustomBodies(customBodies: List<CustomBody>, onUpdate: (List<CustomBody>) ->
                                 label = { Text(stringResource(R.string.assistant_page_body_key)) },
                                 modifier = Modifier.fillMaxWidth()
                             )
-                            OutlinedTextField(
+                            AppOutlinedTextField(
                                 value = bodyValueString,
                                 onValueChange = { newString ->
                                     bodyValueString = newString

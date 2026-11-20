@@ -21,7 +21,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -260,6 +261,7 @@ fun UIAvatar(
     }
 
     if (showUrlInput) {
+        val focusRequester = rememberAutoFocusRequester()
         AppAlertDialog(
             onDismissRequest = {
                 showUrlInput = false
@@ -268,11 +270,13 @@ fun UIAvatar(
                 Text(text = stringResource(id = R.string.avatar_url_dialog_title))
             },
             text = {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = urlInput,
                     onValueChange = { urlInput = it },
                     label = { Text(stringResource(id = R.string.avatar_url_hint)) },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
                     singleLine = true
                 )
             },

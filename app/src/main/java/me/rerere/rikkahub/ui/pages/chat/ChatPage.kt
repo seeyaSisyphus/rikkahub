@@ -58,7 +58,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.PermanentNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
@@ -86,6 +86,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -192,6 +193,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.uuid.Uuid
 import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
 import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
+import me.rerere.rikkahub.ui.components.ui.rememberAutoFocusRequester
 
 private const val TAG = "ChatPage"
 private const val CHAT_LOADING_TIMEOUT_MS = 3000L
@@ -266,6 +268,8 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null, sh
     val startVoiceMode = rememberVoiceModeStarter(vm, setting)
 
     val inputState = vm.inputState
+    // 编辑消息 / 点建议问题 / 接收分享文本后，主动聚焦输入框并弹出键盘
+    var composerFocusRequest by remember { mutableStateOf(0) }
 
     // 初始化输入状态（处理传入的 files 和 text 参数）
     LaunchedEffect(files, text) {
@@ -291,6 +295,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null, sh
         text?.base64Decode()?.let { decodedText ->
             if (decodedText.isNotEmpty()) {
                 inputState.setMessageText(decodedText)
+                composerFocusRequest++
             }
         }
     }
@@ -348,6 +353,9 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null, sh
             ) {
                 ChatPageContent(
                     inputState = inputState,
+                    composerFocusRequest = composerFocusRequest,
+                    onRequestComposerFocus = { composerFocusRequest++ },
+                    onComposerFocusHandled = { composerFocusRequest = 0 },
                     conversationLoaded = conversationLoaded,
                     showLoading = showLoading,
                     loadingJob = loadingJob,
@@ -385,6 +393,9 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null, sh
             ) {
                 ChatPageContent(
                     inputState = inputState,
+                    composerFocusRequest = composerFocusRequest,
+                    onRequestComposerFocus = { composerFocusRequest++ },
+                    onComposerFocusHandled = { composerFocusRequest = 0 },
                     conversationLoaded = conversationLoaded,
                     showLoading = showLoading,
                     loadingJob = loadingJob,
@@ -415,6 +426,9 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null, sh
 @Composable
 private fun ChatPageContent(
     inputState: ChatInputState,
+    composerFocusRequest: Int = 0,
+    onRequestComposerFocus: () -> Unit = {},
+    onComposerFocusHandled: () -> Unit = {},
     conversationLoaded: Boolean,
     showLoading: Boolean,
     loadingJob: Job?,
@@ -551,6 +565,9 @@ private fun ChatPageContent(
                     }
                     ChatInput(
                         state = inputState,
+                        autoFocusRequest = composerFocusRequest,
+                        onAutoFocusHandled = onComposerFocusHandled,
+                        onRequestComposerFocus = onRequestComposerFocus,
                         editWillRegenerate = editWillRegenerate,
                         messageQueue = messageQueue,
                         onRemoveQueuedMessage = vm::removeQueuedMessage,
@@ -662,6 +679,7 @@ private fun ChatPageContent(
                         inputState.editingMessage = it.id
                         inputState.editingMessageRole = it.role
                         inputState.setContents(it.parts)
+                        onRequestComposerFocus()
                     },
                     onForkMessage = {
                         scope.launch {
@@ -707,6 +725,7 @@ private fun ChatPageContent(
                         inputState.editingMessage = null
                         inputState.editingMessageRole = null
                         inputState.setMessageText(suggestion)
+                        onRequestComposerFocus()
                     },
                     onTranslate = { message, locale ->
                         vm.translateMessage(message, locale)
@@ -1175,6 +1194,7 @@ private fun TopBar(
         },
     )
     titleState.EditStateContent { title, onUpdate ->
+        val focusRequester = rememberAutoFocusRequester()
         AppAlertDialog(
             onDismissRequest = {
                 titleState.dismiss()
@@ -1183,10 +1203,12 @@ private fun TopBar(
                 Text(stringResource(R.string.chat_page_edit_title))
             },
             text = {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = title,
                     onValueChange = onUpdate,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
                     singleLine = true,
                 )
             },

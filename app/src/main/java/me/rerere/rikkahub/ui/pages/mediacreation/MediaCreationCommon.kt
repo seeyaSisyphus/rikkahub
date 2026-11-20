@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -30,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -55,6 +56,7 @@ import me.rerere.rikkahub.data.model.MediaCreationStatus
 import me.rerere.rikkahub.utils.getActivity
 import java.io.File
 import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
+import me.rerere.rikkahub.ui.components.ui.rememberAutoFocusRequester
 
 internal val ImageRole.label: String
     @Composable get() = when (this) {
@@ -312,15 +314,18 @@ internal fun RenameSessionDialog(
     onDismiss: () -> Unit,
 ) {
     var title by remember { mutableStateOf(initialTitle) }
+    val focusRequester = rememberAutoFocusRequester()
     AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.media_creation_page_rename_session)) },
         text = {
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester),
             )
         },
         confirmButton = {

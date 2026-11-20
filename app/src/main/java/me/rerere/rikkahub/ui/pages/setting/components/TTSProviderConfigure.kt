@@ -7,7 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
+import me.rerere.rikkahub.ui.components.ui.AppOutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -189,7 +189,7 @@ fun TTSProviderConfigure(
                 headlineContent = { Text(stringResource(R.string.setting_tts_page_name)) },
                 supportingContent = { Text(stringResource(R.string.setting_tts_page_name_description)) }
             ) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = setting.name,
                     onValueChange = { newName ->
                         onValueChange(setting.copyProvider(name = newName))
@@ -243,7 +243,7 @@ private fun CardGroupScope.openAITTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.apiKey,
             onValueChange = { newApiKey ->
                 onValueChange(setting.copy(apiKey = newApiKey))
@@ -258,7 +258,7 @@ private fun CardGroupScope.openAITTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_base_url)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.baseUrl,
             onValueChange = { newBaseUrl ->
                 onValueChange(setting.copy(baseUrl = newBaseUrl))
@@ -273,7 +273,7 @@ private fun CardGroupScope.openAITTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_model)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_model_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.model,
             onValueChange = { newModel ->
                 onValueChange(setting.copy(model = newModel))
@@ -314,7 +314,7 @@ private fun CardGroupScope.miMoTTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.apiKey,
             onValueChange = { newApiKey ->
                 onValueChange(setting.copy(apiKey = newApiKey))
@@ -329,7 +329,7 @@ private fun CardGroupScope.miMoTTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_base_url)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.baseUrl,
             onValueChange = { newBaseUrl ->
                 onValueChange(setting.copy(baseUrl = newBaseUrl))
@@ -406,7 +406,7 @@ private fun CardGroupScope.miniMaxTTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.apiKey,
             onValueChange = { newApiKey ->
                 onValueChange(setting.copy(apiKey = newApiKey))
@@ -420,7 +420,7 @@ private fun CardGroupScope.miniMaxTTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_base_url)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.baseUrl,
             onValueChange = { newBaseUrl ->
                 onValueChange(setting.copy(baseUrl = newBaseUrl))
@@ -591,7 +591,7 @@ private fun CardGroupScope.geminiTTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.apiKey,
             onValueChange = { newApiKey ->
                 onValueChange(setting.copy(apiKey = newApiKey))
@@ -606,7 +606,7 @@ private fun CardGroupScope.geminiTTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_base_url)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.baseUrl,
             onValueChange = { newBaseUrl ->
                 onValueChange(setting.copy(baseUrl = newBaseUrl))
@@ -621,7 +621,7 @@ private fun CardGroupScope.geminiTTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_model)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_model_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.model,
             onValueChange = { newModel ->
                 onValueChange(setting.copy(model = newModel))
@@ -636,7 +636,7 @@ private fun CardGroupScope.geminiTTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_voice_name)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_voice_name_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.voiceName,
             onValueChange = { newVoiceName ->
                 onValueChange(setting.copy(voiceName = newVoiceName))
@@ -695,7 +695,7 @@ private fun CardGroupScope.qwenTTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.apiKey,
             onValueChange = { newApiKey ->
                 onValueChange(setting.copy(apiKey = newApiKey))
@@ -710,7 +710,7 @@ private fun CardGroupScope.qwenTTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_base_url)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.baseUrl,
             onValueChange = { newBaseUrl ->
                 onValueChange(setting.copy(baseUrl = newBaseUrl))
@@ -825,7 +825,7 @@ private fun CardGroupScope.groqTTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.apiKey,
             onValueChange = { newApiKey ->
                 onValueChange(setting.copy(apiKey = newApiKey))
@@ -840,7 +840,7 @@ private fun CardGroupScope.groqTTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_base_url)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.baseUrl,
             onValueChange = { newBaseUrl ->
                 onValueChange(setting.copy(baseUrl = newBaseUrl))
@@ -855,7 +855,7 @@ private fun CardGroupScope.groqTTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_model)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_model_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.model,
             onValueChange = { newModel ->
                 onValueChange(setting.copy(model = newModel))
@@ -895,7 +895,7 @@ private fun CardGroupScope.xAITTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.apiKey,
             onValueChange = { newApiKey ->
                 onValueChange(setting.copy(apiKey = newApiKey))
@@ -910,7 +910,7 @@ private fun CardGroupScope.xAITTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_base_url)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.baseUrl,
             onValueChange = { newBaseUrl ->
                 onValueChange(setting.copy(baseUrl = newBaseUrl))
@@ -997,7 +997,7 @@ private fun CardGroupScope.elevenLabsTTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.apiKey,
             onValueChange = { newApiKey ->
                 onValueChange(setting.copy(apiKey = newApiKey))
@@ -1012,7 +1012,7 @@ private fun CardGroupScope.elevenLabsTTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_base_url)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.baseUrl,
             onValueChange = { newBaseUrl ->
                 onValueChange(setting.copy(baseUrl = newBaseUrl))
@@ -1052,7 +1052,7 @@ private fun CardGroupScope.elevenLabsTTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_voice)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_voice_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.voiceId,
             onValueChange = { newVoiceId ->
                 onValueChange(setting.copy(voiceId = newVoiceId))
@@ -1102,7 +1102,7 @@ private fun CardGroupScope.fishAudioTTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.apiKey,
             onValueChange = { newApiKey ->
                 onValueChange(setting.copy(apiKey = newApiKey))
@@ -1117,7 +1117,7 @@ private fun CardGroupScope.fishAudioTTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_base_url)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.baseUrl,
             onValueChange = { newBaseUrl ->
                 onValueChange(setting.copy(baseUrl = newBaseUrl))
@@ -1158,7 +1158,7 @@ private fun CardGroupScope.fishAudioTTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_voice_id)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_voice_id_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.referenceId,
             onValueChange = { newReferenceId ->
                 onValueChange(setting.copy(referenceId = newReferenceId))
@@ -1208,7 +1208,7 @@ private fun CardGroupScope.stepTTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         supportingContent = { Text("从阶跃星辰官网获取密钥: platform.stepfun.com/interface-key") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.apiKey,
             onValueChange = { newApiKey ->
                 onValueChange(setting.copy(apiKey = newApiKey))
@@ -1223,7 +1223,7 @@ private fun CardGroupScope.stepTTSItems(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_base_url)) },
         supportingContent = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.baseUrl,
             onValueChange = { newBaseUrl ->
                 onValueChange(setting.copy(baseUrl = newBaseUrl))
@@ -1392,7 +1392,7 @@ private fun CardGroupScope.stepTTSItems(
         headlineContent = { Text("Instruction") },
         supportingContent = { Text("全局语境指令, 仅 stepaudio-2.5-tts 生效 (≤200 字符, 留空不下发)") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.instruction,
             onValueChange = { newInstruction ->
                 // 服务端上限 200 字符, 客户端做一层保护
@@ -1417,7 +1417,7 @@ private fun CardGroupScope.volcengineTTSItems(
         supportingContent = { Text("请填写豆包语音控制台的 API Key，不是火山方舟控制台的 API Key。") }
     ) {
         var keyVisible by remember(setting.id) { mutableStateOf(false) }
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.apiKey,
             onValueChange = { onValueChange(setting.copy(apiKey = it)) },
             visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -1434,7 +1434,7 @@ private fun CardGroupScope.volcengineTTSItems(
         )
     }
     formItem(headlineContent = { Text(stringResource(R.string.setting_tts_page_base_url)) }) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.baseUrl,
             onValueChange = { onValueChange(setting.copy(baseUrl = it)) },
             placeholder = { Text("https://openspeech.bytedance.com") },
@@ -1446,7 +1446,7 @@ private fun CardGroupScope.volcengineTTSItems(
         headlineContent = { Text("资源 ID") },
         supportingContent = { Text("需与已开通的服务和音色匹配，默认 seed-tts-2.0。") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.resourceId,
             onValueChange = { onValueChange(setting.copy(resourceId = it)) },
             singleLine = true,
@@ -1457,7 +1457,7 @@ private fun CardGroupScope.volcengineTTSItems(
         headlineContent = { Text("音色 ID") },
         supportingContent = { Text("填写控制台中的音色 ID，默认使用 VV 音色。") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.speaker,
             onValueChange = { onValueChange(setting.copy(speaker = it)) },
             singleLine = true,
@@ -1484,7 +1484,7 @@ private fun CardGroupScope.geminiVertexTTSItems(
         headlineContent = { Text("Service Account Email") },
         supportingContent = { Text("Google Cloud 服务账号邮筱") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.serviceAccountEmail,
             onValueChange = { onValueChange(setting.copy(serviceAccountEmail = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -1495,7 +1495,7 @@ private fun CardGroupScope.geminiVertexTTSItems(
         headlineContent = { Text("Private Key") },
         supportingContent = { Text("服务账号私钥 (PEM)") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.privateKey,
             onValueChange = { onValueChange(setting.copy(privateKey = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -1506,7 +1506,7 @@ private fun CardGroupScope.geminiVertexTTSItems(
         headlineContent = { Text("Project ID") },
         supportingContent = { Text("Google Cloud 项目 ID") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.projectId,
             onValueChange = { onValueChange(setting.copy(projectId = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -1516,7 +1516,7 @@ private fun CardGroupScope.geminiVertexTTSItems(
         headlineContent = { Text("Location") },
         supportingContent = { Text("地址，如 us-central1") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.location,
             onValueChange = { onValueChange(setting.copy(location = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -1526,7 +1526,7 @@ private fun CardGroupScope.geminiVertexTTSItems(
         headlineContent = { Text("Model") },
         supportingContent = { Text("TTS 模型") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.model,
             onValueChange = { onValueChange(setting.copy(model = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -1536,7 +1536,7 @@ private fun CardGroupScope.geminiVertexTTSItems(
         headlineContent = { Text("Voice Name") },
         supportingContent = { Text("音色名称") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.voiceName,
             onValueChange = { onValueChange(setting.copy(voiceName = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -1552,7 +1552,7 @@ private fun CardGroupScope.vertexCloudTTSItems(
         headlineContent = { Text("Service Account Email") },
         supportingContent = { Text("Google Cloud 服务账号邮筱") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.serviceAccountEmail,
             onValueChange = { onValueChange(setting.copy(serviceAccountEmail = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -1563,7 +1563,7 @@ private fun CardGroupScope.vertexCloudTTSItems(
         headlineContent = { Text("Private Key") },
         supportingContent = { Text("服务账号私钥 (PEM)") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.privateKey,
             onValueChange = { onValueChange(setting.copy(privateKey = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -1574,7 +1574,7 @@ private fun CardGroupScope.vertexCloudTTSItems(
         headlineContent = { Text("Voice Name") },
         supportingContent = { Text("音色名称，如 en-US-Chirp3-HD-Aoede") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.voiceName,
             onValueChange = { onValueChange(setting.copy(voiceName = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -1584,7 +1584,7 @@ private fun CardGroupScope.vertexCloudTTSItems(
         headlineContent = { Text("Language Code") },
         supportingContent = { Text("语言代码，如 en-US") }
     ) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = setting.languageCode,
             onValueChange = { onValueChange(setting.copy(languageCode = it)) },
             modifier = Modifier.fillMaxWidth(),
