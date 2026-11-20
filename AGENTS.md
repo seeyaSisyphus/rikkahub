@@ -10,15 +10,15 @@ Built with Jetpack Compose, Kotlin, and follows Material 3 Expressive (MD3 Expre
 
 ## Design Language
 
-The UI follows Material 3 Expressive. New and reworked screens should match it rather than the older baseline
-Material 3 look (cards with dividers, plain forms).
+本 fork 在 `MaterialExpressiveTheme`（`app/src/main/java/me/rerere/rikkahub/ui/theme/Theme.kt`）基础上统一采用**极简编辑阅读风 + iOS 轻量质感**，**不再**使用上游默认的厚重 MD3 Expressive 外观（大折叠顶栏、圆圈底色图标、默认厚重 Switch / Slider / 弹窗 / 强水波纹）：
 
-- The app theme is `MaterialExpressiveTheme` (app/src/main/java/me/rerere/rikkahub/ui/theme/Theme.kt); prefer the
-  expressive variants of components, shapes (`MaterialShapes`), emphasized typography (e.g. `titleSmallEmphasized`)
-  and motion from `androidx.compose.material3` over hand-rolled equivalents.
-- Settings-style and form pages use segmented groups via `CardGroup` (
-  app/src/main/java/me/rerere/rikkahub/ui/components/ui/CardGroup.kt) instead of a card with dividers.
-- Favor larger corner radii, filled/tonal containers, and whole-row click targets.
+- **全局强制封装组件**（新增或同步页面必须使用，受 `ForkUiStyleGuardTest` 单测守卫）：
+  - BottomSheet / Dialog：`AppModalBottomSheet`、`AppAlertDialog`（`app/src/main/java/me/rerere/rikkahub/ui/components/ui/AppOverlays.kt`，`24.dp` 圆角、零 `tonalElevation`、细长 `AppSheetDragHandle`）
+  - 下拉菜单：`AppDropdownMenu`、`AppDropdownMenuItem`、`AppMenuDivider`（`app/src/main/java/me/rerere/rikkahub/ui/components/ui/AppDropdownMenu.kt`，`20.dp` 圆角、发丝边框、零 `tonalElevation`）
+  - 开关与滑块：`AppSwitch`（`AppSwitch.kt`，iOS 胶囊开关；仅紧凑小尺寸场景可用已统一样式的 `me.rerere.ui.components.Switch`）、`AppSlider` / `IntSlider`（`SliderItem.kt`）
+  - 顶栏、分段选择与分页签：使用紧凑 `TopAppBar`（禁用 `LargeFlexibleTopAppBar` / `exitUntilCollapsedScrollBehavior`）、`ConnectedChoiceButtons` / `ConnectedMultiChoiceButtons`（替代 `SegmentedButton`）、`PagerTabs`（替代 `*TabRow`）
+- **主题与排印**：保留 `SoftRippleConfiguration`（柔和按压水波纹）与 `AppFontFamily`（`Noto Sans SC` + `DM Sans`）排版层级；`CardGroup` 使用无圆圈底色的 `CardGroupIcon` 与 `AppSwitch`。
+- **同步上游不变量清单**：详见 `.agents/skills/sync-upstream/references/local-ui-style.md`，改动 UI 后应运行 `./gradlew :app:testGithubDebugUnitTest` 验证 `ForkUiStyleGuardTest` 通过。
 
 ## Build, Test, and Development Commands
 
