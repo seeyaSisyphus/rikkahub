@@ -49,7 +49,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -122,6 +121,7 @@ import java.io.FileOutputStream
 import java.time.LocalDateTime
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
+import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
 
 private enum class ChatExportFormat(
     val extension: String,
@@ -233,7 +233,7 @@ fun ChatExportSheet(
     }
 
     if (visible) {
-        ModalBottomSheet(
+        AppModalBottomSheet(
             onDismissRequest = onDismissRequest,
             sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)),
         ) {

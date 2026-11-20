@@ -23,9 +23,7 @@ import androidx.compose.material3.ListItemColors
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SegmentedListItem
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.rememberBottomSheetState
@@ -45,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Alert01
 import me.rerere.hugeicons.stroke.ArrowLeft01
+import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Icon1stBracket
 import me.rerere.hugeicons.stroke.McpServer
 import me.rerere.rikkahub.R
@@ -52,6 +51,9 @@ import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
 import me.rerere.rikkahub.data.ai.mcp.McpStatus
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
+import me.rerere.rikkahub.ui.components.ui.AppSwitch
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.ui.components.ToggleSurface
@@ -115,7 +117,7 @@ fun McpPickerButton(
         }
     }
     if (showMcpPicker) {
-        ModalBottomSheet(
+        AppModalBottomSheet(
             onDismissRequest = { showMcpPicker = false },
             sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded))
         ) {
@@ -182,21 +184,49 @@ fun McpPickerListItem(
         modifier = modifier,
         leadingContent = {
             if (loading) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                Box(
+                    modifier = Modifier.size(24.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                }
             } else {
-                Icon(
-                    imageVector = HugeIcons.McpServer,
-                    contentDescription = null,
+                CardGroupIcon(
+                    icon = HugeIcons.McpServer,
+                    containerColor = if (enabledServers.isNotEmpty()) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.secondaryContainer
+                    },
+                    contentColor = if (enabledServers.isNotEmpty()) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    },
                 )
             }
         },
         trailingContent = {
-            if (enabledServers.isNotEmpty()) {
-                CountBadge(count = enabledServers.size)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (enabledServers.isNotEmpty()) {
+                    CountBadge(count = enabledServers.size)
+                }
+                Icon(
+                    imageVector = HugeIcons.ArrowRight01,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                )
             }
         },
     ) {
-        Text(stringResource(R.string.mcp_picker_title))
+        Text(
+            text = stringResource(R.string.mcp_picker_title),
+            fontWeight = FontWeight.Medium,
+        )
     }
 }
 
@@ -322,7 +352,7 @@ fun McpPicker(
                 },
                 trailingContent = {
                     // 整行都能点击切换，开关只用来显示状态
-                    Switch(checked = checked, onCheckedChange = null)
+                    AppSwitch(checked = checked, onCheckedChange = null)
                 },
             ) {
                 Row(

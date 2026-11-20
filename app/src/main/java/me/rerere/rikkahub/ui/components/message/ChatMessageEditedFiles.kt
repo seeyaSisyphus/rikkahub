@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetState
@@ -47,6 +46,7 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import org.koin.compose.koinInject
 import java.io.File
+import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
 
 private const val DEFAULT_VISIBLE_COUNT = 3
 private val WORKSPACE_FILE_TOOL_NAMES = setOf("workspace_write_file", "workspace_edit_file")
@@ -123,7 +123,7 @@ internal fun EditedFilesList(
     if (selectedPath != null) {
         val path = selectedPath!!
         val fileName = remember(path) { path.substringAfterLast('/') }
-        ModalBottomSheet(
+        AppModalBottomSheet(
             onDismissRequest = { selectedPath = null },
             sheetState = rememberBottomSheetState(
                 initialValue = SheetValue.Hidden,

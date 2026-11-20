@@ -30,12 +30,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -75,6 +73,8 @@ import me.rerere.hugeicons.stroke.ArrowUpDown
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Tick02
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.ui.AppDropdownMenu
+import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
 import me.rerere.rikkahub.ui.components.ui.RabbitLoadingIndicator
 
 /**
@@ -137,7 +137,7 @@ fun ImagePickerSheet(
         }
     }
 
-    ModalBottomSheet(
+    AppModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = null,
@@ -399,7 +399,7 @@ private fun SortMenu(
     onSortOrderChange: (ImageSortOrder) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+    AppDropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
         SortMenuItem(
             label = stringResource(R.string.image_picker_sort_date_added),
             field = ImageSortField.DATE_ADDED,

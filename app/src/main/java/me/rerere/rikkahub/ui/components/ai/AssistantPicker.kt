@@ -22,8 +22,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.rememberBottomSheetState
@@ -37,16 +36,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowUpDown
 import me.rerere.hugeicons.stroke.Edit03
-import me.rerere.hugeicons.stroke.LookTop
+import me.rerere.hugeicons.stroke.SlidersHorizontal
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.hooks.rememberAssistantState
@@ -62,36 +64,62 @@ fun AssistantPicker(
     val state = rememberAssistantState(settings, onSelectAssistant)
     val defaultAssistantName = stringResource(R.string.assistant_page_default_assistant)
     var showPicker by remember { mutableStateOf(false) }
+    val colors = MaterialTheme.colorScheme
+    val assistantName = state.currentAssistant.name.ifEmpty { defaultAssistantName }
 
-    NavigationDrawerItem(
-        icon = {
-            Icon(HugeIcons.LookTop, contentDescription = null)
-        },
-        label = {
+    Surface(
+        onClick = { showPicker = true },
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp),
+        color = Color.Transparent,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            UIAvatar(
+                name = assistantName,
+                value = state.currentAssistant.avatar,
+                modifier = Modifier.size(36.dp),
+            )
+
             Row(
+                modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
-                    text = state.currentAssistant.name.ifEmpty { defaultAssistantName },
+                    text = assistantName,
+                    style = MaterialTheme.typography.titleSmallEmphasized,
+                    color = colors.onSurface,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
                 )
-
-                Spacer(Modifier.weight(1f))
-
-                UIAvatar(
-                    name = state.currentAssistant.name.ifEmpty { defaultAssistantName },
-                    value = state.currentAssistant.avatar,
-                    onClick = onClickSetting
+                Icon(
+                    imageVector = HugeIcons.ArrowUpDown,
+                    contentDescription = null,
+                    modifier = Modifier.size(13.dp),
+                    tint = colors.onSurfaceVariant,
                 )
             }
-        },
-        onClick = {
-            showPicker = true
-        },
-        modifier = modifier,
-        selected = false,
-    )
+
+            IconButton(
+                onClick = onClickSetting,
+                modifier = Modifier.size(36.dp),
+            ) {
+                Icon(
+                    imageVector = HugeIcons.SlidersHorizontal,
+                    contentDescription = stringResource(R.string.settings),
+                    modifier = Modifier.size(18.dp),
+                    tint = colors.onSurfaceVariant,
+                )
+            }
+        }
+    }
 
     if (showPicker) {
         AssistantPickerSheet(
@@ -133,7 +161,7 @@ private fun AssistantPickerSheet(
         }
     }
 
-    ModalBottomSheet(
+    AppModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
     ) {

@@ -26,15 +26,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -58,12 +55,17 @@ import androidx.paging.compose.itemKey
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.ConversationSortOrder
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.ui.components.ui.AppDropdownMenu
+import me.rerere.rikkahub.ui.components.ui.AppDropdownMenuItem
+import me.rerere.rikkahub.ui.components.ui.AppMenuDivider
+import me.rerere.rikkahub.ui.components.ui.appMenuItemColors
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.mirrorForRtl
 import me.rerere.rikkahub.utils.toLocalString
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
 
 /**
  * Represents different types of items in the conversation list
@@ -120,7 +122,7 @@ fun ColumnScope.ConversationList(
     LazyColumn(
         state = listState,
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         if (header != null) {
             item(key = "header", contentType = "header") {
@@ -134,13 +136,13 @@ fun ColumnScope.ConversationList(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow
                 ) {
                     Text(
                         text = stringResource(id = R.string.chat_page_no_conversations),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(16.dp)
                     )
                 }
@@ -206,15 +208,14 @@ private fun DateHeaderItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
         )
     }
 }
@@ -226,22 +227,21 @@ private fun PinnedHeader(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = HugeIcons.Pin,
             contentDescription = null,
-            modifier = Modifier.size(14.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
+            modifier = Modifier.size(13.dp),
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
         )
         Spacer(Modifier.size(6.dp))
         Text(
             text = stringResource(R.string.pinned_chats),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
         )
     }
 }
@@ -264,10 +264,16 @@ internal fun ConversationItem(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val focusManager = LocalFocusManager.current
+    val colors = MaterialTheme.colorScheme
     val backgroundColor = if (selected) {
-        MaterialTheme.colorScheme.primaryContainer
+        colors.secondaryContainer
     } else {
         Color.Transparent
+    }
+    val textColor = if (selected) {
+        colors.onSecondaryContainer
+    } else {
+        colors.onSurface
     }
     var showDropdownMenu by remember {
         mutableStateOf(false)
@@ -283,7 +289,7 @@ internal fun ConversationItem(
     }
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(50f))
+            .clip(RoundedCornerShape(14.dp))
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = LocalIndication.current,
@@ -299,23 +305,27 @@ internal fun ConversationItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
                 text = conversation.title.ifBlank { stringResource(id = R.string.chat_page_new_message) },
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                color = textColor,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
             )
-            Spacer(Modifier.weight(1f))
 
             // 置顶图标
             AnimatedVisibility(conversation.isPinned) {
                 Icon(
                     imageVector = HugeIcons.Pin,
                     contentDescription = "Pinned",
-                    modifier = Modifier.size(12.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    modifier = Modifier.size(13.dp),
+                    tint = if (selected) colors.onSecondaryContainer.copy(alpha = 0.8f) else colors.primary.copy(alpha = 0.75f)
                 )
             }
             AnimatedVisibility(loading) {
@@ -323,30 +333,32 @@ internal fun ConversationItem(
                     modifier = Modifier
                         .clip(CircleShape)
                         .background(MaterialTheme.extendColors.green6)
-                        .size(4.dp)
+                        .size(6.dp)
                         .semantics {
                             contentDescription = "Loading"
                         }
                 )
             }
-            DropdownMenu(
+            AppDropdownMenu(
                 expanded = showDropdownMenu,
                 onDismissRequest = { showDropdownMenu = false },
             ) {
                 // [FORK] 设置标签（方便快速打标签）
-                DropdownMenuItem(
-                    text = { Text("设置标签") },
+                AppDropdownMenuItem(
+                    text = { Text("设置标签", style = MaterialTheme.typography.bodyMedium) },
                     onClick = {
                         onSetTag(conversation)
                         showDropdownMenu = false
                     },
-                    leadingIcon = { Icon(HugeIcons.Tag01, null) }
+                    leadingIcon = { Icon(HugeIcons.Tag01, null, modifier = Modifier.size(18.dp)) },
+                    colors = appMenuItemColors(),
                 )
 
-                DropdownMenuItem(
+                AppDropdownMenuItem(
                     text = {
                         Text(
-                            if (conversation.isPinned) stringResource(R.string.unpin_chat) else stringResource(R.string.pin_chat)
+                            text = if (conversation.isPinned) stringResource(R.string.unpin_chat) else stringResource(R.string.pin_chat),
+                            style = MaterialTheme.typography.bodyMedium,
                         )
                     },
                     onClick = {
@@ -356,49 +368,60 @@ internal fun ConversationItem(
                     leadingIcon = {
                         Icon(
                             if (conversation.isPinned) HugeIcons.PinOff else HugeIcons.Pin,
-                            null
+                            null,
+                            modifier = Modifier.size(18.dp),
                         )
-                    }
+                    },
+                    colors = appMenuItemColors(),
                 )
 
-                DropdownMenuItem(
-                    text = { Text("修改标题") },
+                AppDropdownMenuItem(
+                    text = { Text("修改标题", style = MaterialTheme.typography.bodyMedium) },
                     onClick = {
                         renameInput = conversation.title
                         showRenameDialog = true
                         showDropdownMenu = false
                     },
-                    leadingIcon = { Icon(HugeIcons.PencilEdit01, null) }
+                    leadingIcon = { Icon(HugeIcons.PencilEdit01, null, modifier = Modifier.size(18.dp)) },
+                    colors = appMenuItemColors(),
                 )
 
-                DropdownMenuItem(
+                AppDropdownMenuItem(
                     text = {
-                        Text(stringResource(id = R.string.chat_page_regenerate_title))
+                        Text(
+                            text = stringResource(id = R.string.chat_page_regenerate_title),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                     },
                     onClick = {
                         onRegenerateTitle(conversation)
                         showDropdownMenu = false
                     },
                     leadingIcon = {
-                        Icon(HugeIcons.Refresh01, null)
-                    }
+                        Icon(HugeIcons.Refresh01, null, modifier = Modifier.size(18.dp))
+                    },
+                    colors = appMenuItemColors(),
                 )
 
-                DropdownMenuItem(
+                AppDropdownMenuItem(
                     text = {
-                        Text(stringResource(R.string.chat_page_move_to_assistant))
+                        Text(
+                            text = stringResource(R.string.chat_page_move_to_assistant),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                     },
                     onClick = {
                         onMoveToAssistant(conversation)
                         showDropdownMenu = false
                     },
                     leadingIcon = {
-                        Icon(HugeIcons.Forward02, null, modifier = Modifier.mirrorForRtl())
-                    }
+                        Icon(HugeIcons.Forward02, null, modifier = Modifier.size(18.dp).mirrorForRtl())
+                    },
+                    colors = appMenuItemColors(),
                 )
 
                 // [FORK] 文件夹功能已隐藏，保留代码避免与 upstream 冲突
-//                DropdownMenuItem(
+//                AppDropdownMenuItem(
 //                    text = {
 //                        Text(stringResource(R.string.chat_page_move_to_folder))
 //                    },
@@ -411,17 +434,23 @@ internal fun ConversationItem(
 //                    }
 //                )
 
-                DropdownMenuItem(
+                AppMenuDivider()
+
+                AppDropdownMenuItem(
                     text = {
-                        Text(stringResource(id = R.string.chat_page_delete))
+                        Text(
+                            text = stringResource(id = R.string.chat_page_delete),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                     },
                     onClick = {
                         showDeleteConfirmDialog = true
                         showDropdownMenu = false
                     },
                     leadingIcon = {
-                        Icon(HugeIcons.Delete01, null)
-                    }
+                        Icon(HugeIcons.Delete01, null, modifier = Modifier.size(18.dp))
+                    },
+                    colors = appMenuItemColors(destructive = true),
                 )
             }
         }
@@ -429,7 +458,7 @@ internal fun ConversationItem(
 
     if (showDeleteConfirmDialog) {
         val conversationTitle = conversation.title.ifBlank { stringResource(id = R.string.chat_page_new_message) }
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { showDeleteConfirmDialog = false },
             title = {
                 Text(stringResource(id = R.string.chat_page_delete))
@@ -458,7 +487,7 @@ internal fun ConversationItem(
     }
 
     if (showRenameDialog) {
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { showRenameDialog = false },
             title = { Text("修改标题") },
             text = {

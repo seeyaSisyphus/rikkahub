@@ -15,7 +15,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.SheetValue
@@ -34,6 +33,7 @@ import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.utils.copyMessageToClipboard
 import me.rerere.rikkahub.utils.toCopyText
+import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
 
 @Composable
 fun ChatMessageCopySheet(
@@ -41,7 +41,7 @@ fun ChatMessageCopySheet(
     onDismissRequest: () -> Unit
 ) {
     val context = LocalContext.current
-    ModalBottomSheet(
+    AppModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)),
         sheetGesturesEnabled = false,

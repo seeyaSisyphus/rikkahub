@@ -12,14 +12,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -69,6 +67,8 @@ import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.DurationUnit
+import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
+import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
 
 @Composable
 fun ChainOfThoughtScope.ChatMessageServerToolStep(tool: UIMessagePart.ServerTool) {
@@ -293,7 +293,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
     }
 
     if (showResult) {
-        ModalBottomSheet(
+        AppModalBottomSheet(
             sheetState = rememberBottomSheetState(
                 initialValue = SheetValue.Hidden,
                 enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
@@ -532,7 +532,7 @@ private fun ToolDenyReasonDialog(
 ) {
     var reason by remember { mutableStateOf("") }
 
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(stringResource(R.string.chat_message_tool_deny_dialog_title))

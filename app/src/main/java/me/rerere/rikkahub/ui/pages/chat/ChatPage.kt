@@ -9,9 +9,24 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -24,36 +39,34 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.relocation.bringIntoViewResponder
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.DropdownMenuGroup
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PermanentNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.adaptive.currentWindowDpSize
@@ -61,7 +74,9 @@ import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -69,17 +84,21 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -98,17 +117,20 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.common.android.appTempFolder
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
+import me.rerere.hugeicons.stroke.Alert01
 import me.rerere.hugeicons.stroke.Cancel01
-import me.rerere.hugeicons.stroke.Delete01
+import me.rerere.hugeicons.stroke.Crane
+import me.rerere.hugeicons.stroke.DashboardSpeed02
 import me.rerere.hugeicons.stroke.Hourglass
 import me.rerere.hugeicons.stroke.LeftToRightListBullet
 import me.rerere.hugeicons.stroke.Menu03
+import me.rerere.hugeicons.stroke.Message02
 import me.rerere.hugeicons.stroke.MessageAdd01
-import me.rerere.hugeicons.stroke.Crane
-import me.rerere.hugeicons.stroke.MoreVertical
-import me.rerere.hugeicons.stroke.Share04
-import me.rerere.hugeicons.stroke.ArrowRight01
-import me.rerere.hugeicons.stroke.PencilEdit01
+import me.rerere.hugeicons.stroke.PercentCircle
+import me.rerere.hugeicons.stroke.Pin02
+import me.rerere.hugeicons.stroke.QuillWrite01
+import me.rerere.hugeicons.stroke.Refresh01
+import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.common.android.Logging
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
@@ -122,9 +144,6 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.ConversationParams
 import me.rerere.rikkahub.data.model.pinnedGroupCount
 import me.rerere.rikkahub.data.model.SystemPromptMode
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.service.BackgroundShellStatus
 import me.rerere.rikkahub.service.ChatError
@@ -133,7 +152,6 @@ import me.rerere.rikkahub.service.collectProtectedMessageIds
 import me.rerere.rikkahub.ui.components.ai.ChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.BackgroundTasksSheet
 import me.rerere.rikkahub.ui.components.ai.ChatInput
-import me.rerere.rikkahub.ui.components.ai.ChatTopBarCapsule
 import me.rerere.rikkahub.ui.components.ai.FilesPicker
 import me.rerere.rikkahub.ui.components.ai.SearchMode
 import me.rerere.rikkahub.ui.components.ai.rememberChatAttachmentPickerActions
@@ -141,14 +159,20 @@ import me.rerere.rikkahub.ui.components.ai.completion.WorkspaceCompletionProvide
 import me.rerere.rikkahub.ui.components.ai.useCropLauncher
 import me.rerere.rikkahub.ui.components.imagepicker.ImagePickerSheet
 import me.rerere.rikkahub.ui.components.imagepicker.ImageSortOrder
+import me.rerere.rikkahub.ui.components.ui.AppSlider
+import me.rerere.rikkahub.ui.components.ui.AppSwitch
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroupValue
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.RabbitLoadingIndicator
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionCamera
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.ui.components.RikkaConfirmDialog
-import dev.chrisbanes.haze.HazeState
 import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.hooks.EditStateContent
@@ -156,7 +180,6 @@ import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.utils.base64Decode
 import me.rerere.rikkahub.utils.isAllowedFileType
 import me.rerere.rikkahub.utils.navigateToChatPage
-import me.rerere.ui.components.FormItem
 import me.rerere.rikkahub.ui.components.ui.IntSliderItem
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
@@ -167,6 +190,8 @@ import org.koin.core.parameter.parametersOf
 import java.io.File
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
+import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
 
 private const val TAG = "ChatPage"
 private const val CHAT_LOADING_TIMEOUT_MS = 3000L
@@ -414,24 +439,14 @@ private fun ChatPageContent(
     val workspaceRepository: WorkspaceRepository = koinInject()
 
     var previewMode by rememberSaveable { mutableStateOf(false) }
-    // 消息多选（导出）状态放在这里，顶栏菜单也能直接进入多选
     val selectionState = rememberChatSelectionState()
-    // 概览列表的滚动位置提升到这里：顶栏胶囊要读它判断是否显示背景
     val previewListState = rememberLazyListState()
-    var showDeleteConfirm by remember { mutableStateOf(false) }
     val sessionActivity by vm.sessionActivity.collectAsStateWithLifecycle()
     var showMessageJumperOverlay by rememberSaveable { mutableStateOf(false) }
     // 缩略页跳转请求：nonce 保证同一 index 重复点击时 LaunchedEffect 也能重新触发
     var jumpNonce by remember { mutableIntStateOf(0) }
     var jumpRequest by remember { mutableStateOf<JumpRequest?>(null) }
     val hazeState = rememberHazeState()
-    // 列表滚到标题栏下面时才显示胶囊背景，空页面或在顶部时按钮直接浮在背景上
-    // 概览页有自己的列表，切过去后跟着它判断
-    val listScrolledUnderTopBar by remember(chatListState, previewListState) {
-        derivedStateOf {
-            if (previewMode) previewListState.canScrollBackward else chatListState.canScrollBackward
-        }
-    }
     var showFilesSheet by remember { mutableStateOf(false) }
     val attachmentPickerActions = rememberChatAttachmentPickerActions(
         inputState = inputState,
@@ -475,16 +490,26 @@ private fun ChatPageContent(
             .bringIntoViewResponder(noopBringIntoViewResponder)
     ) {
         AssistantBackground(setting = setting, modifier = Modifier.hazeSource(hazeState))
-        if (showLoading && !shouldShowChatContent(conversationLoaded, vm.chatListReady, vm.chatListForcedOpen)) {
-            // 会话数据尚未从数据库加载完成，先展示 loading，避免闪现空会话骨架
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                RabbitLoadingIndicator(modifier = Modifier.size(32.dp))
-            }
-        } else {
-            Scaffold(
+        val waitingForChat = showLoading && !shouldShowChatContent(conversationLoaded, vm.chatListReady, vm.chatListForcedOpen)
+        AnimatedContent(
+            targetState = waitingForChat,
+            transitionSpec = {
+                fadeIn(tween(260)) togetherWith fadeOut(tween(200))
+            },
+            label = "chat_content_ready",
+        ) { isLoadingGate ->
+            if (isLoadingGate) {
+                // 会话数据尚未从数据库加载完成，先展示 loading，避免闪现空会话骨架
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    RabbitLoadingIndicator(modifier = Modifier.size(32.dp))
+                }
+            } else {
+                var expandedInputHeightDelta by remember { mutableStateOf(0.dp) }
+                var isComposerFloating by remember { mutableStateOf(false) }
+                Scaffold(
                 topBar = {
                     TopBar(
                         settings = setting,
@@ -493,24 +518,10 @@ private fun ChatPageContent(
                         conversation = conversation,
                         bigScreen = bigScreen,
                         drawerState = drawerState,
-                        hazeState = hazeState,
-                        showCapsuleBackground = listScrolledUnderTopBar,
                         previewMode = previewMode,
                         vm = vm,
                         onClickMenu = {
                             previewMode = !previewMode
-                        },
-                        onShowOverview = {
-                            selectionState.cancel()
-                            previewMode = true
-                        },
-                        onExport = {
-                            // 跟消息上的分享一样进入多选，默认全选，用户可以再挑
-                            previewMode = false
-                            selectionState.start(conversation.messageNodes.map { it.id })
-                        },
-                        onDelete = {
-                            showDeleteConfirm = true
                         },
                         onUpdateTitle = {
                             vm.updateTitle(it)
@@ -596,13 +607,37 @@ private fun ChatPageContent(
                         },
                         runningBackgroundTasks = backgroundTasks.count { it.status == BackgroundShellStatus.RUNNING },
                         onShowBackgroundTasks = { showBackgroundTasks = true },
+                        onExpandedHeightDeltaChange = {
+                            if (expandedInputHeightDelta != it) expandedInputHeightDelta = it
+                        },
+                        onFloatingChange = {
+                            if (isComposerFloating != it) isComposerFloating = it
+                        },
                     )
                 },
                 containerColor = Color.Transparent,
                 contentWindowInsets = WindowInsets(0),
             ) { innerPadding ->
+                // Scaffold 传入的是可变的 MutablePaddingValues 单例，不能把 innerPadding 当作 remember key 快照其数值，
+                // 否则键盘弹出/收起更新 paddingHolder 时无法刷新，导致列表不跟滚及底部残留大片空白。
+                val stabilizedInnerPadding = remember(innerPadding) {
+                    object : PaddingValues {
+                        override fun calculateLeftPadding(layoutDirection: LayoutDirection): Dp =
+                            innerPadding.calculateLeftPadding(layoutDirection)
+
+                        override fun calculateTopPadding(): Dp =
+                            innerPadding.calculateTopPadding()
+
+                        override fun calculateRightPadding(layoutDirection: LayoutDirection): Dp =
+                            innerPadding.calculateRightPadding(layoutDirection)
+
+                        override fun calculateBottomPadding(): Dp =
+                            (innerPadding.calculateBottomPadding() - expandedInputHeightDelta).coerceAtLeast(0.dp)
+                    }
+                }
                 ChatList(
-                    innerPadding = innerPadding,
+                    innerPadding = stabilizedInnerPadding,
+                    suppressBottomPaddingAutoScroll = { isComposerFloating || expandedInputHeightDelta > 0.dp },
                     conversation = conversation,
                     state = chatListState,
                     previewListState = previewListState,
@@ -707,23 +742,7 @@ private fun ChatPageContent(
                 )
             }
         }
-
-        // 顶栏菜单里的删除：确认后删掉整个会话并回到聊天页
-        RikkaConfirmDialog(
-            show = showDeleteConfirm,
-            title = stringResource(R.string.chat_page_delete),
-            confirmText = stringResource(R.string.delete),
-            dismissText = stringResource(R.string.cancel),
-            onConfirm = {
-                showDeleteConfirm = false
-                scope.launch {
-                    vm.deleteConversation(conversation).join()
-                    navigateToChatPage(navController)
-                }
-            },
-            onDismiss = { showDeleteConfirm = false },
-            text = { Text(stringResource(R.string.chat_page_delete_conversation_confirm)) },
-        )
+        }
 
         // 记住本对话内上次选择的相册文件夹与排序方式（切换对话或重启后回到默认）。
         // 状态放在 ChatFilesPickerSheet 之外，避免文件选择弹窗关闭时被销毁。
@@ -948,7 +967,7 @@ private fun ChatFilesPickerSheet(
         initialValue = SheetValue.Hidden,
         enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
     )
-    ModalBottomSheet(
+    AppModalBottomSheet(
         sheetState = filesSheetState,
         onDismissRequest = { dismissAll() },
     ) {
@@ -1027,14 +1046,9 @@ private fun TopBar(
     conversation: Conversation,
     drawerState: DrawerState,
     bigScreen: Boolean,
-    hazeState: HazeState,
-    showCapsuleBackground: Boolean,
     previewMode: Boolean,
     vm: ChatVM,
     onClickMenu: () -> Unit,
-    onShowOverview: () -> Unit,
-    onExport: () -> Unit,
-    onDelete: () -> Unit,
     onUpdateTitle: (String) -> Unit,
     onUpdateConversationParams: (ConversationParams) -> Unit,
     onSaveTemporary: () -> Unit,
@@ -1046,18 +1060,13 @@ private fun TopBar(
         onUpdateTitle(it)
     }
 
+    val hasCustomBackground = assistant.useGradientBackground || assistant.background != null
     TopAppBar(
-        // 顶栏透明，消息滚动到下面时靠 ChatList 的顶部渐隐保证标题可读；
-        // 按钮放在浮动胶囊里，内容滚到下面时才出现背景
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-        navigationIcon = {
-            if (!bigScreen) {
-                ChatTopBarCapsule(
-                    hazeState = hazeState,
-                    displaySetting = settings.displaySetting,
-                    showBackground = showCapsuleBackground,
-                    modifier = Modifier.padding(start = 8.dp, end = 4.dp),
-                ) {
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = if (hasCustomBackground) Color.Transparent else MaterialTheme.colorScheme.background,
+        ),
+            navigationIcon = {
+                if (!bigScreen) {
                     IconButton(
                         onClick = {
                             scope.launch { drawerState.open() }
@@ -1066,78 +1075,61 @@ private fun TopBar(
                         Icon(HugeIcons.Menu03, "Messages")
                     }
                 }
-            }
-        },
-        title = {
-            val editTitleWarning = stringResource(R.string.chat_page_edit_title_warning)
-            Surface(
-                onClick = {
-                    if (conversation.messageNodes.isNotEmpty()) {
-                        titleState.open(conversation.title)
-                    } else {
-                        toaster.show(editTitleWarning, type = ToastType.Warning)
-                    }
-                },
-                color = Color.Transparent,
-            ) {
-                Column {
-                    val provider = chatModel?.findProvider(providers = settings.providers, checkOverwrite = false)
-                    Text(
-                        text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
-                        maxLines = 1,
-                        style = MaterialTheme.typography.bodyMedium,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (chatModel != null && provider != null) {
+            },
+            title = {
+                val editTitleWarning = stringResource(R.string.chat_page_edit_title_warning)
+                Surface(
+                    onClick = {
+                        if (conversation.messageNodes.isNotEmpty()) {
+                            titleState.open(conversation.title)
+                        } else {
+                            toaster.show(editTitleWarning, type = ToastType.Warning)
+                        }
+                    },
+                    color = Color.Transparent,
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                        val provider = chatModel?.findProvider(providers = settings.providers, checkOverwrite = false)
                         Text(
-                            text = "${assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) }} / ${chatModel.displayName} (${provider.name})",
-                            overflow = TextOverflow.Ellipsis,
+                            text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
                             maxLines = 1,
-                            color = LocalContentColor.current.copy(0.65f),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 8.sp,
-                            )
+                            style = MaterialTheme.typography.titleSmall,
+                            overflow = TextOverflow.Ellipsis,
                         )
+                        if (chatModel != null && provider != null) {
+                            Text(
+                                text = "${assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) }} / ${chatModel.displayName} (${provider.name})",
+                                overflow = TextOverflow.Ellipsis,
+                                maxLines = 1,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        }
                     }
                 }
-            }
-        },
+            },
         actions = {
             var showParamsSheet by remember { mutableStateOf(false) }
             var showTemporaryDialog by remember { mutableStateOf(false) }
 
-            ChatTopBarCapsule(
-                hazeState = hazeState,
-                displaySetting = settings.displaySetting,
-                showBackground = showCapsuleBackground,
-                modifier = Modifier.padding(start = 4.dp, end = 8.dp),
+            if (conversation.isTemporary) {
+                IconButton(onClick = { showTemporaryDialog = true }) {
+                    Icon(HugeIcons.Hourglass, contentDescription = "临时对话")
+                }
+            }
+
+            IconButton(
+                onClick = { showParamsSheet = true }
             ) {
-                if (conversation.isTemporary) {
-                    IconButton(onClick = { showTemporaryDialog = true }) {
-                        Icon(HugeIcons.Hourglass, contentDescription = "临时对话")
-                    }
-                }
+                Icon(HugeIcons.Crane, "Conversation Params")
+            }
 
-                IconButton(
-                    onClick = { showParamsSheet = true }
-                ) {
-                    Icon(HugeIcons.Crane, "Conversation Params")
+            IconButton(
+                onClick = {
+                    onClickMenu()
                 }
-
-                IconButton(
-                    onClick = {
-                        onClickMenu()
-                    }
-                ) {
-                    Icon(if (previewMode) HugeIcons.Cancel01 else HugeIcons.LeftToRightListBullet, "Chat Options")
-                }
-
-                ChatPageMenu(
-                    enabled = conversation.messageNodes.isNotEmpty(),
-                    onShowOverview = onShowOverview,
-                    onExport = onExport,
-                    onDelete = onDelete,
-                )
+            ) {
+                Icon(if (previewMode) HugeIcons.Cancel01 else HugeIcons.LeftToRightListBullet, "Chat Options")
             }
 
             if (showParamsSheet) {
@@ -1151,7 +1143,7 @@ private fun TopBar(
             }
 
             if (showTemporaryDialog) {
-                AlertDialog(
+                AppAlertDialog(
                     onDismissRequest = { showTemporaryDialog = false },
                     title = { Text("临时对话") },
                     text = { Text("这段对话目前不会保存到历史记录中。") },
@@ -1183,7 +1175,7 @@ private fun TopBar(
         },
     )
     titleState.EditStateContent { title, onUpdate ->
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = {
                 titleState.dismiss()
             },
@@ -1231,416 +1223,530 @@ private fun ConversationParamsSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val assistant = settings.getCurrentAssistant()
+    val colors = MaterialTheme.colorScheme
     // 当前编辑的参数，初始值来自对话的持久化参数
     var params by remember {
         mutableStateOf(conversation.conversationParams)
     }
+    val hasCustomOverrides = params.contextMessageSize != null ||
+        params.battleModeEnabled ||
+        params.systemPrompt != null ||
+        params.temperature != null ||
+        params.topP != null
 
-    ModalBottomSheet(
+    AppModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         contentWindowInsets = { WindowInsets(0) },
     ) {
+        val maxSheetHeight = (currentWindowDpSize().height * 0.82f).coerceAtLeast(360.dp)
+        val scrollState = rememberScrollState()
+        val scope = rememberCoroutineScope()
+        val density = LocalDensity.current
+        val bottomComfortPx = with(density) { 24.dp.toPx() }
+        var viewportCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
+
+        val ensureVisibleInViewport: (LayoutCoordinates) -> Unit = { itemCoords ->
+            val vp = viewportCoords
+            if (vp != null && vp.isAttached && itemCoords.isAttached) {
+                val rect = vp.localBoundingBoxOf(itemCoords, clipBounds = false)
+                val vpHeight = vp.size.height.toFloat()
+                val overflow = (rect.bottom + bottomComfortPx) - vpHeight
+                val maxShift = rect.top.coerceAtLeast(0f)
+                val delta = minOf(overflow, maxShift)
+                if (delta > 0.5f && scrollState.value < scrollState.maxValue) {
+                    scope.launch {
+                        scrollState.scrollBy(delta)
+                    }
+                }
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
+                .heightIn(max = maxSheetHeight)
                 .padding(WindowInsets.navigationBars.asPaddingValues())
-                .padding(bottom = 16.dp)
                 .imePadding(),
-            verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
-            Text(
-                text = "对话专属参数",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-            )
-            HorizontalDivider()
+            // 顶部固定标题栏：带图标与一键恢复默认（对齐下方 CardGroup 的 16.dp 内边距与 16.dp 间距轴线）
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 32.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    CardGroupIcon(
+                        icon = HugeIcons.Crane,
+                        containerColor = colors.primaryContainer,
+                        contentColor = colors.onPrimaryContainer,
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = "对话专属参数",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = "仅对当前会话生效，未开启项跟随助手默认设置",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colors.onSurfaceVariant,
+                        )
+                    }
+                }
+                AnimatedVisibility(
+                    visible = hasCustomOverrides,
+                    enter = fadeIn() + scaleIn(initialScale = 0.9f),
+                    exit = fadeOut() + scaleOut(targetScale = 0.9f),
+                ) {
+                    FilledTonalButton(
+                        onClick = {
+                            val reset = ConversationParams()
+                            params = reset
+                            onUpdate(reset)
+                        },
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.height(34.dp),
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.Refresh01,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = "重置",
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    }
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .onGloballyPositioned { viewportCoords = it },
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(scrollState)
+                        .padding(horizontal = 16.dp)
+                        .padding(top = 4.dp, bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
 
             // Context Message Size
             // [FORK] 拖动滑块时的实时显示值：IntSliderItem 松手才提交，用它让下方数字/内訳实时更新
             var contextSizeDisplay by remember(params.contextMessageSize, assistant.contextMessageLimit) {
                 mutableStateOf(params.contextMessageSize ?: assistant.contextMessageLimit)
             }
-            FormItem(
-                modifier = Modifier.padding(8.dp),
-                label = {
-                    Text(stringResource(R.string.assistant_page_context_message_limit))
-                },
-                description = {
-                    if (params.contextMessageSize == null) {
-                        Text(
-                            text = "使用助手设置: ${
-                                if (assistant.contextMessageLimit > 0)
-                                    stringResource(R.string.assistant_page_context_message_limit_count, assistant.contextMessageLimit)
-                                else stringResource(R.string.assistant_page_context_message_limit_unlimited)
-                            }",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                },
-                tail = {
-                    Switch(
-                        checked = params.contextMessageSize != null,
-                        onCheckedChange = { enabled ->
-                            val newParams = params.copy(
-                                contextMessageSize = if (enabled) assistant.contextMessageLimit else null
-                            )
-                            params = newParams
-                            onUpdate(newParams)
-                        }
-                    )
-                }
-            ) {
-                params.contextMessageSize?.let { size ->
-                    IntSliderItem(
-                        value = size,
-                        onValueChange = { newSize ->
-                            contextSizeDisplay = newSize
-                            val newParams = params.copy(contextMessageSize = newSize)
-                            params = newParams
-                            onUpdate(newParams)
-                        },
-                        onValueChanging = { contextSizeDisplay = it },
-                        valueRange = 0..512,
-                    )
-                    Text(
-                        text = if (contextSizeDisplay > 0) stringResource(
-                            R.string.assistant_page_context_message_limit_count, contextSizeDisplay
-                        ) else stringResource(R.string.assistant_page_context_message_limit_unlimited),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.75f),
-                    )
-                }
+            val budget = contextSizeDisplay
+            val pinnedIds = remember(conversation.messageNodes) { conversation.collectProtectedMessageIds() }
+            val pinnedCount = remember(conversation.messageNodes, pinnedIds) {
+                conversation.contextMessages.count { it.id in pinnedIds }
             }
+            val pinnedGroups = remember(conversation.messageNodes) { conversation.pinnedGroupCount() }
+            val contextCustomEnabled = params.contextMessageSize != null
 
-            // [FORK] 实时内訳：固定 / 普通 / 总预算（固定由手动 pin 控制，不再自动砍）
-            run {
-                val budget = contextSizeDisplay
-                val pinnedIds = conversation.collectProtectedMessageIds()
-                // [FORK] 按实际发送的上下文（固定节点取锚定分支）统计固定占用条数
-                val pinnedCount = conversation.contextMessages.count { it.id in pinnedIds }
-                val pinnedGroups = conversation.pinnedGroupCount()
-                Column(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
+            CardGroup {
+                formItem(
+                    leadingContent = {
+                        CardGroupIcon(
+                            icon = HugeIcons.Message02,
+                            containerColor = if (contextCustomEnabled) colors.primaryContainer else colors.secondaryContainer,
+                            contentColor = if (contextCustomEnabled) colors.onPrimaryContainer else colors.onSecondaryContainer,
+                        )
+                    },
+                    headlineContent = {
+                        Text(stringResource(R.string.assistant_page_context_message_limit))
+                    },
+                    trailingContent = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            if (contextCustomEnabled) {
+                                CardGroupValue(
+                                    text = if (contextSizeDisplay > 0) "$contextSizeDisplay" else "不限"
+                                )
+                            }
+                            AppSwitch(
+                                checked = contextCustomEnabled,
+                                onCheckedChange = { enabled ->
+                                    val newParams = params.copy(
+                                        contextMessageSize = if (enabled) assistant.contextMessageLimit else null
+                                    )
+                                    params = newParams
+                                    onUpdate(newParams)
+                                }
+                            )
+                        }
+                    },
+                    contentSpacing = 0.dp,
                 ) {
-                    if (budget <= 0) {
-                        Text(
-                            text = "上下文长度不限，全部消息都会发送（当前固定 $pinnedGroups 组）",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.75f),
-                        )
-                    } else {
-                        val normalShown = (budget - pinnedCount).coerceAtLeast(0)
-                        Text(
-                            text = "固定 $pinnedGroups 组（占 $pinnedCount 条）· 普通最多 $normalShown 条 · 总预算 $budget 条（约 ${budget / 2} 组）",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.75f),
-                        )
-                        if (pinnedCount >= budget) {
-                            Text(
-                                text = "⚠️ 固定已占 $pinnedCount 条 ≥ 总预算 $budget 条",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.error,
+                    var lastContextSize by remember { mutableIntStateOf(assistant.contextMessageLimit) }
+                    params.contextMessageSize?.let { lastContextSize = it }
+                    ParamAnimatedVisibility(
+                        visible = params.contextMessageSize != null,
+                        onExpandingBoundsChanged = ensureVisibleInViewport,
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(top = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            IntSliderItem(
+                                value = lastContextSize,
+                                onValueChange = { newSize ->
+                                    contextSizeDisplay = newSize
+                                    val newParams = params.copy(contextMessageSize = newSize)
+                                    params = newParams
+                                    onUpdate(newParams)
+                                },
+                                onValueChanging = { contextSizeDisplay = it },
+                                valueRange = 0..512,
                             )
+
+                            if (pinnedCount > 0) {
+                                val isOverBudget = budget > 0 && pinnedCount >= budget
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = if (isOverBudget) HugeIcons.Alert01 else HugeIcons.Pin02,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = if (isOverBudget) colors.error else colors.primary,
+                                    )
+                                    Text(
+                                        text = if (isOverBudget) {
+                                            "固定消息已占 $pinnedCount 条 ≥ 总预算 $budget 条，普通消息将不会被发送"
+                                        } else if (budget <= 0) {
+                                            "当前固定 $pinnedGroups 组（占 $pinnedCount 条）"
+                                        } else {
+                                            val normalShown = (budget - pinnedCount).coerceAtLeast(0)
+                                            "固定 $pinnedGroups 组（占 $pinnedCount 条）· 普通最多 $normalShown 条"
+                                        },
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (isOverBudget) colors.error else colors.onSurfaceVariant,
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
-            HorizontalDivider()
 
-            // [FORK] Battle Mode
-            BattleModeSection(
-                params = params,
-                settings = settings,
-                onUpdate = { newParams ->
-                    params = newParams
-                    onUpdate(newParams)
+            // [FORK] Battle Mode (独立 CardGroup)
+            var wasBattleEnabled by remember { mutableStateOf(params.battleModeEnabled) }
+            var battleRevealActive by remember { mutableStateOf(false) }
+            LaunchedEffect(params.battleModeEnabled) {
+                if (params.battleModeEnabled && !wasBattleEnabled) {
+                    battleRevealActive = true
+                    delay(260)
+                    battleRevealActive = false
+                } else if (!params.battleModeEnabled) {
+                    battleRevealActive = false
                 }
-            )
-            HorizontalDivider()
-
-            // System Prompt
-            FormItem(
-                modifier = Modifier.padding(8.dp),
-                label = {
-                    Text("对话专属系统提示词")
-                },
-                description = {
-                    if (params.systemPrompt == null) {
-                        Text(
-                            text = "使用助手设置: ${assistant.systemPrompt.ifBlank { "默认" }.take(40)}${if (assistant.systemPrompt.length > 40) "…" else ""}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                wasBattleEnabled = params.battleModeEnabled
+            }
+            Box(
+                modifier = Modifier.onGloballyPositioned { coords ->
+                    if (battleRevealActive && coords.isAttached) {
+                        ensureVisibleInViewport(coords)
                     }
-                },
-                tail = {
-                    Switch(
-                        checked = params.systemPrompt != null,
-                        onCheckedChange = { enabled ->
-                            val newParams = params.copy(
-                                systemPrompt = if (enabled) assistant.systemPrompt else null
-                            )
-                            params = newParams
-                            onUpdate(newParams)
-                        }
-                    )
                 }
             ) {
-                params.systemPrompt?.let { prompt ->
-                    // 模式选择器
-                    val modes = listOf(
-                        SystemPromptMode.APPEND  to "追加",
-                        SystemPromptMode.OVERRIDE to "覆盖",
-                    )
-                    SingleChoiceSegmentedButtonRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp)
+                BattleModeSection(
+                    params = params,
+                    settings = settings,
+                    onUpdate = { newParams ->
+                        params = newParams
+                        onUpdate(newParams)
+                    }
+                )
+            }
+
+            // 对话专属系统提示词（独立无边框卡片，内部使用柔和填充输入区替代带粗框的 OutlinedTextField）
+            CardGroup {
+                val promptCustomEnabled = params.systemPrompt != null
+                formItem(
+                    leadingContent = {
+                        CardGroupIcon(
+                            icon = HugeIcons.QuillWrite01,
+                            containerColor = if (promptCustomEnabled) colors.primaryContainer else colors.secondaryContainer,
+                            contentColor = if (promptCustomEnabled) colors.onPrimaryContainer else colors.onSecondaryContainer,
+                        )
+                    },
+                    headlineContent = {
+                        Text("对话专属系统提示词")
+                    },
+                    trailingContent = {
+                        AppSwitch(
+                            checked = promptCustomEnabled,
+                            onCheckedChange = { enabled ->
+                                val newParams = params.copy(
+                                    systemPrompt = if (enabled) assistant.systemPrompt else null
+                                )
+                                params = newParams
+                                onUpdate(newParams)
+                            }
+                        )
+                    },
+                    contentSpacing = 0.dp,
+                ) {
+                    var lastPrompt by remember { mutableStateOf(assistant.systemPrompt) }
+                    params.systemPrompt?.let { lastPrompt = it }
+                    ParamAnimatedVisibility(
+                        visible = params.systemPrompt != null,
+                        onExpandingBoundsChanged = ensureVisibleInViewport,
                     ) {
-                        modes.forEachIndexed { index, (mode, label) ->
-                            SegmentedButton(
-                                shape = SegmentedButtonDefaults.itemShape(
-                                    index = index,
-                                    count = modes.size,
-                                ),
-                                onClick = {
+                        val modes = remember {
+                            listOf(
+                                SystemPromptMode.APPEND,
+                                SystemPromptMode.OVERRIDE,
+                            )
+                        }
+                        Column(
+                            modifier = Modifier.padding(top = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            ConnectedChoiceButtons(
+                                options = modes,
+                                selected = params.systemPromptMode,
+                                onSelect = { mode ->
                                     val newParams = params.copy(systemPromptMode = mode)
                                     params = newParams
                                     onUpdate(newParams)
                                 },
-                                selected = params.systemPromptMode == mode,
-                                label = { Text(label) },
+                                minHeight = 38.dp,
+                            ) { mode, selected ->
+                                ConnectedChoiceLabel(
+                                    text = when (mode) {
+                                        SystemPromptMode.APPEND -> "追加"
+                                        SystemPromptMode.OVERRIDE -> "覆盖"
+                                    },
+                                    selected = selected,
+                                    icon = HugeIcons.Tick01,
+                                )
+                            }
+                            TextField(
+                                value = lastPrompt,
+                                onValueChange = {
+                                    lastPrompt = it
+                                    val newParams = params.copy(systemPrompt = it)
+                                    params = newParams
+                                    onUpdate(newParams)
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                minLines = 3,
+                                maxLines = 8,
+                                placeholder = {
+                                    Text(
+                                        text = "输入此对话的专属系统提示词…",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = colors.onSurfaceVariant.copy(alpha = 0.7f),
+                                    )
+                                },
+                                textStyle = MaterialTheme.typography.bodyMedium,
+                                colors = TextFieldDefaults.colors(
+                                    focusedContainerColor = colors.surfaceContainerHigh.copy(alpha = 0.55f),
+                                    unfocusedContainerColor = colors.surfaceContainerHigh.copy(alpha = 0.55f),
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent,
+                                    disabledIndicatorColor = Color.Transparent,
+                                ),
                             )
                         }
                     }
-                    OutlinedTextField(
-                        value = prompt,
-                        onValueChange = {
-                            val newParams = params.copy(systemPrompt = it)
-                            params = newParams
-                            onUpdate(newParams)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 4.dp),
-                        minLines = 4,
-                        maxLines = 12,
-                        placeholder = {
-                            Text(
-                                text = "输入此对话的专属系统提示词…",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        },
-                        textStyle = MaterialTheme.typography.bodySmall,
-                    )
                 }
             }
-            HorizontalDivider()
 
-            // Temperature
-            FormItem(
-                modifier = Modifier.padding(8.dp),
-                label = {
-                    Text(stringResource(R.string.assistant_page_temperature))
-                },
-                description = {
-                    if (params.temperature == null) {
-                        Text(
-                            text = "使用助手设置: ${assistant.temperature ?: "默认"}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            // 温度（独立卡片，去除分割线与底部重复的 Tag 框）
+            CardGroup {
+                val tempCustomEnabled = params.temperature != null
+                formItem(
+                    leadingContent = {
+                        CardGroupIcon(
+                            icon = HugeIcons.DashboardSpeed02,
+                            containerColor = if (tempCustomEnabled) colors.primaryContainer else colors.secondaryContainer,
+                            contentColor = if (tempCustomEnabled) colors.onPrimaryContainer else colors.onSecondaryContainer,
                         )
-                    }
-                },
-                tail = {
-                    Switch(
-                        checked = params.temperature != null,
-                        onCheckedChange = { enabled ->
-                            val newParams = params.copy(
-                                temperature = if (enabled) (assistant.temperature ?: 1.0f) else null
-                            )
-                            params = newParams
-                            onUpdate(newParams)
-                        }
-                    )
-                }
-            ) {
-                if (params.temperature != null) {
-                    Slider(
-                        value = params.temperature!!,
-                        onValueChange = {
-                            val newParams = params.copy(
-                                temperature = it.toFixed(2).toFloatOrNull() ?: 0.6f
-                            )
-                            params = newParams
-                            onUpdate(newParams)
-                        },
-                        valueRange = 0f..2f,
-                        steps = 19,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        val currentTemperature = params.temperature!!
-                        val tagType = when (currentTemperature) {
-                            in 0.0f..0.3f -> TagType.INFO
-                            in 0.3f..1.0f -> TagType.SUCCESS
-                            in 1.0f..1.5f -> TagType.WARNING
-                            in 1.5f..2.0f -> TagType.ERROR
-                            else -> TagType.ERROR
-                        }
-                        Tag(type = TagType.INFO) {
-                            Text(text = "$currentTemperature")
-                        }
-                        Tag(type = tagType) {
-                            Text(
-                                text = when (currentTemperature) {
+                    },
+                    headlineContent = {
+                        Text(stringResource(R.string.assistant_page_temperature))
+                    },
+                    trailingContent = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            params.temperature?.let { currentTemp ->
+                                val modeText = when (currentTemp) {
                                     in 0.0f..0.3f -> stringResource(R.string.assistant_page_strict)
                                     in 0.3f..1.0f -> stringResource(R.string.assistant_page_balanced)
                                     in 1.0f..1.5f -> stringResource(R.string.assistant_page_creative)
                                     in 1.5f..2.0f -> stringResource(R.string.assistant_page_chaotic)
-                                    else -> "?"
+                                    else -> ""
+                                }
+                                CardGroupValue(
+                                    text = if (modeText.isNotEmpty()) "$currentTemp · $modeText" else "$currentTemp"
+                                )
+                            }
+                            AppSwitch(
+                                checked = tempCustomEnabled,
+                                onCheckedChange = { enabled ->
+                                    val newParams = params.copy(
+                                        temperature = if (enabled) (assistant.temperature ?: 1.0f) else null
+                                    )
+                                    params = newParams
+                                    onUpdate(newParams)
                                 }
                             )
                         }
-                    }
-                }
-            }
-            HorizontalDivider()
-
-            // Top P
-            FormItem(
-                modifier = Modifier.padding(8.dp),
-                label = {
-                    Text(stringResource(R.string.assistant_page_top_p))
-                },
-                description = {
-                    if (params.topP == null) {
-                        Text(
-                            text = "使用助手设置: ${assistant.topP ?: "默认"}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    },
+                    contentSpacing = 0.dp,
+                ) {
+                    var lastTemperature by remember { mutableFloatStateOf(assistant.temperature ?: 1.0f) }
+                    params.temperature?.let { lastTemperature = it }
+                    ParamAnimatedVisibility(
+                        visible = params.temperature != null,
+                        onExpandingBoundsChanged = ensureVisibleInViewport,
+                    ) {
+                        AppSlider(
+                            value = lastTemperature,
+                            onValueChange = {
+                                val next = it.toFixed(2).toFloatOrNull() ?: 0.6f
+                                lastTemperature = next
+                                val newParams = params.copy(temperature = next)
+                                params = newParams
+                                onUpdate(newParams)
+                            },
+                            valueRange = 0f..2f,
+                            steps = 19,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 12.dp),
                         )
                     }
-                },
-                tail = {
-                    Switch(
-                        checked = params.topP != null,
-                        onCheckedChange = { enabled ->
-                            val newParams = params.copy(
-                                topP = if (enabled) (assistant.topP ?: 1.0f) else null
-                            )
-                            params = newParams
-                            onUpdate(newParams)
-                        }
-                    )
-                }
-            ) {
-                params.topP?.let { topP ->
-                    Slider(
-                        value = topP,
-                        onValueChange = {
-                            val newParams = params.copy(
-                                topP = it.toFixed(2).toFloatOrNull() ?: 1.0f
-                            )
-                            params = newParams
-                            onUpdate(newParams)
-                        },
-                        valueRange = 0f..1f,
-                        steps = 0,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Text(
-                        text = stringResource(R.string.assistant_page_top_p_value, topP.toString()),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.75f),
-                    )
                 }
             }
-            HorizontalDivider()
 
+            // Top P（独立卡片，去除分割线）
+            CardGroup {
+                val topPCustomEnabled = params.topP != null
+                formItem(
+                    leadingContent = {
+                        CardGroupIcon(
+                            icon = HugeIcons.PercentCircle,
+                            containerColor = if (topPCustomEnabled) colors.primaryContainer else colors.secondaryContainer,
+                            contentColor = if (topPCustomEnabled) colors.onPrimaryContainer else colors.onSecondaryContainer,
+                        )
+                    },
+                    headlineContent = {
+                        Text(stringResource(R.string.assistant_page_top_p))
+                    },
+                    trailingContent = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            params.topP?.let { currentTopP ->
+                                CardGroupValue(text = "$currentTopP")
+                            }
+                            AppSwitch(
+                                checked = topPCustomEnabled,
+                                onCheckedChange = { enabled ->
+                                    val newParams = params.copy(
+                                        topP = if (enabled) (assistant.topP ?: 1.0f) else null
+                                    )
+                                    params = newParams
+                                    onUpdate(newParams)
+                                }
+                            )
+                        }
+                    },
+                    contentSpacing = 0.dp,
+                ) {
+                    var lastTopP by remember { mutableFloatStateOf(assistant.topP ?: 1.0f) }
+                    params.topP?.let { lastTopP = it }
+                    ParamAnimatedVisibility(
+                        visible = params.topP != null,
+                        onExpandingBoundsChanged = ensureVisibleInViewport,
+                    ) {
+                        AppSlider(
+                            value = lastTopP,
+                            onValueChange = {
+                                val next = it.toFixed(2).toFloatOrNull() ?: 1.0f
+                                lastTopP = next
+                                val newParams = params.copy(topP = next)
+                                params = newParams
+                                onUpdate(newParams)
+                            },
+                            valueRange = 0f..1f,
+                            steps = 0,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 12.dp),
+                        )
+                    }
+                }
+            }
+                }
+            }
         }
     }
 }
+
+/**
+ * 同步折叠高度与淡出节奏，避免开关关闭时内容先透明而在卡片中留下空白；
+ * 当开关由关闭切换为开启时，随展开动画逐帧上报外框位置以便滚动容器自动上顶露出新展开项。
+ */
 @Composable
-private fun ChatPageMenu(
-    enabled: Boolean,
-    onShowOverview: () -> Unit,
-    onExport: () -> Unit,
-    onDelete: () -> Unit,
+private fun ParamAnimatedVisibility(
+    visible: Boolean,
+    onExpandingBoundsChanged: ((LayoutCoordinates) -> Unit)? = null,
+    content: @Composable AnimatedVisibilityScope.() -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-
-    @Composable
-    fun MenuItem(
-        text: String,
-        icon: ImageVector,
-        index: Int,
-        count: Int,
-        destructive: Boolean = false,
-        onClick: () -> Unit,
-    ) {
-        DropdownMenuItem(
-            text = { Text(text) },
-            onClick = {
-                expanded = false
-                onClick()
-            },
-            shape = MenuDefaults.itemShape(index = index, count = count).shape,
-            leadingIcon = { Icon(icon, contentDescription = null) },
-            enabled = enabled,
-            colors = if (destructive) {
-                val errorColor = MaterialTheme.colorScheme.error
-                MenuDefaults.itemColors(textColor = errorColor, leadingIconColor = errorColor)
-            } else {
-                MenuDefaults.itemColors()
-            },
-        )
+    var wasVisible by remember { mutableStateOf(visible) }
+    var revealActive by remember { mutableStateOf(false) }
+    LaunchedEffect(visible) {
+        if (visible && !wasVisible) {
+            revealActive = true
+            delay(260)
+            revealActive = false
+        } else if (!visible) {
+            revealActive = false
+        }
+        wasVisible = visible
     }
-
-    Box {
-        IconButton(onClick = { expanded = true }) {
-            Icon(HugeIcons.MoreVertical, stringResource(R.string.more_options))
-        }
-        DropdownMenuPopup(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            DropdownMenuGroup(shapes = MenuDefaults.groupShape(index = 0, count = 2)) {
-                MenuItem(
-                    text = stringResource(R.string.chat_page_conversation_map),
-                    icon = HugeIcons.LeftToRightListBullet,
-                    index = 0,
-                    count = 2,
-                    onClick = onShowOverview,
-                )
-                MenuItem(
-                    text = stringResource(R.string.export_title),
-                    icon = HugeIcons.Share04,
-                    index = 1,
-                    count = 2,
-                    onClick = onExport,
-                )
-            }
-            Spacer(Modifier.height(MenuDefaults.GroupSpacing))
-            DropdownMenuGroup(shapes = MenuDefaults.groupShape(index = 1, count = 2)) {
-                MenuItem(
-                    text = stringResource(R.string.delete),
-                    icon = HugeIcons.Delete01,
-                    index = 0,
-                    count = 1,
-                    destructive = true,
-                    onClick = onDelete,
-                )
+    Box(
+        modifier = Modifier.onGloballyPositioned { coords ->
+            if (revealActive && coords.isAttached) {
+                onExpandingBoundsChanged?.invoke(coords)
             }
         }
+    ) {
+        AnimatedVisibility(
+            visible = visible,
+            enter = expandVertically(
+                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                expandFrom = Alignment.Top,
+            ) + fadeIn(animationSpec = tween(durationMillis = 150)),
+            exit = shrinkVertically(
+                animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing),
+                shrinkTowards = Alignment.Top,
+            ) + fadeOut(animationSpec = tween(durationMillis = 150)),
+            content = content,
+        )
     }
 }

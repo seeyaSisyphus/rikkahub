@@ -140,7 +140,7 @@ fun <T> ChainOfThought(
                 }
             }
 
-            val lineColor = MaterialTheme.colorScheme.outlineVariant
+            val lineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
             // 每个步骤只绘制自己的连线分段并在节点处留空，
             // 避免使用离屏合成 + BlendMode.Clear（离屏层过大时部分设备会退化，节点区域被清成黑块）。
             Column {
@@ -302,7 +302,7 @@ private class ChainOfThoughtScopeImpl(
                         val x = 12.dp.toPx()
                         val centerY = size.height / 2
                         val gap = 10.dp.toPx()
-                        val strokeWidth = 1.dp.toPx()
+                        val strokeWidth = 0.75.dp.toPx()
                         if (!isFirst) {
                             drawLine(
                                 color = lineColor,
@@ -424,7 +424,7 @@ private class ChainOfThoughtScopeImpl(
                                     color = lineColor,
                                     start = Offset(x, 0f),
                                     end = Offset(x, size.height),
-                                    strokeWidth = 1.dp.toPx(),
+                                    strokeWidth = 0.75.dp.toPx(),
                                 )
                             }
                         }

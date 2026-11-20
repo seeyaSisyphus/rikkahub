@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -384,24 +385,25 @@ private fun TableCard(table: MarkdownBlock.Table) {
     // 导出文件名输入对话框是否可见
     var showExportDialog by remember { mutableStateOf(false) }
 
+    val cardShape = RoundedCornerShape(16.dp)
     Column(
         modifier = Modifier
-            .clip(MaterialTheme.shapes.large)
-            .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), MaterialTheme.shapes.large)
-            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .clip(cardShape)
+            .border(BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)), cardShape)
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.85f))
+                .padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = "表格",
                 fontSize = 12.sp,
                 lineHeight = 12.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.weight(1f))
@@ -410,7 +412,7 @@ private fun TableCard(table: MarkdownBlock.Table) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 val iconSize = 16.dp
-                val iconTint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                val iconTint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
 
                 Icon(
                     imageVector = HugeIcons.Copy01,
@@ -441,6 +443,10 @@ private fun TableCard(table: MarkdownBlock.Table) {
                 )
             }
         }
+        HorizontalDivider(
+            thickness = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+        )
         MaterialMarkdownDefaults.Table(
             table = table,
             outerBorder = null,
@@ -460,8 +466,9 @@ private fun TableCard(table: MarkdownBlock.Table) {
             properties = DialogProperties(decorFitsSystemWindows = false),
         ) {
             Surface(
-                shape = MaterialTheme.shapes.extraLarge,
-                tonalElevation = 6.dp,
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                tonalElevation = 0.dp,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp)
@@ -473,7 +480,7 @@ private fun TableCard(table: MarkdownBlock.Table) {
                 ) {
                     Text(
                         text = "导出表格",
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.titleMedium,
                     )
                     Spacer(Modifier.height(16.dp))
                     OutlinedTextField(

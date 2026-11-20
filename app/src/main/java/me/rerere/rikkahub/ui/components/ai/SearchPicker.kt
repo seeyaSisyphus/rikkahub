@@ -1,12 +1,9 @@
 package me.rerere.rikkahub.ui.components.ai
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -16,15 +13,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.text.TextAutoSize
-import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItemDefaults
@@ -34,22 +28,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
-import androidx.compose.material3.ToggleButton
-import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.graphics.shapes.RoundedPolygon
-import androidx.compose.ui.util.fastForEachIndexed
 import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.supportsBuiltInSearch
@@ -65,6 +52,9 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.pages.setting.SearchAbilityTagLine
 
@@ -107,9 +97,19 @@ internal fun SearchPickerListItem(
                     modifier = Modifier.size(24.dp),
                 )
             } else {
-                Icon(
-                    imageVector = mode.icon(),
-                    contentDescription = null,
+                val active = mode != SearchMode.OFF
+                CardGroupIcon(
+                    icon = mode.icon(),
+                    containerColor = if (active) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.secondaryContainer
+                    },
+                    contentColor = if (active) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    },
                 )
             }
         },
@@ -126,8 +126,19 @@ internal fun SearchPickerListItem(
                 overflow = TextOverflow.Ellipsis,
             )
         },
+        trailingContent = {
+            Icon(
+                imageVector = HugeIcons.ArrowRight01,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            )
+        },
     ) {
-        Text(stringResource(R.string.use_web_search))
+        Text(
+            text = stringResource(R.string.use_web_search),
+            fontWeight = FontWeight.Medium,
+        )
     }
 }
 
@@ -193,7 +204,6 @@ private fun SearchPicker(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp)
             .padding(bottom = 16.dp),
     ) {
         val enabled = currentMode != SearchMode.OFF
@@ -232,64 +242,22 @@ private fun SearchPicker(
             )
         }
 
-        // 连接式按钮组，选中项更宽并带图标
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .selectableGroup(),
-            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
-        ) {
-            modes.fastForEachIndexed { index, mode ->
-                val selected = mode == currentMode
-                val weight by animateFloatAsState(
-                    targetValue = if (selected) 1.3f else 1f,
-                    animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-                )
-                ToggleButton(
-                    checked = selected,
-                    onCheckedChange = { if (!selected) onUpdateSearchMode(mode) },
-                    modifier = Modifier
-                        .weight(weight)
-                        .heightIn(min = 52.dp)
-                        .semantics { role = Role.RadioButton },
-                    shapes = when (index) {
-                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                        modes.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-                    },
-                    colors = ToggleButtonDefaults.colors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    ),
-                    contentPadding = PaddingValues(horizontal = 8.dp),
-                ) {
-                    AnimatedVisibility(
-                        visible = selected,
-                        enter = expandHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeIn(),
-                        exit = shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(),
-                    ) {
-                        Row {
-                            Icon(
-                                imageVector = mode.icon(),
-                                contentDescription = null,
-                                modifier = Modifier.size(ToggleButtonDefaults.IconSize),
-                            )
-                            Spacer(Modifier.width(ToggleButtonDefaults.IconSpacing))
-                        }
-                    }
-                    Text(
-                        text = when (mode) {
-                            SearchMode.OFF -> stringResource(R.string.search_picker_off)
-                            SearchMode.LOCAL -> stringResource(R.string.search_picker_local_title)
-                            SearchMode.BUILT_IN -> stringResource(R.string.search_picker_model_title)
-                        },
-                        // 三个按钮并排时较长的译文放不下，自动缩小字号
-                        autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 14.sp),
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
+        // 滑动胶囊选择器
+        ConnectedChoiceButtons(
+            options = modes,
+            selected = currentMode,
+            onSelect = onUpdateSearchMode,
+            minHeight = 46.dp,
+        ) { mode, selected ->
+            ConnectedChoiceLabel(
+                text = when (mode) {
+                    SearchMode.OFF -> stringResource(R.string.search_picker_off)
+                    SearchMode.LOCAL -> stringResource(R.string.search_picker_local_title)
+                    SearchMode.BUILT_IN -> stringResource(R.string.search_picker_model_title)
+                },
+                selected = selected,
+                icon = mode.icon(),
+            )
         }
 
         AnimatedVisibility(
@@ -326,9 +294,15 @@ private fun SearchPicker(
                             Icon(
                                 imageVector = HugeIcons.Settings03,
                                 contentDescription = stringResource(R.string.search_picker_title),
+                                modifier = Modifier.size(18.dp),
                             )
                         }
-                        Icon(HugeIcons.ArrowRight01, contentDescription = null)
+                        Icon(
+                            imageVector = HugeIcons.ArrowRight01,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        )
                     }
                 },
             ) {

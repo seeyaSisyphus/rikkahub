@@ -13,7 +13,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetState
@@ -33,6 +32,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.pages.extensions.workspace.statusLabel
+import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
 
 @Composable
 internal fun WorkspaceSelectSheet(
@@ -42,7 +42,7 @@ internal fun WorkspaceSelectSheet(
     onManage: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(
+    AppModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberBottomSheetState(
             initialValue = SheetValue.Hidden,

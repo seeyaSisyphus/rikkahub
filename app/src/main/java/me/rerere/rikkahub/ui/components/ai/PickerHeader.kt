@@ -89,7 +89,7 @@ internal fun PickerHeader(
 internal fun <T : Comparable<T>> PickerValueHeader(
     title: String?,
     value: T,
-    hint: String,
+    hint: String? = null,
     modifier: Modifier = Modifier,
     label: @Composable (T) -> String,
     hero: @Composable () -> Unit,
@@ -110,12 +110,14 @@ internal fun <T : Comparable<T>> PickerValueHeader(
                 )
             }
             PickerValueLabel(value = value, label = label)
-            Text(
-                text = hint,
-                modifier = Modifier.padding(top = 4.dp),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            if (!hint.isNullOrBlank()) {
+                Text(
+                    text = hint,
+                    modifier = Modifier.padding(top = 4.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         hero()
     }
@@ -131,7 +133,13 @@ internal fun PickerHero(
     contentColor: Color,
     modifier: Modifier = Modifier,
 ) {
-    val morphs = remember(shapes) { shapes.zipWithNext { from, to -> Morph(from, to) } }
+    val morphs = remember(shapes) {
+        if (shapes.size <= 1) {
+            shapes.map { Morph(it, it) }
+        } else {
+            shapes.zipWithNext { from, to -> Morph(from, to) }
+        }
+    }
     val path = remember { Path() }
     val position by animateFloatAsState(
         targetValue = index.toFloat(),
@@ -152,6 +160,7 @@ internal fun PickerHero(
         modifier = modifier
             .size(72.dp)
             .drawBehind {
+                if (morphs.isEmpty()) return@drawBehind
                 // 弹簧会过冲，position 可能略微越界
                 val segment = position.toInt().coerceIn(0, morphs.lastIndex)
                 morphs[segment].toPath(

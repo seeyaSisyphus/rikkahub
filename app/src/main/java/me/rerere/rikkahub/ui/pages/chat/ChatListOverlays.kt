@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.pages.chat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -25,6 +27,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceAtLeast
@@ -93,33 +97,36 @@ internal fun BoxScope.MessageJumper(
             targetOffsetX = { if (onLeft) -it * 2 else it * 2 },
         )
     ) {
+        val jumperColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.82f)
+        val jumperBorder = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
+        val jumperIconTint = MaterialTheme.colorScheme.onSurfaceVariant
+
+        // 36.dp 按钮 + 14.dp 间距（中心距 50.dp > 48.dp 最小触控热区），避免相邻按钮热区重叠误触
         Column(
-            modifier = Modifier.padding(horizontal = 2.dp, vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             // 去顶部（点击后自动关闭导航栏）
-            Surface(
+            JumperActionButton(
+                icon = HugeIcons.ArrowUpDouble,
+                contentDescription = null,
+                containerColor = jumperColor,
+                border = jumperBorder,
+                iconTint = jumperIconTint,
                 onClick = {
                     scope.launch {
                         state.scrollToItem(0)
                     }
                     onDismissJumper()
                 },
-                shape = CircleShape,
-                tonalElevation = 4.dp,
-                color = MaterialTheme.colorScheme.surfaceColorAtElevation(
-                    4.dp
-                ).copy(alpha = 0.65f)
-            ) {
-                Icon(
-                    imageVector = HugeIcons.ArrowUpDouble,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .padding(4.dp)
-                )
-            }
+            )
             // 上一个提问（不关闭导航栏）
-            Surface(
+            JumperActionButton(
+                icon = HugeIcons.ArrowUp01,
+                contentDescription = null,
+                containerColor = jumperColor,
+                border = jumperBorder,
+                iconTint = jumperIconTint,
                 onClick = {
                     // 手动跳转时停止自动贴底，防止被 auto-follow 立即拉回底部
                     onDisableAutoFollow()
@@ -132,21 +139,14 @@ internal fun BoxScope.MessageJumper(
                         state.animateScrollToItem(target)
                     }
                 },
-                shape = CircleShape,
-                tonalElevation = 4.dp,
-                color = MaterialTheme.colorScheme.surfaceColorAtElevation(
-                    4.dp
-                ).copy(alpha = 0.65f)
-            ) {
-                Icon(
-                    imageVector = HugeIcons.ArrowUp01,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .padding(4.dp)
-                )
-            }
+            )
             // 下一个提问（不关闭导航栏）
-            Surface(
+            JumperActionButton(
+                icon = HugeIcons.ArrowDown01,
+                contentDescription = null,
+                containerColor = jumperColor,
+                border = jumperBorder,
+                iconTint = jumperIconTint,
                 onClick = {
                     // 手动跳转时停止自动贴底，防止被 auto-follow 立即拉回底部
                     onDisableAutoFollow()
@@ -163,38 +163,48 @@ internal fun BoxScope.MessageJumper(
                         }
                     }
                 },
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceColorAtElevation(
-                    4.dp
-                ).copy(alpha = 0.65f)
-            ) {
-                Icon(
-                    imageVector = HugeIcons.ArrowDown01,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .padding(4.dp)
-                )
-            }
+            )
             // 去底部（点击后自动关闭导航栏）
-            Surface(
+            JumperActionButton(
+                icon = HugeIcons.ArrowDownDouble,
+                contentDescription = stringResource(R.string.chat_page_scroll_to_bottom),
+                containerColor = jumperColor,
+                border = jumperBorder,
+                iconTint = jumperIconTint,
                 onClick = {
                     scope.launch {
-                        state.scrollToItem(state.layoutInfo.totalItemsCount - 1)
+                        state.scrollToItem((state.layoutInfo.totalItemsCount - 1).coerceAtLeast(0))
                     }
                     onDismissJumper()
                 },
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceColorAtElevation(
-                    4.dp
-                ).copy(alpha = 0.65f),
-            ) {
-                Icon(
-                    imageVector = HugeIcons.ArrowDownDouble,
-                    contentDescription = stringResource(R.string.chat_page_scroll_to_bottom),
-                    modifier = Modifier
-                        .padding(4.dp)
-                )
-            }
+            )
+        }
+    }
+}
+
+@Composable
+private fun JumperActionButton(
+    icon: ImageVector,
+    contentDescription: String?,
+    containerColor: Color,
+    border: BorderStroke,
+    iconTint: Color,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.size(36.dp),
+        shape = CircleShape,
+        color = containerColor,
+        border = border,
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                modifier = Modifier.size(18.dp),
+                tint = iconTint,
+            )
         }
     }
 }

@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.input.TextFieldLineLimits
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -39,6 +38,7 @@ import me.rerere.rikkahub.service.InboxState
 import me.rerere.rikkahub.service.QueuedMessage
 import me.rerere.rikkahub.service.QueuedNotice
 import me.rerere.rikkahub.ui.hooks.ChatInputState
+import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
 
 @Composable
 internal fun MessageQueuePanel(
@@ -158,7 +158,7 @@ internal fun MessageQueuePanel(
         DisposableEffect(message.id) {
             onDispose { finishEdit(message.id, null) }
         }
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { editing = null },
             title = { Text(stringResource(R.string.chat_page_queue_edit_title)) },
             text = {

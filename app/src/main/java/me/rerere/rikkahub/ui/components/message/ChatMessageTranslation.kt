@@ -29,7 +29,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.rememberBottomSheetState
@@ -54,6 +53,7 @@ import me.rerere.rikkahub.ui.components.ai.TranslationLanguages
 import me.rerere.rikkahub.ui.components.ai.translationLanguageName
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import java.util.Locale
+import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
 
 @Composable
 fun LanguageSelectionDialog(
@@ -61,7 +61,7 @@ fun LanguageSelectionDialog(
     onClearTranslation: () -> Unit = {},
     onDismissRequest: () -> Unit
 ) {
-    ModalBottomSheet(
+    AppModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)),
     ) {

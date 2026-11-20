@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -38,6 +37,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Remove01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
 
 @Composable
 fun CompressContextDialog(
@@ -60,7 +60,7 @@ fun CompressContextDialog(
         currentJob = null
     }
 
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = {
             if (!isLoading) {
                 onDismiss()

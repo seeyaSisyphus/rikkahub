@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
@@ -133,17 +134,18 @@ fun HighlightCodeBlock(
         }
     }
 
+    val codeBlockShape = RoundedCornerShape(16.dp)
     Column(
         modifier = modifier
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.large)
-            .clip(MaterialTheme.shapes.large)
-            .background(MaterialTheme.colorScheme.surfaceContainer),
+            .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f), codeBlockShape)
+            .clip(codeBlockShape)
+            .background(MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.85f))
+                .padding(horizontal = 14.dp, vertical = 8.dp)
         ) {
             HighlightCodeActions(
                 language = language,
@@ -160,6 +162,10 @@ fun HighlightCodeBlock(
                 },
             )
         }
+        HorizontalDivider(
+            thickness = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+        )
         Column(
             modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 8.dp)
         ) {

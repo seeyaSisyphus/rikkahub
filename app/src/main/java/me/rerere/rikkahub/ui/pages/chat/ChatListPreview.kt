@@ -1,20 +1,29 @@
 package me.rerere.rikkahub.ui.pages.chat
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,16 +42,27 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
@@ -60,11 +80,9 @@ import me.rerere.hugeicons.stroke.Attachment01
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Favourite
 import me.rerere.hugeicons.stroke.FavouriteCircle
-import me.rerere.hugeicons.stroke.Filter
-import me.rerere.hugeicons.stroke.Pin02
 import me.rerere.hugeicons.stroke.Image01
+import me.rerere.hugeicons.stroke.Pin02
 import me.rerere.hugeicons.stroke.Search01
-import me.rerere.hugeicons.stroke.SearchRemove
 import me.rerere.hugeicons.stroke.Wrench01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
@@ -74,7 +92,7 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
-import me.rerere.rikkahub.utils.plus
+import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -92,6 +110,8 @@ internal enum class PreviewFilter { ALL, FAVORITE, PINNED }
 private data class PreviewRound(
     // 这一轮第一个节点的 id，用作列表 key
     val id: Uuid,
+    // 1-based 轮次序号
+    val roundIndex: Int,
     // 点击跳转的目标，取这一轮第一个节点
     val firstIndex: Int,
     val lastIndex: Int,
@@ -115,11 +135,12 @@ private fun List<MessageNode>.toPreviewRounds(): List<PreviewRound> {
         if (node.currentMessage.role == MessageRole.USER || groups.isEmpty()) groups.add(mutableListOf())
         groups.last().add(IndexedValue(index, node))
     }
-    return groups.map { group ->
+    return groups.mapIndexed { idx, group ->
         val user = group.first().value.currentMessage.takeIf { it.role == MessageRole.USER }
         val replies = group.map { it.value.currentMessage }.filter { it.role != MessageRole.USER }
         PreviewRound(
             id = group.first().value.id,
+            roundIndex = idx + 1,
             firstIndex = group.first().index,
             lastIndex = group.last().index,
             user = user,
@@ -134,7 +155,7 @@ private fun List<MessageNode>.toPreviewRounds(): List<PreviewRound> {
 }
 
 /**
- * 消息概览：聊天页左滑进入，每轮对话一张卡片，点击跳到对应位置。
+ * 消息概览（对话地图）：聊天页左滑或点击顶栏按钮进入，每轮对话一张卡片，点击跳到对应位置。
  * [chatListState] 用来标出当前阅读位置，并在打开时把它滚到可见范围内。
  */
 @Composable
@@ -183,8 +204,6 @@ internal fun ChatListPreview(
 
     // 打开时的阅读位置；概览期间聊天列表不动，记一次就够
     val currentIndex = remember { chatListState.firstVisibleItemIndex }
-    // listState 由外部持有（顶栏胶囊要读它），每次打开都重新定位：停在当前轮的前一轮，让上面露出一点上下文。
-    // 要等卡片算出来、列表里有内容之后才能滚
     val loaded = loadedRounds != null
     LaunchedEffect(loaded) {
         if (!loaded) return@LaunchedEffect
@@ -196,20 +215,64 @@ internal fun ChatListPreview(
         snapshotFlow { searchQuery.trim() }.drop(1).collect { listState.scrollToItem(0) }
     }
 
-    // 搜索框浮在列表上方固定不动；列表顶部留白放进 contentPadding，内容能滚到搜索框和透明标题栏下面并渐隐
-    val searchBarTop = innerPadding.calculateTopPadding() + 8.dp
-    val listTop = searchBarTop + PreviewStatsHeight + PreviewSearchBarHeight + 12.dp
-    Box(modifier = Modifier.fillMaxSize()) {
+    val previewTopPadding = remember(innerPadding) {
+        object : PaddingValues {
+            override fun calculateLeftPadding(layoutDirection: LayoutDirection): Dp = 0.dp
+
+            override fun calculateTopPadding(): Dp = innerPadding.calculateTopPadding()
+
+            override fun calculateRightPadding(layoutDirection: LayoutDirection): Dp = 0.dp
+
+            override fun calculateBottomPadding(): Dp = 0.dp
+        }
+    }
+    val previewContentPadding = remember(innerPadding) {
+        object : PaddingValues {
+            override fun calculateLeftPadding(layoutDirection: LayoutDirection): Dp = 16.dp
+
+            override fun calculateTopPadding(): Dp = 4.dp
+
+            override fun calculateRightPadding(layoutDirection: LayoutDirection): Dp = 16.dp
+
+            override fun calculateBottomPadding(): Dp = 32.dp + innerPadding.calculateBottomPadding()
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(previewTopPadding),
+    ) {
+        // 顶部固定控制面板：搜索栏 + 筛选胶囊与字数统计
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            PreviewSearchBar(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                resultCount = filtered.size,
+                totalCount = rounds.size,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            PreviewFilterAndStatsRow(
+                rounds = rounds,
+                previewFilter = previewFilter,
+                onPreviewFilterChange = onPreviewFilterChange,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
+        // 对话轮次卡片列表
         LazyColumn(
             state = listState,
-            contentPadding = PaddingValues(horizontal = 16.dp) + PaddingValues(
-                top = listTop,
-                bottom = 32.dp + innerPadding.calculateBottomPadding(),
-            ),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = previewContentPadding,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier
-                .fillMaxSize()
-                .topFadingEdge(listTop)
+                .fillMaxWidth()
+                .weight(1f)
                 .hazeSource(state = hazeState),
         ) {
             if (loaded && filtered.isEmpty()) {
@@ -217,20 +280,15 @@ internal fun ChatListPreview(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 96.dp),
+                            .padding(vertical = 80.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Icon(
-                            imageVector = HugeIcons.SearchRemove,
-                            contentDescription = null,
-                            modifier = Modifier.size(40.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        PreviewEmptyIllustration(modifier = Modifier.size(72.dp))
                         Text(
                             text = stringResource(R.string.search_page_no_results),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                         )
                     }
                 }
@@ -249,107 +307,241 @@ internal fun ChatListPreview(
                 )
             }
         }
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, top = searchBarTop),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            // [FORK] 统计信息：全部模式显示轮次/字数，收藏/固定模式显示对应数量
-            PreviewStatsLine(
-                rounds = rounds,
-                previewFilter = previewFilter,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-            PreviewSearchBar(
-                query = searchQuery,
-                onQueryChange = { searchQuery = it },
-                resultCount = filtered.size,
-                totalCount = rounds.size,
-                modifier = Modifier.weight(1f),
-            )
-            // [FORK] 筛选按钮：全部 → 收藏 → 固定 循环切换
-            Surface(
-                onClick = {
-                    onPreviewFilterChange(
-                        when (previewFilter) {
-                            PreviewFilter.ALL -> PreviewFilter.FAVORITE
-                            PreviewFilter.FAVORITE -> PreviewFilter.PINNED
-                            PreviewFilter.PINNED -> PreviewFilter.ALL
-                        }
-                    )
-                },
-                shape = CircleShape,
-                color = if (previewFilter != PreviewFilter.ALL) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHigh
-                },
-                modifier = Modifier.height(PreviewSearchBarHeight),
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .height(PreviewSearchBarHeight)
-                        .padding(horizontal = 14.dp),
-                ) {
-                    Icon(
-                        imageVector = when (previewFilter) {
-                            PreviewFilter.ALL -> HugeIcons.Filter
-                            PreviewFilter.FAVORITE -> HugeIcons.Favourite
-                            PreviewFilter.PINNED -> HugeIcons.Pin02
-                        },
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = if (previewFilter != PreviewFilter.ALL) {
-                            MaterialTheme.colorScheme.onPrimaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    )
-                }
-            }
-            }
-        }
     }
 }
 
-private val PreviewSearchBarHeight = 52.dp
-private val PreviewStatsHeight = 22.dp
+private val PreviewSearchBarHeight = 48.dp
 
-/** [FORK] 概览顶部的统计行：全部模式看轮次与字数，收藏/固定模式看对应组数 */
+/** [FORK] 筛选胶囊栏 + 字数统计行 */
 @Composable
-private fun PreviewStatsLine(
+private fun PreviewFilterAndStatsRow(
     rounds: List<PreviewRound>,
     previewFilter: PreviewFilter,
+    onPreviewFilterChange: (PreviewFilter) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val text = when (previewFilter) {
-        PreviewFilter.FAVORITE -> "收藏 ${rounds.count { it.favorite }} 组"
-        PreviewFilter.PINNED -> "固定 ${rounds.count { it.pinned }} 组"
-        PreviewFilter.ALL -> {
-            val userChars = rounds.sumOf { it.userText.length }
-            val replyChars = rounds.sumOf { it.replyText.length }
-            "${rounds.size}轮  提问${"%,d".format(userChars)}字  回答${"%,d".format(replyChars)}字"
+    val favoriteCount = remember(rounds) { rounds.count { it.favorite } }
+    val pinnedCount = remember(rounds) { rounds.count { it.pinned } }
+    val (userChars, replyChars) = remember(rounds) {
+        rounds.sumOf { it.userText.length } to rounds.sumOf { it.replyText.length }
+    }
+
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        // 左侧三态直达筛选胶囊：全部 / 收藏 / 固定
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PreviewFilterChip(
+                label = "全部",
+                count = rounds.size,
+                icon = null,
+                selected = previewFilter == PreviewFilter.ALL,
+                onClick = { onPreviewFilterChange(PreviewFilter.ALL) },
+            )
+            PreviewFilterChip(
+                label = "收藏",
+                count = favoriteCount,
+                icon = HugeIcons.Favourite,
+                selected = previewFilter == PreviewFilter.FAVORITE,
+                onClick = {
+                    onPreviewFilterChange(
+                        if (previewFilter == PreviewFilter.FAVORITE) PreviewFilter.ALL else PreviewFilter.FAVORITE
+                    )
+                },
+            )
+            PreviewFilterChip(
+                label = "固定",
+                count = pinnedCount,
+                icon = HugeIcons.Pin02,
+                selected = previewFilter == PreviewFilter.PINNED,
+                onClick = {
+                    onPreviewFilterChange(
+                        if (previewFilter == PreviewFilter.PINNED) PreviewFilter.ALL else PreviewFilter.PINNED
+                    )
+                },
+            )
+        }
+
+        // 右侧提问与回答字数统计
+        Text(
+            text = "问 ${"%,d".format(userChars)} · 答 ${"%,d".format(replyChars)}",
+            style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = 8.dp),
+        )
+    }
+}
+
+@Composable
+private fun PreviewFilterChip(
+    label: String,
+    count: Int,
+    icon: ImageVector?,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = if (selected) colors.primaryContainer else colors.surfaceContainer,
+        contentColor = if (selected) colors.onPrimaryContainer else colors.onSurfaceVariant,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(13.dp),
+                )
+            }
+            Text(
+                text = if (count > 0 || selected) "$label $count" else label,
+                style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                maxLines = 1,
+            )
         }
     }
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-        textAlign = TextAlign.Center,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = modifier.padding(horizontal = 4.dp),
-    )
 }
+
 private const val PreviewEmptyKey = "PreviewEmpty"
+
+/**
+ * 极简线框叠层空状态插画：双层对话卡片剪影 + 留白裁切放大镜与高光弧线。
+ */
+@Composable
+private fun PreviewEmptyIllustration(modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+    val isDark = LocalDarkMode.current
+    val frontCardFill = if (isDark) colors.surfaceContainer else colors.surfaceContainerLowest
+    val backCardFill = colors.surfaceContainerHigh.copy(alpha = 0.55f)
+    val backCardStroke = colors.outlineVariant.copy(alpha = 0.65f)
+    val frontCardStroke = colors.onSurfaceVariant.copy(alpha = 0.42f)
+    val linePrimary = colors.onSurfaceVariant.copy(alpha = 0.34f)
+    val lineSecondary = colors.onSurfaceVariant.copy(alpha = 0.2f)
+    val lensTint = colors.primary.copy(alpha = 0.08f)
+    val lensStroke = colors.onSurfaceVariant.copy(alpha = 0.85f)
+    val glintColor = colors.primary.copy(alpha = 0.72f)
+
+    Canvas(
+        modifier = modifier.graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen),
+    ) {
+        val backRadius = CornerRadius(10.dp.toPx(), 10.dp.toPx())
+        val frontRadius = CornerRadius(10.dp.toPx(), 10.dp.toPx())
+
+        // 后层卡片轮廓
+        val backTopLeft = Offset(20.dp.toPx(), 10.dp.toPx())
+        val backSize = Size(36.dp.toPx(), 38.dp.toPx())
+        drawRoundRect(
+            color = backCardFill,
+            topLeft = backTopLeft,
+            size = backSize,
+            cornerRadius = backRadius,
+        )
+        drawRoundRect(
+            color = backCardStroke,
+            topLeft = backTopLeft,
+            size = backSize,
+            cornerRadius = backRadius,
+            style = Stroke(width = 1.25.dp.toPx()),
+        )
+
+        // 前层主卡片轮廓
+        val frontTopLeft = Offset(12.dp.toPx(), 16.dp.toPx())
+        val frontSize = Size(38.dp.toPx(), 40.dp.toPx())
+        drawRoundRect(
+            color = frontCardFill,
+            topLeft = frontTopLeft,
+            size = frontSize,
+            cornerRadius = frontRadius,
+        )
+        drawRoundRect(
+            color = frontCardStroke,
+            topLeft = frontTopLeft,
+            size = frontSize,
+            cornerRadius = frontRadius,
+            style = Stroke(width = 1.5.dp.toPx()),
+        )
+
+        // 卡片内极简占位横线
+        drawLine(
+            color = linePrimary,
+            start = Offset(20.dp.toPx(), 27.dp.toPx()),
+            end = Offset(41.dp.toPx(), 27.dp.toPx()),
+            strokeWidth = 2.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+        drawLine(
+            color = lineSecondary,
+            start = Offset(20.dp.toPx(), 35.dp.toPx()),
+            end = Offset(34.dp.toPx(), 35.dp.toPx()),
+            strokeWidth = 2.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+
+        // 前景放大镜（外围描边裁切卡片交界处）
+        val lensCenter = Offset(46.dp.toPx(), 46.dp.toPx())
+        val lensRadius = 10.dp.toPx()
+        val handleStart = Offset(46.dp.toPx() + 7.1.dp.toPx(), 46.dp.toPx() + 7.1.dp.toPx())
+        val handleEnd = Offset(60.5.dp.toPx(), 60.5.dp.toPx())
+
+        drawCircle(
+            color = Color.Transparent,
+            radius = lensRadius + 2.5.dp.toPx(),
+            center = lensCenter,
+            blendMode = BlendMode.Clear,
+        )
+        drawLine(
+            color = Color.Transparent,
+            start = handleStart,
+            end = handleEnd,
+            strokeWidth = 5.dp.toPx(),
+            cap = StrokeCap.Round,
+            blendMode = BlendMode.Clear,
+        )
+
+        drawCircle(
+            color = lensTint,
+            radius = lensRadius,
+            center = lensCenter,
+        )
+        drawCircle(
+            color = lensStroke,
+            radius = lensRadius,
+            center = lensCenter,
+            style = Stroke(width = 1.75.dp.toPx()),
+        )
+        val glintRadius = 6.dp.toPx()
+        drawArc(
+            color = glintColor,
+            startAngle = 200f,
+            sweepAngle = 55f,
+            useCenter = false,
+            topLeft = Offset(lensCenter.x - glintRadius, lensCenter.y - glintRadius),
+            size = Size(glintRadius * 2f, glintRadius * 2f),
+            style = Stroke(width = 1.4.dp.toPx(), cap = StrokeCap.Round),
+        )
+        drawLine(
+            color = lensStroke,
+            start = handleStart,
+            end = handleEnd,
+            strokeWidth = 2.1.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+    }
+}
 
 @Composable
 private fun PreviewSearchBar(
@@ -359,23 +551,24 @@ private fun PreviewSearchBar(
     totalCount: Int,
     modifier: Modifier = Modifier,
 ) {
+    val colors = MaterialTheme.colorScheme
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .height(PreviewSearchBarHeight),
         shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = colors.surfaceContainerHigh,
     ) {
         Row(
-            modifier = Modifier.padding(start = 18.dp, end = 6.dp),
+            modifier = Modifier.padding(start = 16.dp, end = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Icon(
                 imageVector = HugeIcons.Search01,
                 contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+                tint = colors.onSurfaceVariant,
             )
             Box(
                 modifier = Modifier.weight(1f),
@@ -384,8 +577,8 @@ private fun PreviewSearchBar(
                 if (query.isEmpty()) {
                     Text(
                         text = stringResource(R.string.history_page_search_messages),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.onSurfaceVariant.copy(alpha = 0.75f),
                         maxLines = 1,
                     )
                 }
@@ -393,25 +586,39 @@ private fun PreviewSearchBar(
                     value = query,
                     onValueChange = onQueryChange,
                     singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(
-                        color = MaterialTheme.colorScheme.onSurface,
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                        color = colors.onSurface,
                     ),
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    cursorBrush = SolidColor(colors.primary),
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            Text(
-                text = if (query.isBlank()) "$totalCount" else "$resultCount / $totalCount",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(end = if (query.isEmpty()) 12.dp else 0.dp),
-            )
-            if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChange("") }) {
+            Surface(
+                shape = CircleShape,
+                color = if (query.isNotBlank()) colors.secondaryContainer else colors.surfaceContainerHighest,
+                modifier = Modifier.padding(end = if (query.isEmpty()) 8.dp else 0.dp),
+            ) {
+                Text(
+                    text = if (query.isBlank()) "$totalCount 轮" else "$resultCount / $totalCount",
+                    style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                    fontWeight = FontWeight.Medium,
+                    color = if (query.isNotBlank()) colors.onSecondaryContainer else colors.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                )
+            }
+            AnimatedVisibility(
+                visible = query.isNotEmpty(),
+                enter = fadeIn() + scaleIn(initialScale = 0.8f),
+                exit = fadeOut() + scaleOut(targetScale = 0.8f),
+            ) {
+                IconButton(
+                    onClick = { onQueryChange("") },
+                    modifier = Modifier.size(36.dp),
+                ) {
                     Icon(
                         imageVector = HugeIcons.Cancel01,
                         contentDescription = stringResource(R.string.chat_page_cancel),
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             }
@@ -433,23 +640,40 @@ private fun PreviewRoundCard(
     Surface(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = colors.surfaceContainer,
-        border = if (isCurrent) BorderStroke(1.5.dp, colors.primary) else null,
+        shape = RoundedCornerShape(20.dp),
+        color = if (isCurrent) {
+            colors.secondaryContainer.copy(alpha = 0.55f)
+        } else {
+            colors.surfaceContainer
+        },
+        border = if (isCurrent) BorderStroke(1.5.dp, colors.primary.copy(alpha = 0.75f)) else null,
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            // 用户消息：一行
+            // 用户消息标题行：轮次序号徽章 + 提问文本 + 固定/收藏标记 + 时间
             val user = round.user
-            if (user != null) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = if (isCurrent) colors.primary else colors.surfaceContainerHighest,
                 ) {
-                    Box(modifier = Modifier.weight(1f)) {
-                        if (round.userText.isNotEmpty()) {
+                    Text(
+                        text = "#${round.roundIndex}",
+                        style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isCurrent) colors.onPrimary else colors.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                    )
+                }
+
+                Box(modifier = Modifier.weight(1f)) {
+                    when {
+                        user != null && round.userText.isNotEmpty() -> {
                             HighlightedSnippet(
                                 text = round.userText,
                                 query = query,
@@ -457,44 +681,76 @@ private fun PreviewRoundCard(
                                 style = MaterialTheme.typography.titleSmallEmphasized,
                                 color = colors.onSurface,
                             )
-                        } else {
+                        }
+                        user != null -> {
                             PreviewAttachmentSummary(parts = user.parts)
                         }
+                        else -> {
+                            Text(
+                                text = "开场白",
+                                style = MaterialTheme.typography.titleSmallEmphasized,
+                                color = colors.onSurfaceVariant,
+                            )
+                        }
                     }
-                    if (round.favorite) {
-                        Icon(
-                            imageVector = HugeIcons.FavouriteCircle,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = colors.primary,
-                        )
-                    }
+                }
+
+                if (round.pinned) {
+                    Icon(
+                        imageVector = HugeIcons.Pin02,
+                        contentDescription = "固定到上下文",
+                        modifier = Modifier.size(14.dp),
+                        tint = colors.tertiary,
+                    )
+                }
+                if (round.favorite) {
+                    Icon(
+                        imageVector = HugeIcons.FavouriteCircle,
+                        contentDescription = "已收藏",
+                        modifier = Modifier.size(14.dp),
+                        tint = colors.primary,
+                    )
+                }
+                if (user != null) {
                     Text(
                         text = remember(user.createdAt) {
                             user.createdAt.toJavaLocalDateTime().toPreviewTimeString()
                         },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = colors.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                        color = colors.onSurfaceVariant.copy(alpha = 0.8f),
                         maxLines = 1,
                     )
                 }
             }
 
-            // 助手回复：两行，前面带模型图标区分角色
+            // 助手回复：置于柔和内层容器中，前面带模型/助手头像区分角色
             if (round.reply != null && (round.replyText.isNotEmpty() || round.replyParts.hasAttachmentSummary())) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PreviewReplyAvatar(assistant = assistant, model = model)
-                    Box(modifier = Modifier.weight(1f)) {
-                        if (round.replyText.isNotEmpty()) {
-                            HighlightedSnippet(
-                                text = round.replyText,
-                                query = query,
-                                maxLines = 2,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = colors.onSurfaceVariant,
-                            )
-                        } else {
-                            PreviewAttachmentSummary(parts = round.replyParts)
+                Surface(
+                    shape = RoundedCornerShape(13.dp),
+                    color = if (isCurrent) {
+                        colors.surface.copy(alpha = 0.72f)
+                    } else {
+                        colors.surfaceContainerHigh.copy(alpha = 0.55f)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        PreviewReplyAvatar(assistant = assistant, model = model)
+                        Box(modifier = Modifier.weight(1f)) {
+                            if (round.replyText.isNotEmpty()) {
+                                HighlightedSnippet(
+                                    text = round.replyText,
+                                    query = query,
+                                    maxLines = 2,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = colors.onSurfaceVariant,
+                                )
+                            } else {
+                                PreviewAttachmentSummary(parts = round.replyParts)
+                            }
                         }
                     }
                 }
@@ -508,7 +764,7 @@ private fun HighlightedSnippet(
     text: String,
     query: String,
     maxLines: Int,
-    style: androidx.compose.ui.text.TextStyle,
+    style: TextStyle,
     color: Color,
 ) {
     val highlightColor = MaterialTheme.colorScheme.tertiaryContainer
@@ -586,7 +842,7 @@ private fun List<UIMessagePart>.hasAttachmentSummary(): Boolean = any {
 
 @Composable
 private fun AttachmentChip(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     label: String,
     modifier: Modifier = Modifier,
 ) {

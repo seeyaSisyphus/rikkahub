@@ -1,8 +1,18 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import androidx.activity.ComponentActivity
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.LocalIndication
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -23,15 +33,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.ContainedLoadingIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -42,6 +48,7 @@ import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -50,6 +57,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalWindowInfo
@@ -99,11 +107,14 @@ import me.rerere.rikkahub.data.model.Tag
 import me.rerere.rikkahub.data.model.Folder
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.ui.components.ai.AssistantPicker
+import me.rerere.rikkahub.ui.components.ui.AppDropdownMenu
+import me.rerere.rikkahub.ui.components.ui.AppDropdownMenuItem
+import me.rerere.rikkahub.ui.components.ui.AppMenuDivider
 import me.rerere.rikkahub.ui.components.ui.BackupReminderCard
+import me.rerere.rikkahub.ui.components.ui.appMenuItemColors
 import me.rerere.rikkahub.ui.components.ui.Greeting
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.components.ui.UpdateCard
-import androidx.compose.ui.draw.clip
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.ui.toast.ToastType
@@ -118,6 +129,8 @@ import org.koin.compose.koinInject
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
+import me.rerere.rikkahub.ui.components.ui.AppAlertDialog
 
 @Composable
 fun ChatDrawerContent(
@@ -232,9 +245,9 @@ fun ChatDrawerContent(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 UIAvatar(
                     name = settings.displaySetting.userNickname.ifBlank { stringResource(R.string.user_default_name) },
@@ -248,7 +261,7 @@ fun ChatDrawerContent(
                             )
                         }
                     },
-                    modifier = Modifier.size(50.dp),
+                    modifier = Modifier.size(40.dp),
                 )
 
                 Column(
@@ -262,6 +275,7 @@ fun ChatDrawerContent(
                         Text(
                             text = settings.displaySetting.userNickname.ifBlank { stringResource(R.string.user_default_name) },
                             style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.clickable {
@@ -276,7 +290,7 @@ fun ChatDrawerContent(
 
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(40.dp)
                         .clip(CircleShape)
                         .combinedClickable(
                             interactionSource = remember { MutableInteractionSource() },
@@ -299,7 +313,9 @@ fun ChatDrawerContent(
                 ) {
                     Icon(
                         imageVector = HugeIcons.MessageAdd01,
-                        contentDescription = stringResource(R.string.chat_page_new_chat)
+                        contentDescription = stringResource(R.string.chat_page_new_chat),
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurface,
                     )
                 }
             }
@@ -313,22 +329,22 @@ fun ChatDrawerContent(
 //                onDelete = { folderToDelete = it },
 //            )
 
-            // [FORK] 视图切换行：标题 + 切换按钮
+            // [FORK] 视图切换行：标题 + 排序/视图切换胶囊按钮
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
+                    .padding(start = 14.dp, end = 10.dp, top = 2.dp, bottom = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
                     text = if (viewMode == HistoryViewMode.TAG) "标签分组" else "最近对话",
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.titleSmallEmphasized,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp),
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     ConversationSortButton(
                         sortOrder = settings.displaySetting.conversationSortOrder,
@@ -345,13 +361,28 @@ fun ChatDrawerContent(
                         },
                     )
                     IconButton(
-                        onClick = { vm.updateSettings { it.copy(historyViewMode = if (viewMode == HistoryViewMode.TAG) HistoryViewMode.TIMELINE else HistoryViewMode.TAG) } },
-                        modifier = Modifier.size(32.dp),
+                        onClick = {
+                            vm.updateSettings {
+                                it.copy(
+                                    historyViewMode = if (viewMode == HistoryViewMode.TAG) {
+                                        HistoryViewMode.TIMELINE
+                                    } else {
+                                        HistoryViewMode.TAG
+                                    }
+                                )
+                            }
+                        },
+                        modifier = Modifier.size(36.dp),
                     ) {
                         Icon(
                             imageVector = if (viewMode == HistoryViewMode.TAG) HugeIcons.TimelineList else HugeIcons.Label,
                             contentDescription = if (viewMode == HistoryViewMode.TAG) "切换到时间视图" else "切换到标签视图",
                             modifier = Modifier.size(18.dp),
+                            tint = if (viewMode == HistoryViewMode.TAG) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                         )
                     }
                 }
@@ -371,88 +402,108 @@ fun ChatDrawerContent(
                 drawerHeader()
             }
 
-        // [FORK] 按视图模式显示对话列表
-        if (viewMode == HistoryViewMode.TAG) {
-            DrawerTagView(
-                conversations = allConversations,
-                orderedTags = conversationTags,
-                current = current,
-                conversationJobs = conversationJobs.keys,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                onClick = { conversation ->
-                    scope.launch {
-                        drawerState?.close()
-                        navigateToChatPage(navController, conversation.id)
-                    }
-                },
-                onDelete = {
-                    vm.deleteConversation(it)
-                    if (it.id == current.id) navigateToChatPage(navController)
-                },
-                onRegenerateTitle = { vm.generateTitle(it, true) },
-                onPin = { vm.updatePinnedStatus(it) },
-                onMoveToAssistant = {
-                    conversationToMove = it
-                    showMoveToAssistantSheet = true
-                },
-                onSetTag = { tagSheetConversation = it },
-                onRenameTitle = { conversation, newTitle ->
-                    vm.updateConversationTitle(conversation, newTitle)
-                },
-                // [FORK] 标签排序持久化到 Settings
-                onReorderTags = { newTags ->
-                    vm.updateSettings { it.copy(conversationTags = newTags) }
-                },
-            )
-        } else {
-            ConversationList(
-                current = current,
-                conversations = conversations,
-                header = if (scrollableHeader) drawerHeader else null,
-                conversationJobs = conversationJobs.keys,
-                listState = conversationListState,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                onClick = { conversation ->
-                    scope.launch {
-                        drawerState?.close()
-                        navigateToChatPage(navController, conversation.id)
-                    }
-                },
-                onRegenerateTitle = {
-                    vm.generateTitle(it, true)
-                },
-                onDelete = {
-                    scope.launch {
-                        // 等待删除协程完成，确保数据库已删除后再刷新列表
-                        vm.deleteConversation(it).join()
-                        conversations.refresh()
-                        if (it.id == current.id) {
-                            navigateToChatPage(navController)
+        // [FORK] 按视图模式显示对话列表（带平滑左右切换过渡）
+        AnimatedContent(
+            targetState = viewMode,
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            transitionSpec = {
+                val forward = targetState == HistoryViewMode.TAG
+                val anim = tween<androidx.compose.ui.unit.IntOffset>(280, easing = FastOutSlowInEasing)
+                val fadeAnim = tween<Float>(240)
+                if (forward) {
+                    (slideInHorizontally(anim) { it / 3 } + fadeIn(fadeAnim)) togetherWith
+                        (slideOutHorizontally(anim) { -it / 3 } + fadeOut(fadeAnim))
+                } else {
+                    (slideInHorizontally(anim) { -it / 3 } + fadeIn(fadeAnim)) togetherWith
+                        (slideOutHorizontally(anim) { it / 3 } + fadeOut(fadeAnim))
+                }
+            },
+            label = "drawer_view_mode",
+        ) { targetMode ->
+            if (targetMode == HistoryViewMode.TAG) {
+                DrawerTagView(
+                    conversations = allConversations,
+                    orderedTags = conversationTags,
+                    current = current,
+                    conversationJobs = conversationJobs.keys,
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { conversation ->
+                        scope.launch {
+                            drawerState?.close()
+                            navigateToChatPage(navController, conversation.id)
                         }
-                    }
-                },
-                onPin = {
-                    vm.updatePinnedStatus(it)
-                },
-                onMoveToAssistant = {
-                    conversationToMove = it
-                    showMoveToAssistantSheet = true
-                },
-                onSetTag = { tagSheetConversation = it },
-                onRenameTitle = { conversation, newTitle ->
-                    vm.updateConversationTitle(conversation, newTitle)
-                },
-                onMoveToFolder = {
-                    conversationToMoveFolder = it
-                    showMoveToFolderSheet = true
-                },
-            )
+                    },
+                    onDelete = {
+                        vm.deleteConversation(it)
+                        if (it.id == current.id) navigateToChatPage(navController)
+                    },
+                    onRegenerateTitle = { vm.generateTitle(it, true) },
+                    onPin = { vm.updatePinnedStatus(it) },
+                    onMoveToAssistant = {
+                        conversationToMove = it
+                        showMoveToAssistantSheet = true
+                    },
+                    onSetTag = { tagSheetConversation = it },
+                    onRenameTitle = { conversation, newTitle ->
+                        vm.updateConversationTitle(conversation, newTitle)
+                    },
+                    // [FORK] 标签排序持久化到 Settings
+                    onReorderTags = { newTags ->
+                        vm.updateSettings { it.copy(conversationTags = newTags) }
+                    },
+                )
+            } else {
+                ConversationList(
+                    current = current,
+                    conversations = conversations,
+                    header = if (scrollableHeader) drawerHeader else null,
+                    conversationJobs = conversationJobs.keys,
+                    listState = conversationListState,
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { conversation ->
+                        scope.launch {
+                            drawerState?.close()
+                            navigateToChatPage(navController, conversation.id)
+                        }
+                    },
+                    onRegenerateTitle = {
+                        vm.generateTitle(it, true)
+                    },
+                    onDelete = {
+                        scope.launch {
+                            // 等待删除协程完成，确保数据库已删除后再刷新列表
+                            vm.deleteConversation(it).join()
+                            conversations.refresh()
+                            if (it.id == current.id) {
+                                navigateToChatPage(navController)
+                            }
+                        }
+                    },
+                    onPin = {
+                        vm.updatePinnedStatus(it)
+                    },
+                    onMoveToAssistant = {
+                        conversationToMove = it
+                        showMoveToAssistantSheet = true
+                    },
+                    onSetTag = { tagSheetConversation = it },
+                    onRenameTitle = { conversation, newTitle ->
+                        vm.updateConversationTitle(conversation, newTitle)
+                    },
+                    onMoveToFolder = {
+                        conversationToMoveFolder = it
+                        showMoveToFolderSheet = true
+                    },
+                )
+            }
         }
-            if (memoryDreaming) {
+            AnimatedVisibility(
+                visible = memoryDreaming,
+                enter = expandVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeIn(),
+                exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(),
+            ) {
                 MemoryDreamingEntry(
                     onClick = { navController.navigate(Screen.AssistantMemory(settings.assistantId.toString())) },
                 )
@@ -484,95 +535,93 @@ fun ChatDrawerContent(
             )
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp)
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 DrawerAction(
-                    icon = {
-                        Icon(
-                            imageVector = HugeIcons.LookTop,
-                            contentDescription = stringResource(R.string.assistant_page_title)
-                        )
-                    },
-                    label = {
-                        Text(stringResource(R.string.assistant_page_title))
-                    },
+                    modifier = Modifier.width(56.dp),
+                    icon = HugeIcons.LookTop,
+                    label = stringResource(R.string.assistant_page_title),
                     onClick = {
                         navController.navigate(Screen.Assistant)
                     },
                 )
 
-                Box {
+                Box(modifier = Modifier.width(56.dp)) {
                     DrawerAction(
-                        icon = {
-                            Icon(HugeIcons.Sparkles, "Menu")
-                        },
-                        label = {
-                            Text(stringResource(R.string.menu))
-                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        icon = HugeIcons.Sparkles,
+                        label = stringResource(R.string.menu),
                         onClick = {
                             showMenuPopup = true
                         },
                     )
-                    DropdownMenu(
+                    AppDropdownMenu(
                         expanded = showMenuPopup,
                         onDismissRequest = { showMenuPopup = false },
-                        offset = DpOffset(x = 0.dp, y = 60.dp),
+                        offset = DpOffset(x = 0.dp, y = (-8).dp),
                     ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.chat_page_search_chats)) },
-                            leadingIcon = { Icon(HugeIcons.Search01, null) },
+                        AppDropdownMenuItem(
+                            text = { Text(stringResource(R.string.chat_page_search_chats), style = MaterialTheme.typography.bodyMedium) },
+                            leadingIcon = { Icon(HugeIcons.Search01, null, modifier = Modifier.size(18.dp)) },
+                            colors = appMenuItemColors(),
                             onClick = {
                                 showMenuPopup = false
                                 navController.navigate(Screen.MessageSearch)
                             }
                         )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.chat_page_history)) },
-                            leadingIcon = { Icon(HugeIcons.TransactionHistory, null) },
+                        AppDropdownMenuItem(
+                            text = { Text(stringResource(R.string.chat_page_history), style = MaterialTheme.typography.bodyMedium) },
+                            leadingIcon = { Icon(HugeIcons.TransactionHistory, null, modifier = Modifier.size(18.dp)) },
+                            colors = appMenuItemColors(),
                             onClick = {
                                 showMenuPopup = false
                                 navController.navigate(Screen.History)
                             }
                         )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.chat_page_menu_ai_translator)) },
-                            leadingIcon = { Icon(HugeIcons.LanguageCircle, null) },
+                        AppMenuDivider()
+                        AppDropdownMenuItem(
+                            text = { Text(stringResource(R.string.chat_page_menu_ai_translator), style = MaterialTheme.typography.bodyMedium) },
+                            leadingIcon = { Icon(HugeIcons.LanguageCircle, null, modifier = Modifier.size(18.dp)) },
+                            colors = appMenuItemColors(),
                             onClick = {
                                 showMenuPopup = false
                                 navController.navigate(Screen.Translator)
                             }
                         )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.chat_page_menu_image_generation)) },
-                            leadingIcon = { Icon(HugeIcons.Image02, null) },
+                        AppDropdownMenuItem(
+                            text = { Text(stringResource(R.string.chat_page_menu_image_generation), style = MaterialTheme.typography.bodyMedium) },
+                            leadingIcon = { Icon(HugeIcons.Image02, null, modifier = Modifier.size(18.dp)) },
+                            colors = appMenuItemColors(),
                             onClick = {
                                 showMenuPopup = false
                                 navController.navigate(Screen.ImageGen)
                             }
                         )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.setting_page_request_logs)) },
-                            leadingIcon = { Icon(HugeIcons.Bookshelf01, null) },
+                        AppMenuDivider()
+                        AppDropdownMenuItem(
+                            text = { Text(stringResource(R.string.setting_page_request_logs), style = MaterialTheme.typography.bodyMedium) },
+                            leadingIcon = { Icon(HugeIcons.Bookshelf01, null, modifier = Modifier.size(18.dp)) },
+                            colors = appMenuItemColors(),
                             onClick = {
                                 showMenuPopup = false
                                 navController.navigate(Screen.Log)
                             }
                         )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.setting_page_error_logs)) },
-                            leadingIcon = { Icon(HugeIcons.Alert01, null) },
+                        AppDropdownMenuItem(
+                            text = { Text(stringResource(R.string.setting_page_error_logs), style = MaterialTheme.typography.bodyMedium) },
+                            leadingIcon = { Icon(HugeIcons.Alert01, null, modifier = Modifier.size(18.dp)) },
+                            colors = appMenuItemColors(),
                             onClick = {
                                 showMenuPopup = false
                                 navController.navigate(Screen.ErrorLog)
                             }
                         )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.stats_page_title)) },
-                            leadingIcon = { Icon(HugeIcons.ChartColumn, null) },
+                        AppDropdownMenuItem(
+                            text = { Text(stringResource(R.string.stats_page_title), style = MaterialTheme.typography.bodyMedium) },
+                            leadingIcon = { Icon(HugeIcons.ChartColumn, null, modifier = Modifier.size(18.dp)) },
+                            colors = appMenuItemColors(),
                             onClick = {
                                 showMenuPopup = false
                                 navController.navigate(Screen.Stats)
@@ -582,24 +631,18 @@ fun ChatDrawerContent(
                 }
 
                 DrawerAction(
-                    icon = {
-                        Icon(HugeIcons.InLove, stringResource(R.string.favorite_page_title))
-                    },
-                    label = {
-                        Text(stringResource(R.string.favorite_page_title))
-                    },
+                    modifier = Modifier.width(56.dp),
+                    icon = HugeIcons.InLove,
+                    label = stringResource(R.string.favorite_page_title),
                     onClick = {
                         navController.navigate(Screen.Favorite)
                     },
                 )
 
-                Spacer(Modifier.weight(1f))
-
                 DrawerAction(
-                    icon = {
-                        Icon(HugeIcons.Settings03, null)
-                    },
-                    label = { Text(stringResource(R.string.settings)) },
+                    modifier = Modifier.width(56.dp),
+                    icon = HugeIcons.Settings03,
+                    label = stringResource(R.string.settings),
                     onClick = {
                         navController.navigate(Screen.Setting)
                     },
@@ -610,7 +653,7 @@ fun ChatDrawerContent(
 
     // 昵称编辑对话框
     nicknameEditState.EditStateContent { nickname, onUpdate ->
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = {
                 nicknameEditState.dismiss()
             },
@@ -660,7 +703,7 @@ fun ChatDrawerContent(
                 }
             }
         }
-        ModalBottomSheet(
+        AppModalBottomSheet(
             onDismissRequest = {
                 showMoveToFolderSheet = false
                 conversationToMoveFolder = null
@@ -747,7 +790,7 @@ fun ChatDrawerContent(
     // 新建文件夹对话框
     if (showCreateFolderDialog) {
         var name by remember { mutableStateOf("") }
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { showCreateFolderDialog = false },
             title = { Text(stringResource(R.string.chat_page_create_folder)) },
             text = {
@@ -779,7 +822,7 @@ fun ChatDrawerContent(
     // 重命名文件夹对话框
     folderToRename?.let { folder ->
         var name by remember(folder.id) { mutableStateOf(folder.name) }
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { folderToRename = null },
             title = { Text(stringResource(R.string.chat_page_rename_folder)) },
             text = {
@@ -809,7 +852,7 @@ fun ChatDrawerContent(
 
     // 删除文件夹确认
     folderToDelete?.let { folder ->
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { folderToDelete = null },
             title = { Text(stringResource(R.string.chat_page_delete_folder)) },
             text = { Text(stringResource(R.string.chat_page_delete_folder_confirm, folder.name)) },
@@ -835,7 +878,7 @@ fun ChatDrawerContent(
 
     // 移动到助手 Bottom Sheet
     if (showMoveToAssistantSheet) {
-        ModalBottomSheet(
+        AppModalBottomSheet(
             onDismissRequest = {
                 showMoveToAssistantSheet = false
                 conversationToMove = null
@@ -988,16 +1031,14 @@ private fun DrawerEntry(
 private fun MemoryDreamingEntry(onClick: () -> Unit) {
     Surface(
         onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 4.dp),
+        modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 10.dp),
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -1014,29 +1055,38 @@ private fun MemoryDreamingEntry(onClick: () -> Unit) {
 @Composable
 private fun DrawerAction(
     modifier: Modifier = Modifier,
-    icon: @Composable () -> Unit,
-    label: @Composable () -> Unit,
+    icon: ImageVector,
+    label: String,
     onClick: () -> Unit,
 ) {
     Surface(
         onClick = onClick,
         modifier = modifier,
-        color = MaterialTheme.colorScheme.primaryContainer,
-        shape = CircleShape,
+        color = Color.Transparent,
+        shape = RoundedCornerShape(12.dp),
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
-        Tooltip(
-            tooltip = {
-                label()
-            }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .padding(10.dp)
-                    .size(20.dp),
-            ) {
-                icon()
-            }
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -1074,21 +1124,24 @@ private fun FolderBar(
                     onClick = { onSelect(folder.id) },
                     onLongClick = { menuExpanded = true },
                 )
-                DropdownMenu(
+                AppDropdownMenu(
                     expanded = menuExpanded,
                     onDismissRequest = { menuExpanded = false },
                 ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.chat_page_rename)) },
-                        leadingIcon = { Icon(HugeIcons.PencilEdit01, null) },
+                    AppDropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_page_rename), style = MaterialTheme.typography.bodyMedium) },
+                        leadingIcon = { Icon(HugeIcons.PencilEdit01, null, modifier = Modifier.size(18.dp)) },
+                        colors = appMenuItemColors(),
                         onClick = {
                             onRename(folder)
                             menuExpanded = false
                         }
                     )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.chat_page_delete)) },
-                        leadingIcon = { Icon(HugeIcons.Delete01, null) },
+                    AppMenuDivider()
+                    AppDropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_page_delete), style = MaterialTheme.typography.bodyMedium) },
+                        leadingIcon = { Icon(HugeIcons.Delete01, null, modifier = Modifier.size(18.dp)) },
+                        colors = appMenuItemColors(destructive = true),
                         onClick = {
                             onDelete(folder)
                             menuExpanded = false
@@ -1116,44 +1169,45 @@ private fun ConversationSortButton(
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     Box {
-        Surface(
-            onClick = { menuExpanded = true },
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
+        Tooltip(
+            tooltip = { Text(stringResource(R.string.chat_page_sort_conversations)) }
         ) {
-            Tooltip(
-                tooltip = { Text(stringResource(R.string.chat_page_sort_conversations)) }
+            IconButton(
+                onClick = { menuExpanded = true },
+                modifier = Modifier.size(36.dp),
             ) {
                 Icon(
                     imageVector = HugeIcons.Sorting01,
                     contentDescription = stringResource(R.string.chat_page_sort_conversations),
-                    modifier = Modifier
-                        .padding(8.dp)
-                        .size(16.dp),
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
-        DropdownMenu(
+        AppDropdownMenu(
             expanded = menuExpanded,
             onDismissRequest = { menuExpanded = false },
         ) {
             ConversationSortOrder.entries.forEach { option ->
-                DropdownMenuItem(
+                val isSelected = option == sortOrder
+                AppDropdownMenuItem(
                     text = {
                         Text(
-                            stringResource(
+                            text = stringResource(
                                 when (option) {
                                     ConversationSortOrder.UPDATE_TIME -> R.string.chat_page_sort_by_update_time
                                     ConversationSortOrder.CREATE_TIME -> R.string.chat_page_sort_by_create_time
                                 }
-                            )
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
                         )
                     },
                     trailingIcon = {
-                        if (option == sortOrder) {
+                        if (isSelected) {
                             Icon(HugeIcons.Tick01, null, modifier = Modifier.size(18.dp))
                         }
                     },
+                    colors = appMenuItemColors(selected = isSelected),
                     onClick = {
                         menuExpanded = false
                         if (option != sortOrder) onSortOrderChange(option)
@@ -1277,9 +1331,9 @@ private fun ColumnScope.DrawerTagView(
     onReorderTags: (List<Tag>) -> Unit = {},
 ) {
     val draggableTags = remember(orderedTags) {
-        androidx.compose.runtime.mutableStateListOf(*orderedTags.toTypedArray())
+        mutableStateListOf(*orderedTags.toTypedArray())
     }
-    val lazyListState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val lazyListState = rememberLazyListState()
     val reorderState = rememberReorderableLazyListState(lazyListState) { from, to ->
         val fromIdx = draggableTags.indexOfFirst { it.id.toString() == from.key }
         val toIdx = draggableTags.indexOfFirst { it.id.toString() == to.key }
@@ -1298,7 +1352,7 @@ private fun ColumnScope.DrawerTagView(
     LazyColumn(
         state = lazyListState,
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         if (draggableTags.isEmpty() && conversations.isEmpty()) {
             item {
@@ -1306,13 +1360,13 @@ private fun ColumnScope.DrawerTagView(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    shape = MaterialTheme.shapes.medium,
+                    shape = RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow
                 ) {
                     Text(
                         text = "暂无对话",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(16.dp)
                     )
                 }
@@ -1329,12 +1383,13 @@ private fun ColumnScope.DrawerTagView(
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .padding(top = 6.dp, bottom = 2.dp)
                             .longPressDraggableHandle(),
                         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f),
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(12.dp),
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
@@ -1347,18 +1402,18 @@ private fun ColumnScope.DrawerTagView(
                             Text(
                                 text = tag.name,
                                 style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.weight(1f),
                             )
                             if (convList.isNotEmpty()) {
                                 Surface(
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
                                     shape = CircleShape,
                                 ) {
                                     Text(
                                         text = "${convList.size}",
-                                        style = MaterialTheme.typography.labelSmall,
+                                        style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
                                         color = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                     )
@@ -1390,19 +1445,21 @@ private fun ColumnScope.DrawerTagView(
         if (uncategorized.isNotEmpty()) {
             item(key = "uncat_header") {
                 Surface(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 6.dp, bottom = 2.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         Text(
                             text = "未分类",
                             style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f),
                         )
@@ -1413,7 +1470,7 @@ private fun ColumnScope.DrawerTagView(
                             ) {
                                 Text(
                                     text = "${uncategorized.size}",
-                                    style = MaterialTheme.typography.labelSmall,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 )

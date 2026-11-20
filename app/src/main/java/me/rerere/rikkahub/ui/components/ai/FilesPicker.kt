@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Badge
@@ -43,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -68,7 +70,6 @@ import me.rerere.hugeicons.stroke.Package01
 import me.rerere.hugeicons.stroke.PaintBoard
 import me.rerere.hugeicons.stroke.Settings02
 import me.rerere.hugeicons.stroke.Video01
-import androidx.compose.material3.Switch
 import me.rerere.hugeicons.stroke.Voice
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
@@ -80,10 +81,13 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.lastContextTokens
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
+import me.rerere.rikkahub.ui.components.ui.AppSwitch
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.ExtensionSelector
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.hooks.ChatInputState
+import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.workspace.WorkspaceShellStatus
 import org.koin.compose.koinInject
@@ -237,19 +241,28 @@ internal fun FilesPicker(
                             onClick = { onToggleAsr?.invoke() },
                             shapes = ListItemDefaults.segmentedShapes(index = itemIndex++, count = itemCount),
                             leadingContent = {
-                                Icon(
-                                    imageVector = HugeIcons.Mic01,
-                                    contentDescription = null,
+                                CardGroupIcon(
+                                    icon = HugeIcons.Mic01,
+                                    containerColor = if (settings.asrEnabled) {
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.secondaryContainer
+                                    },
+                                    contentColor = if (settings.asrEnabled) {
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.onSecondaryContainer
+                                    },
                                 )
                             },
                             trailingContent = {
-                                Switch(
+                                AppSwitch(
                                     checked = settings.asrEnabled,
                                     onCheckedChange = { onToggleAsr?.invoke() },
                                 )
                             },
                         ) {
-                            Text("语音识别")
+                            Text("语音识别", fontWeight = FontWeight.Medium)
                         }
                     }
                     SearchPickerListItem(
@@ -286,17 +299,24 @@ internal fun FilesPicker(
                                 onClick = { showCwdSheet = true },
                                 shapes = ListItemDefaults.segmentedShapes(index = itemIndex++, count = itemCount),
                                 leadingContent = {
-                                    Icon(
-                                        imageVector = HugeIcons.Folder01,
-                                        contentDescription = stringResource(R.string.workspace_cwd_select_directory),
+                                    CardGroupIcon(
+                                        icon = HugeIcons.Folder01,
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                                     )
                                 },
                                 trailingContent = {
-                                    Icon(HugeIcons.ArrowRight01, contentDescription = null)
+                                    Icon(
+                                        imageVector = HugeIcons.ArrowRight01,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                    )
                                 },
                             ) {
                                 Text(
                                     text = conversation.workspaceCwd ?: boundWorkspace?.workspaceDir().orEmpty(),
+                                    fontWeight = FontWeight.Medium,
                                     // 路径的末尾更有辨识度，放不下时省略开头
                                     maxLines = 1,
                                     overflow = TextOverflow.StartEllipsis,
@@ -325,18 +345,41 @@ internal fun FilesPicker(
                         onClick = { page = FilesPickerPage.EXTENSIONS },
                         shapes = ListItemDefaults.segmentedShapes(index = itemIndex++, count = itemCount),
                         leadingContent = {
-                            Icon(
-                                imageVector = HugeIcons.Package,
-                                contentDescription = null,
+                            CardGroupIcon(
+                                icon = HugeIcons.Package,
+                                containerColor = if (activeCount > 0) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.secondaryContainer
+                                },
+                                contentColor = if (activeCount > 0) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSecondaryContainer
+                                },
                             )
                         },
                         trailingContent = {
-                            if (activeCount > 0) {
-                                CountBadge(count = activeCount)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                if (activeCount > 0) {
+                                    CountBadge(count = activeCount)
+                                }
+                                Icon(
+                                    imageVector = HugeIcons.ArrowRight01,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                )
                             }
                         },
                     ) {
-                        Text(stringResource(R.string.assistant_page_tab_extensions))
+                        Text(
+                            text = stringResource(R.string.assistant_page_tab_extensions),
+                            fontWeight = FontWeight.Medium,
+                        )
                     }
 
                     // Compress History Button
@@ -345,9 +388,10 @@ internal fun FilesPicker(
                             onClick = { onShowCompressDialogChange(true) },
                             shapes = ListItemDefaults.segmentedShapes(index = itemIndex++, count = itemCount),
                             leadingContent = {
-                                Icon(
-                                    imageVector = HugeIcons.Package01,
-                                    contentDescription = null,
+                                CardGroupIcon(
+                                    icon = HugeIcons.Package01,
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                                 )
                             },
                             trailingContent = {
@@ -429,9 +473,18 @@ private fun WorkspacePickerListItem(
         onClick = { showSheet = true },
         shapes = shapes,
         leadingContent = {
-            Icon(
-                imageVector = HugeIcons.Codesandbox,
-                contentDescription = null,
+            CardGroupIcon(
+                icon = HugeIcons.Codesandbox,
+                containerColor = if (boundWorkspace != null) {
+                    MaterialTheme.colorScheme.primaryContainer
+                } else {
+                    MaterialTheme.colorScheme.secondaryContainer
+                },
+                contentColor = if (boundWorkspace != null) {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSecondaryContainer
+                },
             )
         },
         supportingContent = {
@@ -464,7 +517,10 @@ private fun WorkspacePickerListItem(
             }
         },
     ) {
-        Text(stringResource(R.string.assistant_page_workspace))
+        Text(
+            text = stringResource(R.string.assistant_page_workspace),
+            fontWeight = FontWeight.Medium,
+        )
     }
 
     if (showSheet) {
@@ -575,13 +631,17 @@ private fun AttachmentTile(
 ) {
     FilledTonalButton(
         onClick = action.onClick,
-        // 按下时圆角收紧
+        // 按下时圆角收紧，底色与下方分段卡片统一
         shapes = ButtonDefaults.shapes(
-            shape = MaterialTheme.shapes.extraLarge,
-            pressedShape = MaterialTheme.shapes.medium,
+            shape = RoundedCornerShape(20.dp),
+            pressedShape = RoundedCornerShape(14.dp),
         ),
-        modifier = modifier.heightIn(min = 88.dp),
-        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp),
+        colors = ButtonDefaults.filledTonalButtonColors(
+            containerColor = CustomColors.listItemColors.containerColor,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ),
+        modifier = modifier.heightIn(min = 84.dp),
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 14.dp),
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -590,12 +650,15 @@ private fun AttachmentTile(
             Icon(
                 imageVector = action.icon,
                 contentDescription = null,
-                modifier = Modifier.size(28.dp),
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.onSurface,
             )
             Text(
                 text = stringResource(action.label),
                 // 四个并排时较长的译文放不下，自动缩小字号
-                autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 14.sp),
+                autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 13.sp),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 softWrap = false,
                 overflow = TextOverflow.Ellipsis,

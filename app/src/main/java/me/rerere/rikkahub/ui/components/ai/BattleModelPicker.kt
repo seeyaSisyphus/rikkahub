@@ -5,11 +5,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -26,6 +26,7 @@ import me.rerere.ai.provider.ProviderSetting
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
 
 /**
  * Battle Mode 专用多选模型选择器。
@@ -62,16 +63,17 @@ fun BattleModelPicker(
     }
 
     if (showSheet) {
-        ModalBottomSheet(
+        AppModalBottomSheet(
             onDismissRequest = { showSheet = false },
             sheetState = sheetState,
         ) {
             Column(
                 modifier = Modifier
-                    .padding(8.dp)
-                    .fillMaxHeight(0.8f)
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .fillMaxHeight(0.82f)
+                    .navigationBarsPadding()
                     .imePadding(),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 val filteredProviders = providers.filter { provider ->
                     provider.enabled && provider.models.any { it.type == ModelType.CHAT }

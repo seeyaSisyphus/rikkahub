@@ -5,6 +5,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -26,10 +28,10 @@ import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -48,6 +50,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
 import kotlinx.coroutines.delay
@@ -83,6 +86,7 @@ import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalTTSState
+import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.copyMessageToClipboard
 import me.rerere.rikkahub.utils.extractQuotedContentAsText
 import me.rerere.rikkahub.utils.removeBracketedContent
@@ -92,6 +96,7 @@ import me.rerere.ui.components.RikkaConfirmDialog
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import java.util.Locale
+import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
 
 @Composable
 fun ColumnScope.ChatMessageActionButtons(
@@ -370,7 +375,7 @@ fun ChatMessageActionsSheet(
     var showDeleteBeforeConfirm by remember { mutableStateOf(false) }
     var showDeleteAfterConfirm by remember { mutableStateOf(false) }
 
-    ModalBottomSheet(
+    AppModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)),
     ) {
@@ -455,22 +460,31 @@ fun ChatMessageActionsSheet(
                             Icon(
                                 imageVector = action.icon,
                                 contentDescription = null,
+                                modifier = Modifier.size(20.dp),
                             )
                         },
                     ) {
-                        Text(action.label)
+                        Text(
+                            text = action.label,
+                            fontWeight = FontWeight.Medium,
+                        )
                     }
                 }
             }
 
             // Message Info
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                ProvideTextStyle(MaterialTheme.typography.labelSmall) {
-                    Text(message.createdAt.toJavaLocalDateTime().toLocalString())
-                    if (model != null) {
-                        Text(model.displayName)
-                    }
-                }
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            ) {
+                val timeText = message.createdAt.toJavaLocalDateTime().toLocalString()
+                val infoText = if (model != null) "$timeText · ${model.displayName}" else timeText
+                Text(
+                    text = infoText,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                )
             }
         }
     }
@@ -548,7 +562,7 @@ fun BattleSortSheet(
         }
     }
 
-    ModalBottomSheet(
+    AppModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
@@ -604,11 +618,17 @@ fun BattleSortSheet(
                                     scaleX = if (isDragging) 1.03f else 1f
                                     scaleY = if (isDragging) 1.03f else 1f
                                 },
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                            border = BorderStroke(
+                                0.5.dp,
+                                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+                                else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            ),
                             colors = CardDefaults.cardColors(
                                 containerColor = if (isSelected)
                                     MaterialTheme.colorScheme.primaryContainer
                                 else
-                                    MaterialTheme.colorScheme.surfaceVariant
+                                    CustomColors.listItemColors.containerColor
                             ),
                         ) {
                             Row(

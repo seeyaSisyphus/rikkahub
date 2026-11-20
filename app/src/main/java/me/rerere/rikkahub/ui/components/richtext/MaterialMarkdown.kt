@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
@@ -114,12 +115,12 @@ object MaterialMarkdownDefaults {
                 headings = HeadingScales.map { scale ->
                     if (fontSize.isSp) {
                         TextStyle(
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                             fontSize = fontSize * scale,
                             lineHeight = fontSize * (scale * 1.25f),
                         )
                     } else {
-                        TextStyle(fontWeight = FontWeight.Bold)
+                        TextStyle(fontWeight = FontWeight.SemiBold)
                     }
                 },
                 link = SpanStyle(color = colorScheme.primary, textDecoration = TextDecoration.Underline),
@@ -130,8 +131,8 @@ object MaterialMarkdownDefaults {
                 ),
                 blockSpacing = 12.dp,
                 markerColor = colorScheme.primary,
-                quoteColor = colorScheme.outlineVariant,
-                dividerColor = colorScheme.outlineVariant,
+                quoteColor = colorScheme.outlineVariant.copy(alpha = 0.85f),
+                dividerColor = colorScheme.outlineVariant.copy(alpha = 0.55f),
             )
         }
     }
@@ -178,8 +179,9 @@ object MaterialMarkdownDefaults {
     fun CodeBlock(block: MarkdownBlock.CodeBlock, modifier: Modifier = Modifier) {
         Surface(
             modifier = modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)),
         ) {
             Column(
                 modifier = Modifier.padding(12.dp),
@@ -260,6 +262,11 @@ object MaterialMarkdownDefaults {
             headers = headers,
             rows = rows,
             modifier = modifier,
+            cellPadding = 10.dp,
+            cellBorder = null,
+            headerBackground = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.45f),
+            zebraStriping = true,
+            horizontalDividersOnly = true,
             columnMinWidths = List(columnCount) { 80.dp },
             columnMaxWidths = List(columnCount) { 200.dp },
             columnAlignments = List(columnCount) { index ->

@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.components.message
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -49,6 +50,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -174,7 +176,7 @@ fun ChatMessage(
     Column(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = if (message.role == MessageRole.USER) Alignment.End else Alignment.Start,
-        verticalArrangement = Arrangement.spacedBy(5.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         if (!message.parts.isEmptyUIMessage()) {
             Row(
@@ -261,6 +263,11 @@ fun ChatMessage(
         }
 
         val motionScheme = MaterialTheme.motionScheme
+        val actionsAlpha by animateFloatAsState(
+            targetValue = if (lastMessage) 1f else 0.55f,
+            animationSpec = motionScheme.defaultEffectsSpec(),
+            label = "actionsAlpha",
+        )
         AnimatedVisibility(
             visible = showActions,
             enter = slideInVertically(motionScheme.defaultSpatialSpec()) { it / 2 } +
@@ -270,6 +277,7 @@ fun ChatMessage(
         ) {
             Column(
                 modifier = Modifier
+                    .graphicsLayer { alpha = actionsAlpha }
                     .animateContentSize()
             ) {
                 ChatMessageActionButtons(
@@ -537,6 +545,7 @@ private fun MessagePartsBlock(
                                         streaming = streamingText,
                                         onClickCitation = handleClickCitation,
                                         modifier = Modifier
+                                            .padding(horizontal = 2.dp)
                                             .animateContentSize()
                                     )
                                 }

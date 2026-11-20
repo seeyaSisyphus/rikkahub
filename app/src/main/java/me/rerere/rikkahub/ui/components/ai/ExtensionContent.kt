@@ -22,7 +22,6 @@ import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
@@ -43,6 +42,7 @@ import me.rerere.rikkahub.data.skills.SkillMetadata
 import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.PromptInjection
 import me.rerere.rikkahub.data.model.QuickMessage
+import me.rerere.rikkahub.ui.components.ui.AppSwitch
 
 @Composable
 fun ModeInjectionsContent(
@@ -208,7 +208,7 @@ private fun ExtensionListItem(
         } else null,
         trailingContent = {
             // 整行都能点击切换，开关只用来显示状态
-            Switch(checked = checked, onCheckedChange = null)
+            AppSwitch(checked = checked, onCheckedChange = null)
         },
     ) {
         Text(title)

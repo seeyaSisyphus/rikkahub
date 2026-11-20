@@ -56,7 +56,6 @@ import androidx.compose.ui.zIndex
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import kotlin.uuid.Uuid
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
@@ -119,6 +118,8 @@ fun ChatList(
     onConversationSystemPromptChange: ((String?) -> Unit)? = null,
     // [FORK] 固定到上下文：仅当有上下文限制时才显示此选项
     onTogglePin: ((MessageNode) -> Unit)? = null,
+    // [FORK] 输入框展开/收起动画期间暂停底部 padding 自动跟滚，防止 1 帧补偿差触发误滚
+    suppressBottomPaddingAutoScroll: () -> Boolean = { false },
 ) {
     val previewProgress = rememberPreviewSwipeProgress(previewMode)
     val scope = rememberCoroutineScope()
@@ -187,6 +188,7 @@ fun ChatList(
                 onConversationSystemPromptChange = onConversationSystemPromptChange,
                 selectionState = selectionState,
                 onTogglePin = onTogglePin,
+                suppressBottomPaddingAutoScroll = suppressBottomPaddingAutoScroll,
             )
         }
 
@@ -224,7 +226,8 @@ internal fun Modifier.topFadingEdge(height: Dp): Modifier = this
         val fadeHeight = height.toPx()
         val brush = Brush.verticalGradient(
             0f to Color.Transparent,
-            0.6f to Color.Black.copy(alpha = 0.15f),
+            0.35f to Color.Black.copy(alpha = 0.25f),
+            0.7f to Color.Black.copy(alpha = 0.72f),
             1f to Color.Black,
             startY = 0f,
             endY = fadeHeight,
@@ -267,10 +270,10 @@ private fun ChatListNormal(
     onConversationSystemPromptChange: ((String?) -> Unit)? = null,
     selectionState: ChatSelectionState,
     onTogglePin: ((MessageNode) -> Unit)? = null,
+    suppressBottomPaddingAutoScroll: () -> Boolean = { false },
 ) {
     val scope = rememberCoroutineScope()
     val loadingState by rememberUpdatedState(loading)
-    var isRecentScroll by remember { mutableStateOf(false) }
     var isUserDragging by remember { mutableStateOf(false) }
     // 如果入场时就带有跳转请求，直接以 false 初始化，避免贴底 LaunchedEffect 在跳转请求处理之前抢先触发
     var shouldAutoFollow by remember { mutableStateOf(jumpRequest == null) }
@@ -288,11 +291,10 @@ private fun ChatListNormal(
     DisposableEffect(Unit) {
         val listener: (Boolean) -> Boolean = { isVolumeUp ->
             if (settings.displaySetting.enableVolumeKeyScroll) {
-                // 列表视口包含标题栏和输入区遮住的部分，翻页时只按可见区域计算
-                val coveredPx = with(density) {
-                    (innerPadding.calculateTopPadding() + 32.dp + innerPadding.calculateBottomPadding()).toPx()
+                val bottomPaddingPx = with(density) {
+                    (24.dp + innerPadding.calculateBottomPadding()).toPx()
                 }
-                val scrollAmount = (state.layoutInfo.viewportSize.height - coveredPx) *
+                val scrollAmount = (state.layoutInfo.viewportSize.height - bottomPaddingPx) *
                     settings.displaySetting.volumeKeyScrollRatio
                 scope.launch { state.scrollBy(if (isVolumeUp) -scrollAmount else scrollAmount) }
                 true
@@ -308,8 +310,11 @@ private fun ChatListNormal(
     val selectedItems = selectionState.selectedItems
     var showExportSheet by remember { mutableStateOf(false) }
 
-    // 自动跟随键盘滚动
-    ImeLazyListAutoScroller(lazyListState = state)
+    // 自动跟随键盘与输入区高度变化滚动
+    ImeLazyListAutoScroller(
+        lazyListState = state,
+        isSuppressed = suppressBottomPaddingAutoScroll,
+    )
 
     val assistant = remember(
         settings.assistants,
@@ -383,32 +388,41 @@ private fun ChatListNormal(
             }
         }
 
-        // 判断最近是否滚动
-        LaunchedEffect(state.isScrollInProgress) {
-            if (state.isScrollInProgress) {
-                isRecentScroll = true
-                delay(1500)
-                isRecentScroll = false
-            } else {
-                delay(1500)
-                isRecentScroll = false
+        val listContentPadding = remember(innerPadding) {
+            object : PaddingValues {
+                override fun calculateLeftPadding(layoutDirection: LayoutDirection): Dp = 18.dp
+
+                override fun calculateTopPadding(): Dp = 16.dp
+
+                override fun calculateRightPadding(layoutDirection: LayoutDirection): Dp = 18.dp
+
+                override fun calculateBottomPadding(): Dp =
+                    4.dp + innerPadding.calculateBottomPadding()
+            }
+        }
+        val topInsetPadding = remember(innerPadding) {
+            object : PaddingValues {
+                override fun calculateLeftPadding(layoutDirection: LayoutDirection): Dp = 0.dp
+
+                override fun calculateTopPadding(): Dp = innerPadding.calculateTopPadding()
+
+                override fun calculateRightPadding(layoutDirection: LayoutDirection): Dp = 0.dp
+
+                override fun calculateBottomPadding(): Dp = 0.dp
             }
         }
 
         ChatFontProvider(displaySetting = settings.displaySetting) {
             LazyColumn(
                 state = state,
-                // 顶部留白放进 contentPadding，让消息可以滚动到透明标题栏下面
-                contentPadding = PaddingValues(16.dp) + PaddingValues(
-                    top = innerPadding.calculateTopPadding(),
-                    bottom = 32.dp + innerPadding.calculateBottomPadding(),
-                ),
+                contentPadding = listContentPadding,
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(22.dp),
                 modifier = Modifier
                     .fillMaxSize()
-                    .topFadingEdge(innerPadding.calculateTopPadding() + 24.dp)
-                    .hazeSource(state = hazeState),
+                    .hazeSource(state = hazeState)
+                    .padding(topInsetPadding)
+                    .topFadingEdge(18.dp),
             ) {
                 itemsIndexed(
                     items = conversation.messageNodes,
@@ -539,12 +553,12 @@ private fun ChatListNormal(
                     }
                 }
 
-                // 为了能正确滚动到这
+                // 为了能正确滚动到这（spacedBy(22.dp) 已提供主间距，这里只需极小锚点高度）
                 item(ScrollBottomKey) {
                     Spacer(
                         Modifier
                             .fillMaxWidth()
-                            .height(5.dp)
+                            .height(1.dp)
                     )
                 }
             }
@@ -594,9 +608,10 @@ private fun ChatListNormal(
 
             val captureProgress = LocalScrollCaptureInProgress.current
 
-            // 消息快速跳转
+            // 消息快速跳转：只由输入框的 ↑↓ 按钮（showJumper）手动开关，
+            // 不跟随滚动自动出现
             MessageJumper(
-                show = (showJumper || (isRecentScroll && !state.isScrollInProgress)) &&
+                show = showJumper &&
                     settings.displaySetting.showMessageJumper &&
                     !captureProgress,
                 onLeft = settings.displaySetting.messageJumperOnLeft,

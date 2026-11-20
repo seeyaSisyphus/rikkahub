@@ -19,7 +19,6 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -57,6 +56,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import org.koin.compose.koinInject
 import java.io.IOException
+import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
 
 private const val TAG = "BackgroundTasksSheet"
 
@@ -88,7 +88,7 @@ fun BackgroundTasksSheet(
     }
     val selected = tasks.find { it.id == selectedId }
 
-    ModalBottomSheet(
+    AppModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
