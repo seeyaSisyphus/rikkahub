@@ -37,6 +37,7 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
+import me.rerere.rikkahub.ui.components.ui.permission.NotificationPermissionCard
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionNotification
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
@@ -105,6 +106,15 @@ fun SettingPreferencesNotificationPage(vm: SettingVM = koinViewModel()) {
             contentPadding = contentPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !permissionState.allPermissionsGranted) {
+                item("notificationPermission") {
+                    NotificationPermissionCard(
+                        permissionState = permissionState,
+                        manageDialog = false,
+                    )
+                }
+            }
+
             // Play 版由商店负责更新，不提供更新提醒
             if (!BuildConfig.IS_PLAY_STORE) {
                 item {

@@ -71,7 +71,8 @@ fun rememberPermissionState(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
         // 获取最后请求的权限（通过当前rationale权限或者denied权限推断）
-        val lastRequestedPermission = permissionState.currentRationalePermissions.firstOrNull()?.permission
+        val lastRequestedPermission = permissionState.pendingSinglePermission
+            ?: permissionState.currentRationalePermissions.firstOrNull()?.permission
             ?: permissionState.deniedPermissions.firstOrNull()?.permission
 
         lastRequestedPermission?.let { permission ->

@@ -54,9 +54,11 @@ import me.rerere.rikkahub.service.WebServerService
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AppSwitch
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.permission.NotificationPermissionCard
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionLocalNetwork
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionNotification
+import me.rerere.rikkahub.ui.components.ui.permission.PermissionStatus
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -189,6 +191,19 @@ fun SettingWebPage() {
             contentPadding = innerPadding + PaddingValues(8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                permissionState.permissionStates[PermissionNotification.permission] != PermissionStatus.Granted
+            ) {
+                item("notificationPermission") {
+                    NotificationPermissionCard(
+                        permissionState = permissionState,
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                        manageDialog = false,
+                        onClick = { permissionState.requestPermission(PermissionNotification.permission) },
+                    )
+                }
+            }
+
             item {
                 CardGroup(
                     modifier = Modifier

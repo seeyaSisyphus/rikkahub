@@ -1,20 +1,18 @@
 package me.rerere.rikkahub.ui.components.ui.permission
 
 import android.os.Build
-import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,8 +21,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Alert01
+import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Notification01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.theme.CustomColors
 
 /**
  * 本地网络权限状态, Android 17 以下不需要这个权限, 返回 null
@@ -55,6 +55,8 @@ fun rememberNotificationPermissionState(): PermissionState? {
 fun LocalNetworkPermissionCard(
     permissionState: PermissionState,
     modifier: Modifier = Modifier,
+    manageDialog: Boolean = true,
+    onClick: () -> Unit = { permissionState.requestPermissions() },
 ) {
     PermissionRequestCard(
         permissionState = permissionState,
@@ -62,6 +64,8 @@ fun LocalNetworkPermissionCard(
         title = stringResource(R.string.permission_local_network),
         description = stringResource(R.string.permission_local_network_desc),
         modifier = modifier,
+        manageDialog = manageDialog,
+        onClick = onClick,
     )
 }
 
@@ -74,6 +78,8 @@ fun LocalNetworkPermissionCard(
 fun NotificationPermissionCard(
     permissionState: PermissionState,
     modifier: Modifier = Modifier,
+    manageDialog: Boolean = true,
+    onClick: () -> Unit = { permissionState.requestPermissions() },
 ) {
     PermissionRequestCard(
         permissionState = permissionState,
@@ -81,6 +87,8 @@ fun NotificationPermissionCard(
         title = stringResource(R.string.permission_notification),
         description = stringResource(R.string.permission_notification_card_desc),
         modifier = modifier,
+        manageDialog = manageDialog,
+        onClick = onClick,
     )
 }
 
@@ -91,47 +99,54 @@ private fun PermissionRequestCard(
     title: String,
     description: String,
     modifier: Modifier = Modifier,
+    manageDialog: Boolean = true,
+    onClick: () -> Unit = { permissionState.requestPermissions() },
 ) {
-    PermissionManager(permissionState = permissionState)
+    if (manageDialog) {
+        PermissionManager(permissionState = permissionState)
+    }
 
     Surface(
-        onClick = { permissionState.requestPermissions() },
+        onClick = onClick,
         modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.tertiaryContainer,
-        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+        shape = RoundedCornerShape(20.dp),
+        color = CustomColors.listItemColors.containerColor,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
+        tonalElevation = 0.dp,
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .background(MaterialTheme.colorScheme.tertiary, MaterialShapes.Cookie9Sided.toShape()),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(28.dp),
-                    tint = MaterialTheme.colorScheme.onTertiary,
-                )
-            }
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(22.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleMediumEmphasized,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = description,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            Icon(
+                imageVector = HugeIcons.ArrowRight01,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            )
         }
     }
 }

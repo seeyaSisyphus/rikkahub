@@ -38,6 +38,10 @@ class PermissionState internal constructor(
     // 单个权限请求启动器
     private var singlePermissionLauncher: ActivityResultLauncher<String>? = null
 
+    // 记录最近一次单独请求的权限，供单个权限回调精确回填状态
+    internal var pendingSinglePermission: String? = null
+        private set
+
     init {
         // 初始化权限状态
         updatePermissionStates()
@@ -155,6 +159,7 @@ class PermissionState internal constructor(
                     showRationaleDialog = true
                 } else {
                     // 直接请求权限
+                    pendingSinglePermission = permission
                     singlePermissionLauncher?.launch(permission)
                 }
             }
@@ -165,6 +170,7 @@ class PermissionState internal constructor(
             }
             else -> {
                 // NotRequested 状态，直接请求权限
+                pendingSinglePermission = permission
                 singlePermissionLauncher?.launch(permission)
             }
         }
@@ -206,6 +212,7 @@ class PermissionState internal constructor(
     private fun launchPermissionRequest(permissionInfos: List<PermissionInfo>) {
         val permissionsToRequest = permissionInfos.map { it.permission }.toTypedArray()
         if (permissionsToRequest.size == 1) {
+            pendingSinglePermission = permissionsToRequest[0]
             singlePermissionLauncher?.launch(permissionsToRequest[0])
         } else {
             permissionLauncher?.launch(permissionsToRequest)
@@ -277,6 +284,7 @@ class PermissionState internal constructor(
      * 处理单个权限请求结果
      */
     internal fun handleSinglePermissionResult(permission: String, granted: Boolean) {
+        pendingSinglePermission = null
         handlePermissionResult(mapOf(permission to granted))
     }
 
