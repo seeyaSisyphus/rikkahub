@@ -173,9 +173,9 @@ ReorderableItem(reorderState, key = tag.id.toString()) { ... }
 2. **同步更新 `AppDatabase.VERSION` 常量**（`companion object` 中），供备份恢复逻辑动态引用
 3. **添加对应手动 Migration** 并注册到 `AppDatabaseFactory`
 
-> 本 fork 不使用 `AutoMigration`：fork 与上游的版本号在 v25 后分叉（fork 25→26→27，上游 25→…→32），
-> 合并后统一推进到 v33（始终比上游最新版本高一级，避免同版本不同 schema 的库绕过迁移）。
-> v25→v33 的每一步迁移都会调用幂等的 `ensureMergedSchema()`
+> 本 fork 不使用 `AutoMigration`：fork 与上游的版本号在 v25 后分叉（fork 25→26→27，上游 25→…→34），
+> 合并后统一推进到 v35（始终比上游最新版本高一级，避免同版本不同 schema 的库绕过迁移）。
+> v25→v35 的每一步迁移都会调用幂等的 `ensureMergedSchema()`
 > （`MigrationUtils.kt`），以 IF NOT EXISTS / try-catch 方式兼容两条 lineage 的旧库。
 > 上游 v30→v31 的 `usage_record` 回填保留在 `Migration_30_31.kt` 中，随后再补齐 fork 侧 schema。
 

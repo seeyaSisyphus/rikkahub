@@ -305,13 +305,14 @@
         },
         "indices": [
           {
-            "name": "index_message_node_conversation_id",
+            "name": "index_message_node_conversation_id_node_index",
             "unique": false,
             "columnNames": [
-              "conversation_id"
+              "conversation_id",
+              "node_index"
             ],
             "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_message_node_conversation_id` ON `${TABLE_NAME}` (`conversation_id`)"
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_message_node_conversation_id_node_index` ON `${TABLE_NAME}` (`conversation_id`, `node_index`)"
           }
         ],
         "foreignKeys": [

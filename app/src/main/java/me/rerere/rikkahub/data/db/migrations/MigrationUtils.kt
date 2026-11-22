@@ -98,10 +98,10 @@ internal fun migratePartsArray(partsElement: JsonArray): JsonArray {
 }
 
 /**
- * [FORK] fork 与上游在 v25 之后版本号分叉（fork 25→26→27，上游 25→…→29），
- * 合并后统一推进到 v32。以下操作全部为幂等实现（IF NOT EXISTS / try-catch 忽略 duplicate），
- * 在 25→26 到 31→32 的每一步中都会执行，保证无论用户来自哪条 lineage、哪个版本，
- * 抵达 v32 时 schema 完整一致。
+ * [FORK] fork 与上游在 v25 之后版本号分叉，本次合并后统一推进到 v35。
+ * 以下操作全部为幂等实现（IF NOT EXISTS / try-catch 忽略 duplicate），
+ * 在 25→26 到 34→35 的每一步中都会执行，保证无论用户来自哪条 lineage、哪个版本，
+ * 抵达 v35 时 schema 完整一致。
  */
 internal fun SupportSQLiteDatabase.ensureMergedSchema() {
     // ---- 分叉列（双方各自新增，互相缺失）----
@@ -121,6 +121,15 @@ internal fun SupportSQLiteDatabase.ensureMergedSchema() {
     // 上游 v31→v32 工作区类型（LOCAL / SSH）与 SSH 连接配置
     addColumnIfMissing("ALTER TABLE workspaces ADD COLUMN `type` TEXT NOT NULL DEFAULT 'LOCAL'")
     addColumnIfMissing("ALTER TABLE workspaces ADD COLUMN `ssh_config` TEXT")
+    // 上游 v33→v34 本地工作区共享存储挂载
+    addColumnIfMissing("ALTER TABLE workspaces ADD COLUMN `storage_mounts` TEXT NOT NULL DEFAULT '[]'")
+
+    // 上游 v32→v33 长会话分页查询复合索引
+    execSQL(
+        "CREATE INDEX IF NOT EXISTS `index_message_node_conversation_id_node_index` " +
+            "ON `message_node` (`conversation_id`, `node_index`)"
+    )
+    execSQL("DROP INDEX IF EXISTS `index_message_node_conversation_id`")
 
     // ---- 上游 v25→v26 媒体生成表 ----
     execSQL(

@@ -50,12 +50,12 @@ import me.rerere.rikkahub.utils.JsonInstant
         TranslationHistoryEntity::class,
         UsageRecordEntity::class,
     ],
-    version = 33,
+    version = 35,
     autoMigrations = []
     // [FORK] 所有迁移均由 AppDatabaseFactory.kt 中 addMigrations() 注册的手动 Migration 处理。
-    // fork 与上游在 v25 后版本号分叉，合并后统一推进到 v33（比上游最新的 v32 高一级，
-    // 否则上游 lineage 的 v32 库会因版本相同、schema 不同而校验失败）：
-    // 25→26 … 32→33 每一步均通过幂等的 ensureMergedSchema() 兼容两条 lineage。
+    // fork 与上游在 v25 后版本号分叉，本次合并后统一推进到 v35（比上游最新的 v34 高一级，
+    // 否则上游 lineage 的 v34 库会因版本相同、schema 不同而校验失败）：
+    // 25→26 … 34→35 每一步均通过幂等的 ensureMergedSchema() 兼容两条 lineage。
     // 若保留 AutoMigration 条目 Room KSP 会对历史 schema 与当前 Entity 做 diff，
     // 报 "未声明 @DeleteColumn" 等错误，因此不使用 AutoMigration。
 )
@@ -86,7 +86,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun usageRecordDao(): UsageRecordDAO
 
     companion object {
-        const val VERSION = 33
+        const val VERSION = 35
 
         // v21→v22: 仅新增 workspace_cwd 列
         val Migration_21_22 = object : androidx.room.migration.Migration(21, 22) {

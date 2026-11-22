@@ -1,14 +1,23 @@
 package me.rerere.rikkahub.data.db.migrations
 
+import android.util.Log
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import me.rerere.rikkahub.data.db.DatabaseMigrationTracker
 
-// [FORK] v32→v33：合并后的统一版本终点。
-//   上游 lineage 停在 v32 的用户缺少 fork 侧列/表（会话标签、对话参数、固定到上下文、Battle 等），
-//   全部由幂等的 ensureMergedSchema() 补齐；fork lineage 的旧库在这一步已经齐全，等于空操作。
-//   合并后的版本号必须高于上游，否则上游 v32 的库会因版本相同而绕过迁移、schema 校验失败。
+private const val TAG = "Migration_32_33"
+
+// [FORK] 同时补齐两条 lineage 的字段，并把 message_node 索引升级为
+// (conversation_id, node_index)，避免长会话分页读取时重复排序。
 val Migration_32_33 = object : Migration(32, 33) {
     override fun migrate(db: SupportSQLiteDatabase) {
-        db.ensureMergedSchema()
+        Log.i(TAG, "migrate: start migrate from 32 to 33 (merged schema and message_node index)")
+        DatabaseMigrationTracker.onMigrationStart(32, 33)
+        try {
+            db.ensureMergedSchema()
+            Log.i(TAG, "migrate: migrate from 32 to 33 success")
+        } finally {
+            DatabaseMigrationTracker.onMigrationEnd()
+        }
     }
 }
