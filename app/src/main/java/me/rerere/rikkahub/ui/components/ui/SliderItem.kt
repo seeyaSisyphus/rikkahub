@@ -87,9 +87,9 @@ fun AppSlider(
     }
     val ringColor = if (enabled) colors.primary else colors.onSurface.copy(alpha = 0.28f)
     val trackBgColor = if (enabled) {
-        colors.surfaceContainerHighest
+        colors.onSurface.copy(alpha = if (isDark) 0.20f else 0.12f)
     } else {
-        colors.surfaceContainerHigh.copy(alpha = 0.6f)
+        colors.onSurface.copy(alpha = 0.08f)
     }
     val trackFillColor = if (enabled) {
         colors.primary

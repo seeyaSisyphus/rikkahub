@@ -50,11 +50,9 @@ fun AppSwitch(
     val isPressed by resolvedInteractionSource.collectIsPressedAsState()
     val isDark = LocalDarkMode.current
 
-    val uncheckedTrackColor = if (isDark) {
-        MaterialTheme.colorScheme.surfaceContainerHighest
-    } else {
-        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f)
-    }
+    val uncheckedTrackColor = MaterialTheme.colorScheme.onSurface.copy(
+        alpha = if (isDark) 0.24f else 0.18f
+    )
     val targetTrackColor = if (checked) {
         MaterialTheme.colorScheme.primary
     } else {

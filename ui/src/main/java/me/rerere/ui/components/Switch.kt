@@ -6,7 +6,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -45,11 +45,9 @@ fun Switch(
     size: SwitchSize = SwitchSize.Medium,
     enabled: Boolean = true,
     trackColor: Color = MaterialTheme.colorScheme.primary,
-    trackColorUnchecked: Color = if (isSystemInDarkTheme()) {
-        MaterialTheme.colorScheme.surfaceContainerHighest
-    } else {
-        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f)
-    },
+    trackColorUnchecked: Color = MaterialTheme.colorScheme.onSurface.copy(
+        alpha = if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) 0.24f else 0.18f
+    ),
     thumbColor: Color = MaterialTheme.colorScheme.onPrimary,
     thumbColorUnchecked: Color = Color.White
 ) {
