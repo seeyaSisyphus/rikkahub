@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.components.message
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,14 +13,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
-import androidx.compose.material3.RichTooltip
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
@@ -34,10 +37,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import kotlinx.datetime.toJavaLocalDateTime
@@ -51,11 +61,14 @@ import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.theme.LocalDarkMode
+import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.wordCount
 import me.rerere.rikkahub.utils.toFixed
 import java.text.NumberFormat
 import java.time.Duration
+import kotlin.math.roundToInt
 
 /**
  * 显示消息的技术统计信息（如 token 使用量），点击查看详情
@@ -84,11 +97,10 @@ fun ChatMessageNerdLine(
     TooltipBox(
         positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
         tooltip = {
-            RichTooltip(
-                title = { Text(stringResource(R.string.chat_message_usage_title)) },
-            ) {
-                UsageDetails(stats, contextLength)
-            }
+            UsagePopoverCard(
+                stats = stats,
+                contextLength = contextLength,
+            )
         },
         state = tooltipState,
         enableUserInput = false,
@@ -101,15 +113,31 @@ fun ChatMessageNerdLine(
                     itemVerticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .clickable { scope.launch { tooltipState.show() } }
+                        .clickable {
+                            scope.launch {
+                                if (tooltipState.isVisible) {
+                                    tooltipState.dismiss()
+                                } else {
+                                    tooltipState.show()
+                                }
+                            }
+                        }
                         .padding(horizontal = 4.dp, vertical = 2.dp),
                 ) {
                     StatsItem(
                         icon = { StatsIcon(HugeIcons.Upload02, stringResource(R.string.chat_message_usage_input)) },
                         content = {
-                            Text(text = "${stats.total.promptTokens.formatNumber()} tokens")
-                            if (stats.total.cachedTokens > 0) {
-                                Text(text = "(${stats.total.cachedTokens.formatNumber()} cached)")
+                            val promptTokens = stats.total.promptTokens
+                            val cacheRatePct = if (promptTokens > 0) {
+                                ((stats.total.cachedTokens.toDouble() / promptTokens) * 100)
+                                    .roundToInt()
+                                    .coerceIn(0, 100)
+                            } else {
+                                null
+                            }
+                            Text(text = "${promptTokens.formatNumber()} tokens")
+                            if (cacheRatePct != null) {
+                                Text(text = " (${stringResource(R.string.chat_message_usage_cached)} $cacheRatePct%)")
                             }
                         }
                     )
@@ -135,28 +163,162 @@ fun ChatMessageNerdLine(
     }
 }
 
+/**
+ * 极简编辑风用量浮窗容器：圆角卡片、发丝边框、零 tonalElevation、预留外边距避免阴影被 Popup 裁剪。
+ */
 @Composable
-private fun UsageDetails(stats: NerdStats, contextLength: Int?) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-        modifier = Modifier.padding(vertical = 4.dp),
-    ) {
-        val total = stats.total
-        ContextUsageBar(
-            lastUsage = stats.lastUsage,
-            contextLength = contextLength,
-            modifier = Modifier.padding(bottom = 8.dp),
-        )
-        if (stats.steps > 1) {
-            UsageDetailRow(stringResource(R.string.chat_message_usage_step_count), stats.steps.toString())
-            UsageDetailRow(stringResource(R.string.chat_message_usage_total_input), total.promptTokens.exact())
-            if (total.cachedTokens > 0) UsageDetailRow(stringResource(R.string.chat_message_usage_total_cached), total.cachedTokens.exact())
-            UsageDetailRow(stringResource(R.string.chat_message_usage_total_output), total.completionTokens.exact())
+private fun UsagePopoverCard(
+    stats: NerdStats,
+    contextLength: Int?,
+) {
+    val isDark = LocalDarkMode.current
+    val colors = MaterialTheme.colorScheme
+    val containerColor = if (isDark) colors.surfaceContainerHigh else colors.surfaceBright
+    val borderColor = colors.outlineVariant.copy(alpha = if (isDark) 0.45f else 0.65f)
+
+    Box(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = containerColor,
+            contentColor = colors.onSurface,
+            tonalElevation = 0.dp,
+            shadowElevation = if (isDark) 6.dp else 10.dp,
+            border = BorderStroke(0.5.dp, borderColor),
+            modifier = Modifier.width(284.dp),
+        ) {
+            UsageDetails(
+                stats = stats,
+                contextLength = contextLength,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            )
         }
-        if (stats.tps != null) UsageDetailRow(stringResource(R.string.chat_message_usage_speed), "${stats.tps.toFixed(1)} tok/s")
-        if (stats.durationMillis != null) UsageDetailRow(stringResource(R.string.chat_message_usage_duration), "${(stats.durationMillis / 1000f).toFixed(1)}s")
+    }
+}
+
+@Composable
+private fun UsageDetails(
+    stats: NerdStats,
+    contextLength: Int?,
+    modifier: Modifier = Modifier,
+) {
+    val isDark = LocalDarkMode.current
+    val colors = MaterialTheme.colorScheme
+    val extendColors = MaterialTheme.extendColors
+    val total = stats.total
+    val lastUsage = stats.lastUsage
+    val contextTokens = lastUsage.promptTokens + lastUsage.completionTokens
+    val hasContextSection = contextTokens > 0 || contextLength != null
+    val lastCachePct = if (lastUsage.promptTokens > 0 && lastUsage.cachedTokens > 0) {
+        ((lastUsage.cachedTokens.toDouble() / lastUsage.promptTokens) * 100)
+            .roundToInt()
+            .coerceIn(0, 100)
+    } else {
+        null
+    }
+
+    val metricRows = buildList {
+        if (stats.steps > 1) {
+            add(stringResource(R.string.chat_message_usage_step_count) to stats.steps.toString())
+            add(stringResource(R.string.chat_message_usage_total_input) to total.promptTokens.exact())
+            if (total.cachedTokens > 0) {
+                val totalCachePct = if (total.promptTokens > 0) {
+                    ((total.cachedTokens.toDouble() / total.promptTokens) * 100)
+                        .roundToInt()
+                        .coerceIn(0, 100)
+                } else {
+                    0
+                }
+                add(
+                    stringResource(R.string.chat_message_usage_total_cached) to
+                        "${total.cachedTokens.exact()} ($totalCachePct%)",
+                )
+            }
+            add(stringResource(R.string.chat_message_usage_total_output) to total.completionTokens.exact())
+        }
+        stats.tps?.let { tps ->
+            add(stringResource(R.string.chat_message_usage_speed) to "${tps.toFixed(1)} tok/s")
+        }
+        stats.durationMillis?.let { durationMs ->
+            add(stringResource(R.string.chat_message_usage_duration) to "${(durationMs / 1000f).toFixed(1)}s")
+        }
         // [FORK] 回答字数
-        if (stats.charCount > 0) UsageDetailRow("字数", "${stats.charCount} 字")
+        if (stats.charCount > 0) {
+            add("字数" to "${stats.charCount.exact()} 字")
+        }
+    }
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = modifier,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                text = stringResource(R.string.chat_message_usage_title),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.onSurface,
+                modifier = Modifier.weight(1f),
+            )
+            when {
+                stats.steps > 1 -> UsageBadge(
+                    text = stringResource(R.string.chat_message_usage_steps, stats.steps),
+                    containerColor = colors.surfaceContainerHighest.copy(alpha = 0.7f),
+                    contentColor = colors.onSurfaceVariant,
+                )
+                lastCachePct != null && lastCachePct > 0 -> UsageBadge(
+                    text = "${stringResource(R.string.chat_message_usage_cached)} $lastCachePct%",
+                    containerColor = if (isDark) extendColors.green2.copy(alpha = 0.5f) else extendColors.green1,
+                    contentColor = extendColors.green8,
+                )
+            }
+        }
+
+        if (hasContextSection) {
+            ContextUsageBar(
+                lastUsage = lastUsage,
+                contextLength = contextLength,
+            )
+        }
+
+        if (hasContextSection && metricRows.isNotEmpty()) {
+            HorizontalDivider(
+                thickness = 0.5.dp,
+                color = colors.outlineVariant.copy(alpha = if (isDark) 0.45f else 0.65f),
+            )
+        }
+
+        if (metricRows.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                metricRows.forEach { (label, value) ->
+                    UsageDetailRow(label = label, value = value)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UsageBadge(
+    text: String,
+    containerColor: Color,
+    contentColor: Color,
+) {
+    Surface(
+        shape = CircleShape,
+        color = containerColor,
+        contentColor = contentColor,
+        tonalElevation = 0.dp,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+        )
     }
 }
 
@@ -171,89 +333,137 @@ private fun ContextUsageBar(
     contextLength: Int?,
     modifier: Modifier = Modifier,
 ) {
+    val isDark = LocalDarkMode.current
     val colorScheme = MaterialTheme.colorScheme
+    val extendColors = MaterialTheme.extendColors
     val segments = listOf(
-        UsageSegment(stringResource(R.string.chat_message_usage_cached), lastUsage.cachedTokens, colorScheme.primary),
+        UsageSegment(stringResource(R.string.chat_message_usage_cached), lastUsage.cachedTokens, extendColors.green6),
         UsageSegment(
             stringResource(R.string.chat_message_usage_input),
             (lastUsage.promptTokens - lastUsage.cachedTokens).coerceAtLeast(0),
-            colorScheme.primary.copy(alpha = 0.45f),
+            extendColors.blue6,
         ),
-        UsageSegment(stringResource(R.string.chat_message_usage_output), lastUsage.completionTokens, colorScheme.tertiary),
+        UsageSegment(stringResource(R.string.chat_message_usage_output), lastUsage.completionTokens, extendColors.orange5),
     ).filter { it.tokens > 0 }
     val contextTokens = lastUsage.promptTokens + lastUsage.completionTokens
     // 窗口未知或已经超出时，占用本身铺满整条
     val capacity = maxOf(contextLength ?: 0, contextTokens, 1)
     val hasFreeSpace = capacity > contextTokens
-    val trackColor = colorScheme.surfaceContainerHighest
+    val trackColor = colorScheme.onSurface.copy(alpha = if (isDark) 0.12f else 0.08f)
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier,
     ) {
-        Row(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
             Text(
                 text = stringResource(R.string.chat_message_usage_context),
-                color = LocalContentColor.current.copy(alpha = 0.7f),
+                style = MaterialTheme.typography.labelMedium,
+                color = colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f),
             )
             if (contextLength != null) {
                 val fraction = contextTokens.toFloat() / contextLength
                 Text(
                     text = "${contextTokens.formatNumber()} / ${contextLength.formatNumber()} · ${(fraction * 100).toFixed(0)}%",
-                    color = if (fraction >= 0.9f) colorScheme.error else Color.Unspecified,
+                    style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+                    fontWeight = FontWeight.Medium,
+                    color = if (fraction >= 0.9f) colorScheme.error else colorScheme.onSurface,
                 )
             } else {
-                Text(text = contextTokens.exact())
+                Text(
+                    text = contextTokens.exact(),
+                    style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+                    fontWeight = FontWeight.Medium,
+                    color = colorScheme.onSurface,
+                )
             }
         }
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(8.dp)
+                .height(6.dp)
         ) {
-            val gap = 2.dp.toPx()
-            val radius = CornerRadius(size.height / 2)
-            // 每段之间留出间隔；还有空余时最后一段和空余之间也要留
-            val gaps = if (hasFreeSpace) segments.size else segments.size - 1
-            val available = size.width - gap * gaps
-            var x = 0f
-            segments.forEach { segment ->
-                if (x >= size.width) return@forEach
-                // 太小的段至少画成一个圆点，不然看不出来
-                val width = (segment.tokens.toFloat() / capacity * available).coerceAtLeast(size.height)
-                drawRoundRect(
-                    color = segment.color,
-                    topLeft = Offset(x, 0f),
-                    size = Size(width.coerceAtMost(size.width - x), size.height),
-                    cornerRadius = radius,
+            val outerRadius = CornerRadius(size.height / 2)
+            val trackPath = Path().apply {
+                addRoundRect(
+                    RoundRect(
+                        left = 0f,
+                        top = 0f,
+                        right = size.width,
+                        bottom = size.height,
+                        cornerRadius = outerRadius,
+                    )
                 )
-                x += width + gap
             }
-            if (hasFreeSpace && x < size.width) {
-                drawRoundRect(
-                    color = trackColor,
-                    topLeft = Offset(x, 0f),
-                    size = Size(size.width - x, size.height),
-                    cornerRadius = radius,
-                )
+            drawPath(trackPath, color = trackColor)
+
+            if (segments.isEmpty()) return@Canvas
+
+            val gap = 1.5.dp.toPx()
+            val minWidth = 4.dp.toPx()
+            val totalGaps = if (segments.size > 1) gap * (segments.size - 1) else 0f
+            val available = (size.width - totalGaps).coerceAtLeast(0f)
+            val segmentRadius = CornerRadius(2.dp.toPx())
+
+            clipPath(trackPath) {
+                var x = 0f
+                segments.forEachIndexed { index, segment ->
+                    if (x >= size.width) return@forEachIndexed
+                    val remaining = (size.width - x).coerceAtLeast(0f)
+                    val rawWidth = segment.tokens.toFloat() / capacity * available
+                    val width = if (index == segments.lastIndex && !hasFreeSpace) {
+                        remaining
+                    } else {
+                        rawWidth.coerceAtLeast(minWidth).coerceAtMost(remaining)
+                    }
+                    drawRoundRect(
+                        color = segment.color,
+                        topLeft = Offset(x, 0f),
+                        size = Size(width, size.height),
+                        cornerRadius = segmentRadius,
+                    )
+                    x += width + gap
+                }
             }
         }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            segments.forEach { segment ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .background(segment.color, CircleShape)
-                    )
-                    Text(
-                        text = "${segment.label} ${segment.tokens.exact()}",
-                        style = MaterialTheme.typography.labelSmall,
-                    )
+        if (segments.isNotEmpty()) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                segments.forEach { segment ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .background(segment.color, CircleShape)
+                        )
+                        Text(
+                            text = buildAnnotatedString {
+                                withStyle(SpanStyle(color = colorScheme.onSurfaceVariant)) {
+                                    append(segment.label)
+                                    append(" ")
+                                }
+                                withStyle(
+                                    SpanStyle(
+                                        color = colorScheme.onSurface,
+                                        fontWeight = FontWeight.Medium,
+                                    )
+                                ) {
+                                    append(segment.tokens.exact())
+                                }
+                            },
+                            style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                        )
+                    }
                 }
             }
         }
@@ -262,16 +472,24 @@ private fun ContextUsageBar(
 
 @Composable
 private fun UsageDetailRow(label: String, value: String) {
+    val colors = MaterialTheme.colorScheme
     Row(
-        horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.Start),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Text(
             text = label,
-            color = LocalContentColor.current.copy(alpha = 0.7f),
+            style = MaterialTheme.typography.labelMedium,
+            color = colors.onSurfaceVariant,
             modifier = Modifier.weight(1f),
         )
-        Text(text = value)
+        Text(
+            text = value,
+            style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+            fontWeight = FontWeight.Medium,
+            color = colors.onSurface,
+        )
     }
 }
 
