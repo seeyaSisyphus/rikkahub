@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.backup
 
+import android.net.Uri
 import android.util.Log
 import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
@@ -16,15 +17,17 @@ import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.files.saveUploadFromBytes
 import me.rerere.rikkahub.data.repository.ConversationRepository
-import me.rerere.rikkahub.data.sync.importer.ChatboxImporter
-import me.rerere.rikkahub.data.sync.importer.CherryStudioProviderImporter
 import me.rerere.rikkahub.data.sync.importer.GoogleAiStudioImporter
 import me.rerere.rikkahub.data.sync.importer.GoogleAiStudioExport
-import me.rerere.rikkahub.data.sync.webdav.WebDavBackupItem
-import me.rerere.rikkahub.data.sync.webdav.WebDavSync
 import me.rerere.common.android.Logging
 import me.rerere.rikkahub.data.sync.S3BackupItem
 import me.rerere.rikkahub.data.sync.S3Sync
+import me.rerere.rikkahub.data.sync.importer.ChatboxImporter
+import me.rerere.rikkahub.data.sync.importer.CherryStudioProviderImporter
+import me.rerere.rikkahub.data.sync.importer.DeepSeekImportResult
+import me.rerere.rikkahub.data.sync.importer.DeepSeekMigrator
+import me.rerere.rikkahub.data.sync.webdav.WebDavBackupItem
+import me.rerere.rikkahub.data.sync.webdav.WebDavSync
 import me.rerere.rikkahub.utils.UiState
 import java.io.File
 import kotlinx.serialization.json.Json
@@ -37,6 +40,7 @@ class BackupVM(
     private val s3Sync: S3Sync,
     private val conversationRepository: ConversationRepository,
     private val filesManager: FilesManager,
+    private val deepSeekMigrator: DeepSeekMigrator,
 ) : ViewModel() {
     val settings = settingsStore.settingsFlow.stateIn(
         scope = viewModelScope,
@@ -178,6 +182,8 @@ class BackupVM(
             skippedSessions = result.skippedSessions,
         )
     }
+
+    suspend fun restoreFromDeepSeek(uri: Uri): DeepSeekImportResult = deepSeekMigrator.import(uri)
 
     fun restoreFromCherryStudio(file: File) {
         val importProviders = CherryStudioProviderImporter.importProviders(file)

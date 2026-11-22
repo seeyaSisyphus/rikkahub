@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.hugeicons.HugeIcons
@@ -51,6 +52,7 @@ import me.rerere.hugeicons.stroke.Megaphone01
 import me.rerere.hugeicons.stroke.Moon02
 import me.rerere.hugeicons.stroke.Package
 import me.rerere.hugeicons.stroke.ServerStack01
+import me.rerere.hugeicons.stroke.Rocket01
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.SmartPhone01
 import me.rerere.hugeicons.stroke.Sun01
@@ -66,9 +68,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.permission.LocalNetworkPermissionCard
-import me.rerere.rikkahub.ui.components.ui.permission.NotificationPermissionCard
 import me.rerere.rikkahub.ui.components.ui.permission.rememberLocalNetworkPermissionState
-import me.rerere.rikkahub.ui.components.ui.permission.rememberNotificationPermissionState
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.hooks.rememberColorMode
 import me.rerere.rikkahub.ui.theme.ColorMode
@@ -89,7 +89,6 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
     val launchCount by vm.launchCount.collectAsStateWithLifecycle()
     val filesManager: FilesManager = koinInject()
     val localNetworkPermission = rememberLocalNetworkPermissionState()
-    val notificationPermission = rememberNotificationPermissionState()
 
     if (false && !settings.init && launchCount > 100 && (launchCount - settings.sponsorAlertDismissedAt) >= 50) {
         AppAlertDialog(
@@ -139,7 +138,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             if (settings.isNotConfigured()) {
                 item {
                     ProviderConfigWarningCard(
-                        onClick = { navController.navigate(Screen.SettingProvider) }
+                        onClick = { navController.navigate(Screen.QuickStart) }
                     )
                 }
             }
@@ -147,12 +146,6 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             if (localNetworkPermission?.allRequiredPermissionsGranted == false) {
                 item("localNetworkPermission") {
                     LocalNetworkPermissionCard(permissionState = localNetworkPermission)
-                }
-            }
-
-            if (notificationPermission?.allRequiredPermissionsGranted == false) {
-                item("notificationPermission") {
-                    NotificationPermissionCard(permissionState = notificationPermission)
                 }
             }
 
@@ -309,6 +302,20 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 CardGroup(
                     title = { Text(stringResource(R.string.setting_page_logs)) },
                 ) {
+                    item(
+                        onClick = { navController.navigate(Screen.QuickStart) },
+                        leadingContent = { SettingIcon(HugeIcons.Rocket01) },
+                        supportingContent = {
+                            Text(
+                                text = stringResource(R.string.setting_page_quick_start_desc),
+                                // 只留一行：多行说明会把行首图标和右侧箭头挤到顶部
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
+                        headlineContent = { Text(stringResource(R.string.setting_page_quick_start)) },
+                        trailingContent = { NavigationArrow() },
+                    )
                     item(
                         onClick = { navController.navigate(Screen.Log) },
                         leadingContent = { SettingIcon(HugeIcons.Bookshelf01) },
