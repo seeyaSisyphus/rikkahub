@@ -31,6 +31,7 @@ val ASRProviderSetting.typeName: String
         is ASRProviderSetting.Step -> "Step"
         is ASRProviderSetting.Chirp3 -> "Google Chirp3"
         is ASRProviderSetting.Tencent -> "Tencent ASR"
+        is ASRProviderSetting.DeepSeek -> "DeepSeek"
     }
 
 @Composable
@@ -93,6 +94,7 @@ fun ASRProviderConfigure(
                     chirp3ASRItems(setting, onValueChange)
                 }
                 is ASRProviderSetting.Tencent -> tencentASRItems(setting, onValueChange)
+                is ASRProviderSetting.DeepSeek -> deepSeekASRItems(setting, onValueChange)
             }
         }
     }
@@ -590,6 +592,7 @@ private fun CardGroupScope.chirp3ASRItems(
             onValueChange = { onValueChange(setting.copy(serviceAccountEmail = it)) },
             modifier = Modifier.fillMaxWidth(),
             placeholder = { Text("your-service-account@project.iam.gserviceaccount.com") }
+
         )
     }
 
@@ -781,3 +784,66 @@ private fun CardGroupScope.tencentASRItems(
         )
     }
 }
+
+
+
+private fun CardGroupScope.deepSeekASRItems(
+    setting: ASRProviderSetting.DeepSeek,
+    onValueChange: (ASRProviderSetting) -> Unit
+) {
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_asr_configure_api_key)) },
+        supportingContent = { Text("DeepSeek 开放平台的 API Key") }
+    ) {
+        AppOutlinedTextField(
+            value = setting.apiKey,
+            onValueChange = { onValueChange(setting.copy(apiKey = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("sk-...") }
+        )
+    }
+
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_asr_configure_base_url)) },
+        supportingContent = { Text("请求地址为 {Base URL}/v1/tools/asr") }
+    ) {
+        AppOutlinedTextField(
+            value = setting.baseUrl,
+            onValueChange = { onValueChange(setting.copy(baseUrl = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("https://api.deepseek.com") }
+        )
+    }
+
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_asr_configure_sample_rate)) },
+        supportingContent = { Text("录音采样率，16000 Hz 即可满足识别") }
+    ) {
+        SelectTextField(
+            value = "${setting.sampleRate} Hz",
+            options = DEEPSEEK_ASR_SAMPLE_RATES,
+            onOptionSelected = { onValueChange(setting.copy(sampleRate = it)) },
+            readOnly = true,
+            optionToString = { "$it Hz" },
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_asr_configure_segment_duration)) },
+        supportingContent = { Text("录音每满多少秒上传识别一段，0 表示停止录音时才上传。单段最长约 110 秒，超出会自动切段") }
+    ) {
+        OutlinedNumberInput(
+            value = setting.segmentDurationSec,
+            onValueChange = { value ->
+                if (value in 0..110) {
+                    onValueChange(setting.copy(segmentDurationSec = value))
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            label = "Segment Duration (s)"
+        )
+    }
+}
+
+private val DEEPSEEK_ASR_SAMPLE_RATES = listOf(8000, 16000, 22050, 24000, 32000, 44100, 48000)

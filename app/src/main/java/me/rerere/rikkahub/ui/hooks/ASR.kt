@@ -17,6 +17,7 @@ import me.rerere.asr.ASRProviderSetting
 import me.rerere.asr.ASRState
 import me.rerere.asr.providers.Chirp3ASRController
 import me.rerere.asr.providers.DashScopeASRController
+import me.rerere.asr.providers.DeepSeekASRController
 import me.rerere.asr.providers.MiMoASRController
 import me.rerere.asr.providers.OpenAIRealtimeASRController
 import me.rerere.asr.providers.StepASRController
@@ -141,6 +142,11 @@ private class CustomAsrStateImpl(
             is ASRProviderSetting.Chirp3 -> {
                 if (provider.serviceAccountEmail.isBlank() || provider.privateKey.isBlank()) return null
                 Chirp3ASRController(context, httpClient, provider)
+            }
+
+            is ASRProviderSetting.DeepSeek -> {
+                if (provider.apiKey.isBlank()) return null
+                DeepSeekASRController(context, httpClient, provider)
             }
         }
     }
