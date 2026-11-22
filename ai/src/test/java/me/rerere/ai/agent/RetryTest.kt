@@ -6,6 +6,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
+import me.rerere.ai.util.HttpException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -77,6 +78,41 @@ class RetryTest {
         job.join()
 
         assertTrue(job.isCancelled)
+        assertEquals(1, calls)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `http 429 is retried respecting minimum backoff and retry-after`() = runTest {
+        var calls = 0
+        val attempts = mutableListOf<RetryAttempt>()
+
+        val result = withRetry(RetryPolicy.NETWORK, onRetry = { attempts += it }) {
+            calls++
+            when (calls) {
+                1 -> throw HttpException("rate limited", statusCode = 429, retryAfterMs = 5_000L)
+                2 -> throw HttpException("busy", statusCode = 503)
+                else -> "recovered"
+            }
+        }
+
+        assertEquals("recovered", result)
+        assertEquals(listOf(5.seconds, 2.seconds), attempts.map { it.delay })
+        assertEquals(7_000L, currentTime)
+    }
+
+    @Test
+    fun `http 400 is thrown without retrying`() = runTest {
+        var calls = 0
+
+        val error = runCatching {
+            withRetry(RetryPolicy.NETWORK) {
+                calls++
+                throw HttpException("bad request", statusCode = 400)
+            }
+        }.exceptionOrNull()
+
+        assertTrue(error is HttpException)
         assertEquals(1, calls)
     }
 }

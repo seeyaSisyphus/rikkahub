@@ -4,19 +4,23 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import me.rerere.ai.util.HttpException
 import java.io.IOException
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
  * 请求模型失败时的重试策略：最多重试 [maxRetries] 次，等待时间从 [initialDelay] 开始每次翻倍。
  *
- * 默认只重试 [IOException]，也就是连不上、超时、读到一半断开这类网络故障。
+ * 默认重试 [IOException] 以及可恢复的限流/服务端状态码（429 / 408 / 5xx）。
  */
 data class RetryPolicy(
     val maxRetries: Int,
     val initialDelay: Duration = 1.seconds,
-    val retryOn: (Throwable) -> Boolean = { it is IOException },
+    val retryOn: (Throwable) -> Boolean = {
+        it is IOException || (it is HttpException && it.isRetryableStatus)
+    },
 ) {
     companion object {
         val NONE = RetryPolicy(maxRetries = 0)
@@ -54,7 +58,14 @@ suspend fun <T> withRetry(
                 throw error
             }
             retries++
-            val backoff = policy.initialDelay * (1 shl (retries - 1))
+            val expBackoff = policy.initialDelay * (1 shl (retries - 1))
+            val backoff = if (error is HttpException) {
+                val minFor429 = if (error.statusCode == 429) maxOf(expBackoff, 2.seconds) else expBackoff
+                val headerDelay = error.retryAfterMs?.milliseconds ?: Duration.ZERO
+                maxOf(minFor429, headerDelay).coerceAtMost(30.seconds)
+            } else {
+                expBackoff
+            }
             onRetry(RetryAttempt(error, retries, policy.maxRetries, backoff))
             delay(backoff)
         }
