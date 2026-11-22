@@ -7,6 +7,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -27,6 +28,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListItemInfo
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -61,6 +63,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
@@ -111,6 +114,7 @@ import me.rerere.ui.icons.HeartIcon
 import org.koin.compose.koinInject
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
 import me.rerere.rikkahub.ui.components.ui.AppModalBottomSheet
 
@@ -384,11 +388,111 @@ fun ModelListSheet(
     }
 }
 
-private data class SelectedModelScrollTarget(
-    val initialIndex: Int = 0,
-    val adjustTargetIndex: Int? = null,
+private val MODEL_LIST_ITEM_SPACING = 8.dp
+private const val INITIAL_CONTEXT_ITEMS_ABOVE = 2
+private const val TARGET_VIEWPORT_CONTEXT_FRACTION = 0.42f
+
+internal data class SelectedModelTarget(
+    val itemIndex: Int,
     val headerKey: String? = null,
 )
+
+/**
+ * 计算当前模型在打开列表（无搜索过滤）时对应的 LazyColumn 索引与所属分组标题 key。
+ */
+internal fun findSelectedModelTarget(
+    currentModel: Uuid?,
+    favoriteModelIds: List<Uuid>,
+    providers: List<ProviderSetting>,
+    typeFilteredModelsByProvider: Map<Uuid, List<Model>>,
+    collapsedProviderIds: Set<String>,
+): SelectedModelTarget? {
+    if (currentModel == null) return null
+
+    var position = if (providers.isEmpty()) 1 else 0
+
+    val favoriteIndex = favoriteModelIds.indexOf(currentModel)
+    if (favoriteIndex >= 0) {
+        return SelectedModelTarget(
+            itemIndex = position + 1 + favoriteIndex,
+            headerKey = "header:favorite",
+        )
+    }
+
+    if (favoriteModelIds.isNotEmpty()) {
+        position += 1 // favorite header
+        position += favoriteModelIds.size
+    }
+
+    for (provider in providers) {
+        val headerIndex = position
+        position += 1 // provider header
+        val models = typeFilteredModelsByProvider[provider.id].orEmpty()
+        val modelIndex = models.indexOfFirst { it.id == currentModel }
+        val collapsed = provider.id.toString() in collapsedProviderIds
+        if (modelIndex >= 0) {
+            return if (collapsed) {
+                SelectedModelTarget(
+                    itemIndex = headerIndex,
+                    headerKey = "header:${provider.id}",
+                )
+            } else {
+                SelectedModelTarget(
+                    itemIndex = headerIndex + 1 + modelIndex,
+                    headerKey = "header:${provider.id}",
+                )
+            }
+        }
+        if (!collapsed) position += models.size
+    }
+
+    return null
+}
+
+/**
+ * 判断列表位于顶部时，目标项是否已完整落在可视区域内（无需任何初始滚动）。
+ */
+internal fun isItemFullyVisibleInInitialViewport(
+    itemOffset: Int,
+    itemSize: Int,
+    viewportEndOffset: Int,
+    afterContentPadding: Int,
+): Boolean {
+    val visibleBottom = (viewportEndOffset - afterContentPadding).coerceAtLeast(0)
+    return itemOffset >= 0 && itemOffset + itemSize <= visibleBottom
+}
+
+/**
+ * 计算将目标项滚动到视口偏中上方位置所需的像素增量（为上方邻近模型/分组保留上下文，不顶格吸顶）。
+ */
+internal fun computeContextScrollDelta(
+    targetOffset: Int,
+    targetSize: Int,
+    viewportEndOffset: Int,
+    afterContentPadding: Int,
+    headerClearancePx: Int = 0,
+    contextFraction: Float = TARGET_VIEWPORT_CONTEXT_FRACTION,
+): Float {
+    val contentHeight = (viewportEndOffset - afterContentPadding).coerceAtLeast(targetSize)
+    val availableSpace = (contentHeight - targetSize).coerceAtLeast(0)
+    val safeMinTop = headerClearancePx.coerceIn(0, availableSpace)
+    val desiredTop = (availableSpace * contextFraction).roundToInt().coerceAtLeast(safeMinTop)
+    return (targetOffset - desiredTop).toFloat()
+}
+
+private fun computeHeaderClearancePx(
+    visibleItems: List<LazyListItemInfo>,
+    targetIndex: Int,
+    headerKey: String?,
+    itemSpacingPx: Int,
+): Int {
+    val headerInfo = headerKey?.let { key ->
+        visibleItems.firstOrNull { it.key == key && it.index != targetIndex }
+    } ?: visibleItems.firstOrNull {
+        it.index < targetIndex && it.key.toString().startsWith("header:")
+    } ?: return 0
+    return headerInfo.size + itemSpacingPx
+}
 
 @Composable
 private fun ColumnScope.ModelList(
@@ -445,87 +549,70 @@ private fun ColumnScope.ModelList(
         }
     }
 
-    // 计算当前选中模型的初始定位：直接定位到模型索引会被 stickyHeader 遮住上半部分
-    val selectedScrollTarget = remember(
+    val selectedTarget = remember(
         currentModel,
         favoriteModels,
         providers,
         typeFilteredModelsByProvider,
         collapsedProviders,
     ) {
-        // 仅用于初始定位，搜索关键词此时为空
-        if (currentModel == null) return@remember SelectedModelScrollTarget()
-
-        var position = 0
-
-        // 跳过无providers提示
-        if (providers.isEmpty()) {
-            position += 1
-        }
-
-        // 检查是否在收藏列表中
-        val favoriteIndex = favoriteModels.indexOfFirst { it.first.id == currentModel }
-        if (favoriteIndex >= 0) {
-            val headerIndex = position
-            if (favoriteIndex == 0) {
-                return@remember SelectedModelScrollTarget(initialIndex = headerIndex)
-            }
-            val targetIndex = headerIndex + 1 + favoriteIndex
-            return@remember SelectedModelScrollTarget(
-                initialIndex = targetIndex - 1,
-                adjustTargetIndex = targetIndex,
-                headerKey = "header:favorite",
-            )
-        }
-
-        // 跳过收藏列表
-        if (favoriteModels.isNotEmpty()) {
-            position += 1 // favorite header
-            position += favoriteModels.size
-        }
-
-        // 在providers中查找
-        for (provider in providers) {
-            val headerIndex = position
-            position += 1 // provider header
-            val models = typeFilteredModelsByProvider[provider.id].orEmpty()
-            val modelIndex = models.indexOfFirst { it.id == currentModel }
-            val collapsed = isCollapsed(provider)
-            if (modelIndex >= 0) {
-                // 折叠或为该分组第一项时定位到供应商标题，完整露出当前模型
-                if (collapsed || modelIndex == 0) {
-                    return@remember SelectedModelScrollTarget(initialIndex = headerIndex)
-                }
-                val targetIndex = headerIndex + 1 + modelIndex
-                return@remember SelectedModelScrollTarget(
-                    initialIndex = targetIndex - 1,
-                    adjustTargetIndex = targetIndex,
-                    headerKey = "header:${provider.id}",
-                )
-            }
-            if (!collapsed) position += models.size
-        }
-
-        SelectedModelScrollTarget()
+        findSelectedModelTarget(
+            currentModel = currentModel,
+            favoriteModelIds = favoriteModels.map { it.first.id },
+            providers = providers,
+            typeFilteredModelsByProvider = typeFilteredModelsByProvider,
+            collapsedProviderIds = collapsedProviders,
+        )
     }
 
-    val lazyListState = rememberLazyListState(
-        initialFirstVisibleItemIndex = selectedScrollTarget.initialIndex
-    )
+    val density = LocalDensity.current
+    val itemSpacingPx = remember(density) { with(density) { MODEL_LIST_ITEM_SPACING.roundToPx() } }
+    val lazyListState = rememberLazyListState()
     LaunchedEffect(Unit) {
-        val targetIndex = selectedScrollTarget.adjustTargetIndex ?: return@LaunchedEffect
-        val headerKey = selectedScrollTarget.headerKey ?: return@LaunchedEffect
-        val visible = snapshotFlow { lazyListState.layoutInfo.visibleItemsInfo }
-            .filter { it.isNotEmpty() }
+        val target = selectedTarget ?: return@LaunchedEffect
+        val initialLayout = snapshotFlow { lazyListState.layoutInfo }
+            .filter { it.visibleItemsInfo.isNotEmpty() }
             .first()
-        val headerInfo = visible.firstOrNull { it.key == headerKey } ?: return@LaunchedEffect
-        val targetInfo = visible.firstOrNull { it.index == targetIndex } ?: return@LaunchedEffect
-        val prevInfo = visible.firstOrNull { it.index == targetIndex - 1 } ?: return@LaunchedEffect
-        val itemSpacingPx = (targetInfo.offset - (prevInfo.offset + prevInfo.size)).coerceAtLeast(0)
-        val desiredTop = headerInfo.offset + headerInfo.size + itemSpacingPx
-        val scrollOffset = (targetInfo.offset - desiredTop).coerceAtLeast(0)
-        if (scrollOffset > 0) {
-            lazyListState.scrollToItem(targetIndex - 1, scrollOffset)
+
+        val initialItem = initialLayout.visibleItemsInfo.firstOrNull { it.index == target.itemIndex }
+        if (initialItem != null && isItemFullyVisibleInInitialViewport(
+                itemOffset = initialItem.offset,
+                itemSize = initialItem.size,
+                viewportEndOffset = initialLayout.viewportEndOffset,
+                afterContentPadding = initialLayout.afterContentPadding,
+            )
+        ) {
+            return@LaunchedEffect
+        }
+
+        // 目标不在首屏时先跳到上方保留上下文的位置，并在同一帧内完成二次测量与微调
+        if (initialItem == null) {
+            lazyListState.scrollToItem((target.itemIndex - INITIAL_CONTEXT_ITEMS_ABOVE).coerceAtLeast(0))
+            if (lazyListState.layoutInfo.visibleItemsInfo.none { it.index == target.itemIndex }) {
+                lazyListState.scrollToItem((target.itemIndex - 1).coerceAtLeast(0))
+            }
+            if (lazyListState.layoutInfo.visibleItemsInfo.none { it.index == target.itemIndex }) {
+                lazyListState.scrollToItem(target.itemIndex)
+            }
+        }
+
+        val layoutInfo = lazyListState.layoutInfo
+        val targetItem = layoutInfo.visibleItemsInfo.firstOrNull { it.index == target.itemIndex }
+            ?: return@LaunchedEffect
+        val delta = computeContextScrollDelta(
+            targetOffset = targetItem.offset,
+            targetSize = targetItem.size,
+            viewportEndOffset = layoutInfo.viewportEndOffset,
+            afterContentPadding = layoutInfo.afterContentPadding,
+            headerClearancePx = computeHeaderClearancePx(
+                visibleItems = layoutInfo.visibleItemsInfo,
+                targetIndex = target.itemIndex,
+                headerKey = target.headerKey,
+                itemSpacingPx = itemSpacingPx,
+            ),
+        )
+        if (delta != 0f) {
+            lazyListState.scrollBy(delta)
         }
     }
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
@@ -565,7 +652,7 @@ private fun ColumnScope.ModelList(
 
     LazyColumn(
         state = lazyListState,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(MODEL_LIST_ITEM_SPACING),
         contentPadding = PaddingValues(vertical = 4.dp),
         modifier = Modifier
             .weight(1f)
@@ -1246,7 +1333,7 @@ fun ColumnScope.BattleModelList(
 
     LazyColumn(
         state = lazyListState,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(MODEL_LIST_ITEM_SPACING),
         contentPadding = PaddingValues(vertical = 4.dp),
         modifier = Modifier
             .weight(1f)
