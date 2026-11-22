@@ -349,6 +349,7 @@ private class MessageSheetAction(
     val icon: ImageVector,
     val label: String,
     val destructive: Boolean = false,
+    val dismissOnClick: Boolean = true,
     val onClick: () -> Unit,
 )
 
@@ -396,6 +397,7 @@ fun ChatMessageActionsSheet(
                     MessageSheetAction(
                         icon = HugeIcons.Translate,
                         label = stringResource(R.string.translate),
+                        dismissOnClick = false,
                         onClick = { showTranslateDialog = true },
                     )
                 )
@@ -418,6 +420,7 @@ fun ChatMessageActionsSheet(
                     HugeIcons.Delete01,
                     stringResource(R.string.delete_messages_before),
                     destructive = true,
+                    dismissOnClick = false,
                     onClick = { showDeleteBeforeConfirm = true },
                 )
             )
@@ -426,6 +429,7 @@ fun ChatMessageActionsSheet(
                     HugeIcons.Delete01,
                     stringResource(R.string.delete_messages_after),
                     destructive = true,
+                    dismissOnClick = false,
                     onClick = { showDeleteAfterConfirm = true },
                 )
             )
@@ -444,7 +448,9 @@ fun ChatMessageActionsSheet(
                 actions.fastForEachIndexed { index, action ->
                     SegmentedListItem(
                         onClick = {
-                            onDismissRequest()
+                            if (action.dismissOnClick) {
+                                onDismissRequest()
+                            }
                             action.onClick()
                         },
                         shapes = ListItemDefaults.segmentedShapes(index = index, count = actions.size),
@@ -497,6 +503,7 @@ fun ChatMessageActionsSheet(
         dismissText = stringResource(R.string.cancel),
         onConfirm = {
             showDeleteBeforeConfirm = false
+            onDismissRequest()
             onDeleteBefore()
         },
         onDismiss = { showDeleteBeforeConfirm = false },
@@ -511,6 +518,7 @@ fun ChatMessageActionsSheet(
         dismissText = stringResource(R.string.cancel),
         onConfirm = {
             showDeleteAfterConfirm = false
+            onDismissRequest()
             onDeleteAfter()
         },
         onDismiss = { showDeleteAfterConfirm = false },
@@ -522,10 +530,12 @@ fun ChatMessageActionsSheet(
         LanguageSelectionDialog(
             onLanguageSelected = { language ->
                 showTranslateDialog = false
+                onDismissRequest()
                 onTranslate(message, language)
             },
             onClearTranslation = {
                 showTranslateDialog = false
+                onDismissRequest()
                 onClearTranslation(message)
             },
             onDismissRequest = {
