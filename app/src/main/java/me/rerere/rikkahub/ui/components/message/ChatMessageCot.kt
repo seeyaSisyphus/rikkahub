@@ -83,6 +83,9 @@ fun List<UIMessagePart>.groupMessageParts(
                 noticeSteps.add(ThinkingStep.NoticeStep(part))
             }
 
+            // 只承载 thoughtSignature 等元数据的空文本不显示，也不打断思考块
+            is UIMessagePart.Text if part.text.isEmpty() -> Unit
+
             else -> {
                 contentBlocks.add(MessagePartBlock.ContentBlock(part, index))
             }

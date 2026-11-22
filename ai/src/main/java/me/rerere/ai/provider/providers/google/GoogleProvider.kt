@@ -56,14 +56,18 @@ import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.metadataAs
 import me.rerere.ai.ui.toMetadata
+import me.rerere.ai.util.HttpException
 import me.rerere.ai.util.KeyRoulette
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
 import me.rerere.ai.util.estimatedJsonSize
 import me.rerere.ai.util.json
+import me.rerere.ai.util.logRequestBody
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.mergeCustomHeaders
+import me.rerere.ai.util.parseErrorDetail
+import me.rerere.ai.util.parseRetryAfterMs
 import me.rerere.ai.util.removeElements
 import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.toJsonRequestBody
@@ -83,30 +87,57 @@ import kotlin.uuid.Uuid
 
 private const val TAG = "GoogleProvider"
 
+internal fun ProviderSetting.Google.buildGoogleApiUrl(path: String): HttpUrl {
+    return if (!vertexAI) {
+        "$baseUrl/$path".toHttpUrl()
+    } else if (useServiceAccount) {
+        "https://aiplatform.googleapis.com/v1/projects/$projectId/locations/$location/$path".toHttpUrl()
+    } else {
+        "https://aiplatform.googleapis.com/v1/$path".toHttpUrl()
+    }
+}
+
 class GoogleProvider(private val client: OkHttpClient, context: Context? = null) : Provider<ProviderSetting.Google> {
     private val keyRoulette = if (context != null) KeyRoulette.lru(context) else KeyRoulette.default()
     private val serviceAccountTokenProvider by lazy {
         ServiceAccountTokenProvider(client)
     }
-    private val interactionsAPI = InteractionsAPI(client = client, keyRoulette = keyRoulette)
+    private val interactionsAPI = InteractionsAPI(client = client, authorize = ::transformRequest)
 
     override suspend fun getQuota(providerSetting: ProviderSetting.Google): ProviderQuota? =
         client.runQuotaQuery(providerSetting) {
             keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
         }
 
-    // Interactions API 目前只有 Gemini Developer API 提供，Vertex AI 仍走 generateContent
-    private fun ProviderSetting.Google.usesInteractionsApi() = useInteractionsApi && !vertexAI
+    // Vertex AI 只有服务账号走 Interactions，且区域须为 global/us/eu，否则仍走 generateContent
+    private fun ProviderSetting.Google.usesInteractionsApi() = useInteractionsApi &&
+        (!vertexAI || (useServiceAccount && location in VERTEX_INTERACTIONS_LOCATIONS))
 
-    private fun buildUrl(providerSetting: ProviderSetting.Google, path: String): HttpUrl {
-        return if (!providerSetting.vertexAI) {
-            "${providerSetting.baseUrl}/$path".toHttpUrl()
-        } else if (providerSetting.useServiceAccount) {
-            "https://aiplatform.googleapis.com/v1/projects/${providerSetting.projectId}/locations/${providerSetting.location}/$path".toHttpUrl()
+    private fun buildUrl(providerSetting: ProviderSetting.Google, path: String): HttpUrl =
+        providerSetting.buildGoogleApiUrl(path)
+
+    private fun completionPath(providerSetting: ProviderSetting.Google, modelId: String, action: String): String =
+        if (providerSetting.vertexAI) {
+            "publishers/google/models/$modelId:$action"
         } else {
-            "https://aiplatform.googleapis.com/v1/$path".toHttpUrl()
+            "models/$modelId:$action"
         }
-    }
+
+    private suspend fun buildPostRequest(
+        providerSetting: ProviderSetting.Google,
+        url: HttpUrl,
+        requestBody: JsonObject,
+        params: TextGenerationParams,
+    ): Request = transformRequest(
+        providerSetting = providerSetting,
+        request = Request.Builder()
+            .url(url)
+            .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
+            .configureSessionHeaders(url.toString(), params.sessionId)
+            .post(requestBody.toJsonRequestBody())
+            .configureReferHeaders(providerSetting.baseUrl)
+            .build()
+    )
 
     private suspend fun transformRequest(
         providerSetting: ProviderSetting.Google,
@@ -184,46 +215,49 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         }
 
         val requestBody = buildCompletionRequestBody(messages, params)
-
-        val url = buildUrl(
-            providerSetting = providerSetting,
-            path = if (providerSetting.vertexAI) {
-                "publishers/google/models/${params.model.modelId}:generateContent"
-            } else {
-                "models/${params.model.modelId}:generateContent"
-            }
-        )
-
-        val request = transformRequest(
-            providerSetting = providerSetting,
-            request = Request.Builder()
-                .url(url)
-                .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
-                .configureSessionHeaders(url.toString(), params.sessionId)
-                .post(
-                    requestBody.toJsonRequestBody()
-                )
-                .configureReferHeaders(providerSetting.baseUrl)
-                .build()
-        )
-
-        val response = client.newCall(request).await()
-        if (!response.isSuccessful) {
-            throw Exception("Failed to get response: ${response.code} ${response.body?.string()}")
-        }
-
-        val bodyStr = response.body?.string() ?: ""
-        val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
-
-        val candidate = bodyJson["candidates"]?.jsonArray?.firstOrNull()?.jsonObject
-            ?: error("No candidates in response")
-        TextGenerationResult(
-            id = Uuid.random().toString(),
+        val path = completionPath(providerSetting, params.model.modelId, "generateContent")
+        val url = buildUrl(providerSetting, path)
+        CacheDiagnostics.logRequest(
+            api = "generateContent",
             model = params.model.modelId,
-            message = parseMessage(candidate),
-            finishReason = candidate["finishReason"]?.jsonPrimitive?.contentOrNull,
-            usage = parseUsageMeta(bodyJson["usageMetadata"] as? JsonObject),
+            requestBody = requestBody,
+            itemsKey = "contents",
+            endpoint = "${url.host}${url.encodedPath}",
         )
+
+        val response = client.newCall(buildPostRequest(providerSetting, url, requestBody, params)).await()
+        response.use { res ->
+            if (!res.isSuccessful) {
+                val errorBody = res.body?.string().orEmpty()
+                val retryAfterMs = res.parseRetryAfterMs()
+                val parsed = runCatching {
+                    if (errorBody.isNotBlank()) {
+                        json.parseToJsonElement(errorBody).parseErrorDetail(res.code, retryAfterMs)
+                    } else {
+                        null
+                    }
+                }.getOrNull()
+                throw parsed ?: HttpException(
+                    message = "Failed to get response: ${res.code} $errorBody",
+                    statusCode = res.code,
+                    retryAfterMs = retryAfterMs,
+                )
+            }
+
+            val bodyStr = res.body?.string() ?: ""
+            val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
+            CacheDiagnostics.logUsage("generateContent", bodyJson["usageMetadata"] as? JsonObject)
+
+            val candidate = bodyJson["candidates"]?.jsonArray?.firstOrNull()?.jsonObject
+                ?: error("No candidates in response")
+            TextGenerationResult(
+                id = Uuid.random().toString(),
+                model = params.model.modelId,
+                message = parseMessage(candidate),
+                finishReason = candidate["finishReason"]?.jsonPrimitive?.contentOrNull,
+                usage = parseUsageMeta(bodyJson["usageMetadata"] as? JsonObject),
+            )
+        }
     }
 
     override suspend fun streamText(
@@ -242,35 +276,26 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         params: TextGenerationParams,
     ): Flow<StreamChunk> = callbackFlow {
         val requestBody = buildCompletionRequestBody(messages, params)
-
-        val url = buildUrl(
-            providerSetting = providerSetting,
-            path = if (providerSetting.vertexAI) {
-                "publishers/google/models/${params.model.modelId}:streamGenerateContent"
-            } else {
-                "models/${params.model.modelId}:streamGenerateContent"
-            }
-        ).newBuilder().addQueryParameter("alt", "sse").build()
+        val path = completionPath(providerSetting, params.model.modelId, "streamGenerateContent")
+        val url = buildUrl(providerSetting, path).newBuilder().addQueryParameter("alt", "sse").build()
+        CacheDiagnostics.logRequest(
+            api = "generateContent",
+            model = params.model.modelId,
+            requestBody = requestBody,
+            itemsKey = "contents",
+            endpoint = "${url.host}${url.encodedPath}",
+        )
 
         val bodySize = requestBody.estimatedJsonSize()
-        if (bodySize < 600_000) {
-            Log.i(TAG, "streamText: $requestBody")
-        } else {
-            Log.i(TAG, "streamText: (request body too large to log, size≈${bodySize})")
+        logRequestBody(TAG, "streamText") {
+            if (bodySize < 600_000) {
+                requestBody.toString()
+            } else {
+                "(request body too large to log, size≈${bodySize})"
+            }
         }
 
-        val request = transformRequest(
-            providerSetting = providerSetting,
-            request = Request.Builder()
-                .url(url)
-                .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
-                .configureSessionHeaders(url.toString(), params.sessionId)
-                .post(
-                    requestBody.toJsonRequestBody()
-                )
-                .configureReferHeaders(providerSetting.baseUrl)
-                .build()
-        )
+        val request = buildPostRequest(providerSetting, url, requestBody, params)
 
         val responseId = Uuid.random().toString()
         val decoder = GoogleStreamDecoder(responseId, params.model.modelId)
@@ -326,22 +351,39 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 try {
                     if (t == null && response != null) {
                         val bodyStr = response.body.stringSafe()
+                        val retryAfterMs = response.parseRetryAfterMs()
                         if (!bodyStr.isNullOrEmpty()) {
                             val bodyElement = json.parseToJsonElement(bodyStr)
                             println(bodyElement)
-                            if (bodyElement is JsonObject) {
-                                exception = Exception(
-                                    bodyElement["error"]?.jsonObject?.get("message")?.jsonPrimitive?.content
-                                        ?: "unknown"
+                            exception = if (bodyElement is JsonObject) {
+                                HttpException(
+                                    message = bodyElement["error"]?.jsonObject?.get("message")?.jsonPrimitive?.content
+                                        ?: "unknown",
+                                    statusCode = response.code,
+                                    retryAfterMs = retryAfterMs,
                                 )
+                            } else {
+                                bodyElement.parseErrorDetail(response.code, retryAfterMs)
                             }
                         } else {
-                            exception = Exception("Unknown error: ${response.code}")
+                            exception = HttpException(
+                                message = "Unknown error: ${response.code}",
+                                statusCode = response.code,
+                                retryAfterMs = retryAfterMs,
+                            )
                         }
                     }
                 } catch (e: Throwable) {
                     e.printStackTrace()
-                    exception = e
+                    exception = if (response != null) {
+                        HttpException(
+                            message = e.message ?: "HTTP ${response.code}",
+                            statusCode = response.code,
+                            retryAfterMs = response.parseRetryAfterMs(),
+                        )
+                    } else {
+                        e
+                    }
                 } finally {
                     close(exception ?: Exception("Stream failed"))
                 }
@@ -586,7 +628,21 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
 
     private fun parseMessageParts(parts: JsonArray?): List<UIMessagePart> = buildList {
         parts.orEmpty().forEachIndexed { index, element ->
-            val part = parseMessagePart(element.jsonObject, index)
+            val part = parseMessagePart(element.jsonObject, index) ?: return@forEachIndexed
+            if (part is UIMessagePart.Text && part.text.isEmpty() && part.metadata != null) {
+                // 不带文本的签名 part：挂到前一个还没有签名的文本/思考 part 上，否则单独保留
+                val previous = lastOrNull()
+                when {
+                    previous is UIMessagePart.Text && previous.metadata == null ->
+                        set(lastIndex, previous.copy(metadata = part.metadata))
+
+                    previous is UIMessagePart.Reasoning && previous.metadata == null ->
+                        set(lastIndex, previous.copy(metadata = part.metadata))
+
+                    else -> add(part)
+                }
+                return@forEachIndexed
+            }
             if (part !is UIMessagePart.ServerTool) {
                 add(part)
                 return@forEachIndexed
@@ -612,7 +668,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         }
     }
 
-    private fun parseMessagePart(jsonObject: JsonObject, index: Int): UIMessagePart {
+    private fun parseMessagePart(jsonObject: JsonObject, index: Int): UIMessagePart? {
         return when {
             jsonObject.containsKey("text") -> {
                 val thought = jsonObject["thought"]?.jsonPrimitive?.booleanOrNull ?: false
@@ -723,11 +779,14 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 }
             }
 
-            else -> {
-                // 未知 part 类型，降级处理避免崩溃，打印警告日志
-                Log.w(TAG, "parseMessagePart: unknown part type, skipping: $jsonObject")
-                UIMessagePart.Text("")
-            }
+            // Gemini 可能单独下发只含 thoughtSignature 的 part
+            jsonObject.containsKey("thoughtSignature") -> UIMessagePart.Text(
+                text = "",
+                metadata = jsonObject.toGoogleThoughtMetadata(),
+            )
+
+            // 未知 part 直接跳过，避免整次请求失败
+            else -> null
         }
     }
 

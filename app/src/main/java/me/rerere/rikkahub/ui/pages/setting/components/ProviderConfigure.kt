@@ -242,6 +242,9 @@ private val OFFICIAL_PROVIDER_HOSTS = setOf(
 
 // Vertex AI 区域预设选项（也可手动输入自定义值）
 private val VERTEX_LOCATION_OPTIONS = listOf(
+    "global" to "Global",
+    "us" to "US Multi-Region (美国多区域)",
+    "eu" to "EU Multi-Region (欧洲多区域)",
     "us-central1" to "US Central (Iowa)",
     "asia-east1" to "Asia East (Taiwan)",
     "europe-west1" to "Europe West (Belgium)",
@@ -612,11 +615,15 @@ private fun ProviderConfigureGoogle(
                 onCheckedChange = { onEdit(provider.copy(useServiceAccount = it)) },
                 headlineContent = { Text(stringResource(R.string.setting_provider_page_use_service_account)) },
             )
-        } else {
+        }
+        if (!provider.vertexAI || useServiceAccount) {
             switchItem(
                 checked = provider.useInteractionsApi,
                 onCheckedChange = { onEdit(provider.copy(useInteractionsApi = it)) },
                 headlineContent = { Text("Interactions API (Beta)") },
+                supportingContent = if (useServiceAccount) {
+                    { Text("Vertex AI only supports the global, us and eu locations; other locations use generateContent") }
+                } else null,
             )
         }
     }
@@ -641,6 +648,12 @@ private fun ProviderConfigureGoogle(
             // Vertex AI 区域下拉选择框（支持预设选项，也可手动输入自定义值）
             formItem(
                 headlineContent = { Text(stringResource(R.string.setting_provider_page_location)) },
+                supportingContent = {
+                    Text(
+                        "请求路由与 upstream 保持一致。Gemini 4 隐式缓存前缀需 ≥ 4,096 tokens；" +
+                            "新增内容过少或请求间隔过长时，命中率可能为 0"
+                    )
+                },
             ) {
                 SelectTextField(
                     value = provider.location,
