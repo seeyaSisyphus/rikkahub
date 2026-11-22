@@ -56,6 +56,7 @@ import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
 import me.rerere.ai.util.estimatedJsonSize
 import me.rerere.ai.util.json
+import me.rerere.ai.util.logRequestBody
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.mergeCustomHeaders
 import me.rerere.ai.util.parseErrorDetail
@@ -132,10 +133,12 @@ class ResponseAPI(
             includeHistoryReasoning = endpoint.includeHistoryReasoning,
         )
         val bodySize = requestBody.estimatedJsonSize()
-        if (bodySize < 600_000) {
-            Log.i(TAG, "generateText: $requestBody")
-        } else {
-            Log.i(TAG, "generateText: (request body too large to log, size≈${bodySize})")
+        logRequestBody(TAG, "generateText") {
+            if (bodySize < 600_000) {
+                requestBody.toString()
+            } else {
+                "(request body too large to log, size≈${bodySize})"
+            }
         }
         val request = Request.Builder()
             .url(endpoint.url)
@@ -170,10 +173,12 @@ class ResponseAPI(
             includeHistoryReasoning = endpoint.includeHistoryReasoning,
         )
         val bodySize = requestBody.estimatedJsonSize()
-        if (bodySize < 600_000) {
-            Log.i(TAG, "streamText: $requestBody")
-        } else {
-            Log.i(TAG, "streamText: (request body too large to log, size≈${bodySize})")
+        logRequestBody(TAG, "streamText") {
+            if (bodySize < 600_000) {
+                requestBody.toString()
+            } else {
+                "(request body too large to log, size≈${bodySize})"
+            }
         }
         val request = Request.Builder()
             .url(endpoint.url)

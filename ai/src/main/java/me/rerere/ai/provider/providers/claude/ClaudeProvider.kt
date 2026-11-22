@@ -66,6 +66,7 @@ import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
 import me.rerere.ai.util.estimatedJsonSize
 import me.rerere.ai.util.json
+import me.rerere.ai.util.logRequestBody
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.mergeCustomHeaders
 import me.rerere.ai.util.parseErrorDetail
@@ -297,10 +298,12 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
     ): TextGenerationResult {
         val requestBody = buildMessageRequest(providerSetting, messages, params)
         val bodySize = requestBody.estimatedJsonSize()
-        if (bodySize < 600_000) {
-            Log.i(TAG, "generateText: $requestBody")
-        } else {
-            Log.i(TAG, "generateText: (request body too large to log, size≈${bodySize})")
+        logRequestBody(TAG, "generateText") {
+            if (bodySize < 600_000) {
+                requestBody.toString()
+            } else {
+                "(request body too large to log, size≈${bodySize})"
+            }
         }
         val request = Request.Builder()
             .url("${providerSetting.baseUrl}/messages")
@@ -351,10 +354,12 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
     ): Flow<StreamChunk> = callbackFlow {
         val requestBody = buildMessageRequest(providerSetting, messages, params, stream = true)
         val bodySize = requestBody.estimatedJsonSize()
-        if (bodySize < 600_000) {
-            Log.i(TAG, "streamText: $requestBody")
-        } else {
-            Log.i(TAG, "streamText: (request body too large to log, size≈${bodySize}, messages=${requestBody["messages"]?.jsonArray?.size})")
+        logRequestBody(TAG, "streamText") {
+            if (bodySize < 600_000) {
+                requestBody.toString()
+            } else {
+                "(request body too large to log, size≈${bodySize}, messages=${requestBody["messages"]?.jsonArray?.size})"
+            }
         }
         val request = Request.Builder()
             .url("${providerSetting.baseUrl}/messages")
@@ -366,6 +371,11 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
             .configureReferHeaders(providerSetting.baseUrl)
             .configureSessionHeaders(providerSetting.baseUrl, params.sessionId)
             .build()
+
+        // 整个请求体那一行会被 logcat 截断，再逐条打印一遍消息
+        requestBody["messages"]!!.jsonArray.forEach { message ->
+            logRequestBody(TAG, "streamText") { message.toString() }
+        }
 
         val decoder = ClaudeStreamDecoder()
 
