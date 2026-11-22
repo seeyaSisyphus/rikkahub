@@ -21,7 +21,7 @@ import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
-import me.rerere.ai.ui.limitContext
+import me.rerere.ai.ui.limitContextForCache
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.prompts.buildMemoryPrompt
 import me.rerere.rikkahub.data.ai.tools.ChatToolFactory
@@ -75,8 +75,14 @@ class ChatTurnContext(
     val tools: List<Tool>,
     // [FORK] 对话专属参数（temperature / topP / contextMessageSize 等），已合并进 assistant
     val conversationParams: ConversationParams = ConversationParams(),
+    val resolvedParams: ResolvedConversationParams = conversationParams.resolveWith(assistant),
     // [FORK] 固定到上下文的消息 id，不参与 limitContext 截断
     val protectedMessageIds: Set<Uuid> = emptySet(),
+    // [FORK] 动态读写并持久化单调裁剪锚点（按节点 id）
+    val anchorNodeIdProvider: () -> Uuid? = { conversationParams.contextAnchorNodeId },
+    val resolveAnchorMessageId: (Uuid) -> Uuid? = { null },
+    val resolveNodeIdByMessageId: (Uuid) -> Uuid? = { null },
+    val onAnchorNodeIdUpdated: (Uuid?) -> Unit = {},
 )
 
 /** 把会话变成发给模型的请求：系统提示词、上下文裁剪、输入输出转换都在这里 */
@@ -110,6 +116,14 @@ class ChatRequestFactory(
         settings: Settings,
         conversation: Conversation,
         protectedMessageIds: Set<Uuid> = emptySet(),
+        anchorNodeIdProvider: () -> Uuid? = { conversation.conversationParams.contextAnchorNodeId },
+        resolveAnchorMessageId: (Uuid) -> Uuid? = { nodeId ->
+            conversation.messageNodes.firstOrNull { it.id == nodeId }?.contextMessage?.id
+        },
+        resolveNodeIdByMessageId: (Uuid) -> Uuid? = { msgId ->
+            conversation.getMessageNodeByMessageId(msgId)?.id
+        },
+        onAnchorNodeIdUpdated: (Uuid?) -> Unit = {},
     ): ChatTurnContext {
         // 模型、思考级别、搜索、工具等以会话上固定的配置为准
         val storedAssistant = settings.getAssistantOf(conversation)
@@ -132,7 +146,12 @@ class ChatRequestFactory(
             conversationId = conversation.id,
             conversationSystemPrompt = conversation.customSystemPrompt,
             conversationParams = conversation.conversationParams,
+            resolvedParams = resolved,
             protectedMessageIds = protectedMessageIds,
+            anchorNodeIdProvider = anchorNodeIdProvider,
+            resolveAnchorMessageId = resolveAnchorMessageId,
+            resolveNodeIdByMessageId = resolveNodeIdByMessageId,
+            onAnchorNodeIdUpdated = onAnchorNodeIdUpdated,
             workspaceCwd = conversation.workspaceCwd,
             memories = if (assistant.enableMemory) memoryRepository.getFiles(assistant.memoryId) else emptyList(),
             tools = chatToolFactory.createTools(
@@ -275,11 +294,22 @@ class ChatRequestFactory(
             if (system.isNotBlank()) {
                 add(UIMessage.system(prompt = system).copy(isSynthetic = true))
             }
-            addAll(
-                messages
-                    .limitContext(assistant.contextMessageLimit, turn.protectedMessageIds)
-                    .withContinuationHint()
+            val currentAnchorNodeId = turn.anchorNodeIdProvider()
+            val anchorMessageId = currentAnchorNodeId?.let(turn.resolveAnchorMessageId)
+            val fixedOverhead = estimateFixedOverheadTokens(system, turn.tools)
+            val limitResult = messages.limitContextForCache(
+                turn.resolvedParams.toContextLimitSpec(
+                    anchorMessageId = anchorMessageId,
+                    protectedMessageIds = turn.protectedMessageIds,
+                    fixedOverheadTokens = fixedOverhead,
+                    tokenCounter = ::estimateAppMessageTokens,
+                )
             )
+            val nextNodeId = limitResult.nextAnchorMessageId?.let(turn.resolveNodeIdByMessageId)
+            if (nextNodeId != currentAnchorNodeId) {
+                turn.onAnchorNodeIdUpdated(nextNodeId)
+            }
+            addAll(limitResult.messages.withContinuationHint())
         }.transforms(
             transformers = inputTransformers,
             context = context,

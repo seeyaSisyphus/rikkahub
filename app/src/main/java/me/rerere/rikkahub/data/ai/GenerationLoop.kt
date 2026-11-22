@@ -30,7 +30,8 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.StreamChunkHandler
 import me.rerere.ai.ui.handleTextGenerationResult
-import me.rerere.ai.ui.limitContext
+import me.rerere.ai.ui.limitContextForCache
+import me.rerere.ai.util.HttpException
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.prompts.buildMemoryPrompt
 import me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer
@@ -99,6 +100,9 @@ class GenerationLoop(
         reasoningLevelOverride: ReasoningLevel? = null,
         // [FORK] 受保护消息 id（收藏/固定到上下文）:在 limitContext 中保留,不受 contextMessageSize 限制
         protectedMessageIds: Set<Uuid> = emptySet(),
+        // [FORK] 缓存优先单调裁剪锚点（按消息 id）与前移回调
+        anchorMessageIdProvider: () -> Uuid? = { null },
+        onAnchorMessageIdUpdated: (Uuid?) -> Unit = {},
     ): Flow<GenerationChunk> = flow {
         val provider = model.findProvider(settings.providers) ?: error("Provider not found")
         val providerImpl = providerManager.getProviderByType(provider)
@@ -153,7 +157,10 @@ class GenerationLoop(
                     conversationSystemPrompt = conversationSystemPrompt,
                     conversationId = conversationId,
                     workspaceCwd = workspaceCwd,
+                    reasoningLevelOverride = reasoningLevelOverride,
                     protectedMessageIds = protectedMessageIds,
+                    anchorMessageIdProvider = anchorMessageIdProvider,
+                    onAnchorMessageIdUpdated = onAnchorMessageIdUpdated,
                 )
                 messages = messages.visualTransforms(
                     transformers = outputTransformers,
@@ -357,12 +364,14 @@ class GenerationLoop(
         reasoningLevelOverride: ReasoningLevel? = null,
         // [FORK] 受保护消息 id（收藏/固定到上下文）:在 limitContext 中保留,不受 contextMessageSize 限制
         protectedMessageIds: Set<Uuid> = emptySet(),
+        // [FORK] 缓存优先单调裁剪锚点
+        anchorMessageIdProvider: () -> Uuid? = { null },
+        onAnchorMessageIdUpdated: (Uuid?) -> Unit = {},
     ) {
         // [FORK] 使用 ConversationParamsResolver 合并对话专属参数与助手默认参数
         val resolved = conversationParams.resolveWith(assistant)
         val effectiveTemperature = resolved.temperature
         val effectiveTopP = resolved.topP
-        val effectiveContextMessageSize = resolved.contextMessageSize
         // [FORK] resolved.systemPrompt 已按 APPEND/OVERRIDE/null 合并了
         // assistant.systemPrompt + conversationParams.systemPrompt；
         // conversationParams.systemPrompt 未设置时回退到旧的会话级 customSystemPrompt 字段（上游逻辑）
@@ -395,7 +404,20 @@ class GenerationLoop(
             if (system.isNotBlank()) {
                 add(UIMessage.system(prompt = system).copy(isSynthetic = true))
             }
-            addAll(messages.limitContext(effectiveContextMessageSize, protectedMessageIds))
+            val currentAnchorId = anchorMessageIdProvider()
+            val fixedOverhead = estimateFixedOverheadTokens(system, tools)
+            val limitResult = messages.limitContextForCache(
+                resolved.toContextLimitSpec(
+                    anchorMessageId = currentAnchorId,
+                    protectedMessageIds = protectedMessageIds,
+                    fixedOverheadTokens = fixedOverhead,
+                    tokenCounter = ::estimateAppMessageTokens,
+                )
+            )
+            if (limitResult.nextAnchorMessageId != currentAnchorId) {
+                onAnchorMessageIdUpdated(limitResult.nextAnchorMessageId)
+            }
+            addAll(limitResult.messages)
         }.transforms(
             transformers = transformers,
             context = context,
@@ -526,21 +548,28 @@ class GenerationLoop(
         // 用户主动停止生成时，底层连接也可能以 IOException("canceled") 收尾；
         // 先检查协程状态，确保取消不会被当作网络波动重新拉起。
         currentCoroutineContext().ensureActive()
-        if (!enabled || error !is IOException || retryCount >= MAX_PROVIDER_NETWORK_RETRIES) {
+        val isRetryableHttp = error is HttpException && error.isRetryableStatus
+        if (!enabled || (error !is IOException && !isRetryableHttp) || retryCount >= MAX_PROVIDER_NETWORK_RETRIES) {
             throw error
         }
 
         val nextRetryCount = retryCount + 1
-        val retryDelay = INITIAL_PROVIDER_RETRY_DELAY_MS shl retryCount
+        val expDelay = INITIAL_PROVIDER_RETRY_DELAY_MS shl retryCount
+        val retryDelay = if (error is HttpException) {
+            val min429 = if (error.statusCode == 429) maxOf(expDelay, 2_000L) else expDelay
+            maxOf(min429, error.retryAfterMs ?: 0L).coerceAtMost(30_000L)
+        } else {
+            expDelay
+        }
         processingStatus.value = context.getString(
             R.string.chat_generation_network_retrying,
-            getNetworkErrorMessage(error),
+            getRetryErrorMessage(error),
             nextRetryCount,
             MAX_PROVIDER_NETWORK_RETRIES,
         )
         Log.w(
             TAG,
-            "Provider connection failed, retrying in ${retryDelay}ms " +
+            "Provider request failed, retrying in ${retryDelay}ms " +
                     "($nextRetryCount/$MAX_PROVIDER_NETWORK_RETRIES)",
             error,
         )
@@ -548,7 +577,15 @@ class GenerationLoop(
         return nextRetryCount
     }
 
-    private fun getNetworkErrorMessage(error: IOException): String {
+    private fun getRetryErrorMessage(error: Throwable): String {
+        if (error is HttpException) {
+            return when (error.statusCode) {
+                429 -> "触发限流 (429)"
+                503 -> "服务暂时繁忙 (503)"
+                null -> context.getString(R.string.chat_generation_network_disconnected)
+                else -> "请求失败 (${error.statusCode})"
+            }
+        }
         val messageRes = when (error) {
             is UnknownHostException -> R.string.chat_generation_network_unknown_host
             is SocketTimeoutException -> R.string.chat_generation_network_timeout

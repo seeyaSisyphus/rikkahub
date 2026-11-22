@@ -20,4 +20,12 @@ class ChatInputTest {
         assertFalse(isStopGenerationAction(loading = false, inputEmpty = true))
         assertFalse(isStopGenerationAction(loading = false, inputEmpty = false))
     }
+
+    @Test
+    fun `draft input shows queued clock action while generating unless editing`() {
+        assertTrue(isQueuedSendAction(loading = true, inputEmpty = false, isEditing = false))
+        assertFalse(isQueuedSendAction(loading = true, inputEmpty = true, isEditing = false))
+        assertFalse(isQueuedSendAction(loading = true, inputEmpty = false, isEditing = true))
+        assertFalse(isQueuedSendAction(loading = false, inputEmpty = false, isEditing = false))
+    }
 }

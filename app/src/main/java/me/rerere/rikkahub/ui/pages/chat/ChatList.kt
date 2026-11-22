@@ -59,11 +59,13 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
+import me.rerere.rikkahub.data.model.getChatModelOf
 import me.rerere.rikkahub.data.model.withConversation
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.ui.components.message.ChatMessage
 import me.rerere.rikkahub.ui.components.ui.ErrorCardsDisplay
 import me.rerere.rikkahub.ui.hooks.ImeLazyListAutoScroller
+import me.rerere.rikkahub.ui.pages.quickstart.QuickStartCard
 import me.rerere.rikkahub.ui.theme.ChatFontProvider
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.ListSelectableItem
@@ -86,7 +88,6 @@ fun ChatList(
     compressing: Boolean = false,
     processingStatus: String? = null,
     previewMode: Boolean,
-    onPreviewModeChange: (Boolean) -> Unit,
     settings: Settings,
     hazeState: HazeState,
     // [FORK] 输入区按钮手动展开的消息跳转悬浮窗
@@ -117,11 +118,7 @@ fun ChatList(
     // [FORK] 输入框展开/收起动画期间暂停底部 padding 自动跟滚，防止 1 帧补偿差触发误滚
     suppressBottomPaddingAutoScroll: () -> Boolean = { false },
 ) {
-    val previewProgress = rememberPreviewSwipeProgress(previewMode)
-    val scope = rememberCoroutineScope()
-    val currentPreviewMode by rememberUpdatedState(previewMode)
-    val currentOnPreviewModeChange by rememberUpdatedState(onPreviewModeChange)
-    val currentConversation by rememberUpdatedState(conversation)
+    val previewProgress = rememberPreviewProgress(previewMode)
     val layoutDirection = LocalLayoutDirection.current
     val layoutDirectionSign = if (layoutDirection == LayoutDirection.Rtl) -1f else 1f
     // 概览页只在露出来的时候组合，平时不占资源
@@ -133,17 +130,9 @@ fun ChatList(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .clipToBounds()
-            .previewSwipeGesture(
-                progress = previewProgress,
-                scope = scope,
-                layoutDirection = layoutDirection,
-                canEnterPreview = { currentConversation.messageNodes.isNotEmpty() },
-                isPreviewMode = { currentPreviewMode },
-                onPreviewModeChange = { currentOnPreviewModeChange(it) },
-            ),
+            .clipToBounds(),
     ) {
-        // 两页像翻页一样整体平移：聊天页向左滑出，概览页从右侧跟进
+        // 两页随切换动画整体平移：聊天页向左退出，概览页从右侧进入
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -320,6 +309,18 @@ private fun ChatListNormal(
     }
     val lastAssistantMessageIndex = conversation.messageNodes.indexOfLast {
         it.role == MessageRole.ASSISTANT
+    }
+
+    // 流式输出时会频繁重组，只在相关配置变了才重新查找模型
+    val needsSetup = remember(
+        settings.init,
+        settings.providers,
+        settings.chatModelId,
+        settings.assistants,
+        conversation.assistantId,
+        conversation.config,
+    ) {
+        !settings.init && settings.getChatModelOf(conversation) == null
     }
 
     Box(
@@ -559,6 +560,13 @@ private fun ChatListNormal(
                     }
                 }
 
+                // 没有可用模型就发不了消息，放在消息后面，空会话时在顶部、有消息时贴着输入框
+                if (needsSetup) {
+                    item(key = "QuickStartCard") {
+                        QuickStartCard(modifier = Modifier.animateItem())
+                    }
+                }
+
                 // 为了能正确滚动到这（spacedBy(22.dp) 已提供主间距，这里只需极小锚点高度）
                 item(ScrollBottomKey) {
                     Spacer(
@@ -567,6 +575,7 @@ private fun ChatListNormal(
                             .height(1.dp)
                     )
                 }
+
             }
         }
 

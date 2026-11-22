@@ -145,6 +145,22 @@ class ConversationInbox {
         return removed
     }
 
+    /** 调整排队消息顺序：仅允许在等待发送的用户消息之间移动 */
+    @Synchronized
+    fun move(fromId: Uuid, toId: Uuid): Boolean {
+        if (fromId == toId) return false
+        val items = state.value.items
+        val fromIndex = items.indexOfFirst { it.id == fromId }
+        val toIndex = items.indexOfFirst { it.id == toId }
+        if (fromIndex == -1 || toIndex == -1) return false
+        if (items[fromIndex] !is QueuedMessage || items[toIndex] !is QueuedMessage) return false
+        val updated = items.toMutableList()
+        val moved = updated.removeAt(fromIndex)
+        updated.add(toIndex, moved)
+        mutableState.value = state.value.copy(items = updated)
+        return true
+    }
+
     @Synchronized
     fun beginEdit(id: Uuid): QueuedMessage? {
         val message = state.value.messages.find { it.id == id && !it.isEditing } ?: return null

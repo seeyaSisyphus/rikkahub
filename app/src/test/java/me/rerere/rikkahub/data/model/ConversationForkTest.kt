@@ -99,4 +99,30 @@ class ConversationForkTest {
 
         assertNull(source.fork(Uuid.random(), emptySet()) { error("Must not copy files") })
     }
+
+    @Test
+    fun `fork remaps context anchor when kept and clears it when forked earlier`() {
+        val m1 = UIMessage.user("u1")
+        val m2 = UIMessage.assistant("a1")
+        val m3 = UIMessage.user("u2")
+        val n1 = m1.toMessageNode()
+        val n2 = m2.toMessageNode()
+        val n3 = m3.toMessageNode()
+        val source = Conversation(
+            assistantId = Uuid.random(),
+            title = "Anchor chat",
+            messageNodes = listOf(n1, n2, n3),
+            conversationParams = ConversationParams(
+                contextLimitMode = ContextLimitMode.TOKENS,
+                contextTokenLimit = 64_000,
+                contextAnchorNodeId = n2.id,
+            ),
+        )
+
+        val forkAfterAnchor = source.fork(m3.id, emptySet()) { it }!!
+        assertEquals(forkAfterAnchor.messageNodes[1].id, forkAfterAnchor.conversationParams.contextAnchorNodeId)
+
+        val forkBeforeAnchor = source.fork(m1.id, emptySet()) { it }!!
+        assertNull(forkBeforeAnchor.conversationParams.contextAnchorNodeId)
+    }
 }

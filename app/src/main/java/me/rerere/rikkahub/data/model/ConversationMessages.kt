@@ -25,6 +25,26 @@ internal fun Conversation.deleteMessage(messageId: Uuid): Conversation? {
 }
 
 /**
+ * [FORK] 删除指定消息所在节点之前的全部消息节点。
+ * 若消息不存在或本身已在首个节点（无前置消息可删），返回 null。
+ */
+internal fun Conversation.deleteMessagesBefore(messageId: Uuid): Conversation? {
+    val targetNodeIndex = messageNodes.indexOfFirst { node -> node.messages.any { it.id == messageId } }
+    if (targetNodeIndex <= 0) return null
+    return copy(messageNodes = messageNodes.drop(targetNodeIndex)).normalizeContextAnchorNodeId()
+}
+
+/**
+ * [FORK] 删除指定消息所在节点之后的全部消息节点。
+ * 若消息不存在或本身已在最后一个节点（无后续消息可删），返回 null。
+ */
+internal fun Conversation.deleteMessagesAfter(messageId: Uuid): Conversation? {
+    val targetNodeIndex = messageNodes.indexOfFirst { node -> node.messages.any { it.id == messageId } }
+    if (targetNodeIndex == -1 || targetNodeIndex == messageNodes.lastIndex) return null
+    return copy(messageNodes = messageNodes.take(targetNodeIndex + 1)).normalizeContextAnchorNodeId()
+}
+
+/**
  * [FORK] 用 [parts] 原地替换消息的内容。消息不存在时原样返回。
  *
  * 用 copy 仅替换 parts，保留原消息的 modelId / modelSnapshot / usage / isContextCheckpoint 等元数据，

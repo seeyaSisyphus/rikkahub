@@ -28,6 +28,32 @@ enum class SystemPromptMode {
 }
 
 /**
+ * 对话上下文限制计量模式。
+ */
+@Serializable
+enum class ContextLimitMode {
+    /** 按估算 Token 预算做双水位滞回截断（推荐，防 429 且保持高缓存命中） */
+    TOKENS,
+    /** 按消息条数做双水位滞回截断 */
+    MESSAGES,
+}
+
+/**
+ * 越过上限触发裁剪时的回落保留策略。
+ */
+@Serializable
+enum class ContextKeepPolicy(val keepRatio: Float) {
+    /** 极限缓存：触发后回落至约 20%（周期最长，稳态缓存率可达 90%+，代价是回落后保留的近期历史最少） */
+    ULTRA_CACHE(0.20f),
+    /** 高缓存：触发后回落至约 35%（单周期更长，总输入费用最低） */
+    HIGH_CACHE(0.35f),
+    /** 均衡：触发后回落至约 50% */
+    BALANCED(0.50f),
+    /** 偏记忆：触发后回落至约 70%（保留更多近期历史） */
+    HIGH_MEMORY(0.70f),
+}
+
+/**
  * 对话专属参数，优先级高于助手设置。
  * null 表示使用助手的设置。
  */
@@ -36,6 +62,11 @@ data class ConversationParams(
     val temperature: Float? = null,
     val topP: Float? = null,
     val contextMessageSize: Int? = null,
+    // [FORK] 缓存优先的对话级上下文限制参数（Token / 条数双水位滞回 + 单调裁剪锚点）
+    val contextLimitMode: ContextLimitMode? = null,
+    val contextTokenLimit: Int? = null,
+    val contextKeepPolicy: ContextKeepPolicy = ContextKeepPolicy.BALANCED,
+    val contextAnchorNodeId: Uuid? = null,
     val systemPrompt: String? = null,
     val systemPromptMode: SystemPromptMode = SystemPromptMode.APPEND,
     // [FORK] Battle Mode: 开启后发消息时用所有选中模型各并发回答一次
@@ -350,6 +381,23 @@ fun Conversation.pinnedGroupCount(): Int {
         i++
     }
     return count
+}
+
+/**
+ * [FORK] 将持久化的单调裁剪锚点（nodeId）解析为当前上下文中的消息 id。
+ */
+fun Conversation.resolveContextAnchorMessageId(): Uuid? {
+    val anchorNodeId = conversationParams.contextAnchorNodeId ?: return null
+    return messageNodes.firstOrNull { it.id == anchorNodeId }?.contextMessage?.id
+}
+
+/**
+ * [FORK] 清理已经不存在于节点列表中的悬空裁剪锚点。
+ */
+fun Conversation.normalizeContextAnchorNodeId(): Conversation {
+    val anchorNodeId = conversationParams.contextAnchorNodeId ?: return this
+    if (messageNodes.any { it.id == anchorNodeId }) return this
+    return copy(conversationParams = conversationParams.copy(contextAnchorNodeId = null))
 }
 
 /**

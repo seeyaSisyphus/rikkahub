@@ -79,6 +79,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -109,11 +110,16 @@ import androidx.core.net.toUri
 import me.rerere.ui.toast.ToastType
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.ai.ui.ContextLimitResult
+import me.rerere.ai.ui.estimateSteadyStateHitRate
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.common.android.appTempFolder
 import me.rerere.hugeicons.HugeIcons
@@ -134,6 +140,9 @@ import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.common.android.Logging
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.ContextLimitPresets
+import me.rerere.rikkahub.data.ai.previewContextLimit
+import me.rerere.rikkahub.data.ai.resolveWith
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getSelectedASRProvider
@@ -141,6 +150,8 @@ import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.model.ContextKeepPolicy
+import me.rerere.rikkahub.data.model.ContextLimitMode
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.ConversationParams
 import me.rerere.rikkahub.data.model.pinnedGroupCount
@@ -150,6 +161,8 @@ import me.rerere.rikkahub.service.BackgroundShellStatus
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.service.SessionActivity
 import me.rerere.rikkahub.service.collectProtectedMessageIds
+import me.rerere.rikkahub.utils.formatNumber
+import kotlin.math.roundToInt
 import me.rerere.rikkahub.ui.components.ai.ChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.BackgroundTasksSheet
 import me.rerere.rikkahub.ui.components.ai.ChatInput
@@ -485,7 +498,7 @@ private fun ChatPageContent(
 
     TTSAutoPlay(vm = vm, setting = setting, conversation = conversation)
 
-    // 概览页用返回键退出，和左滑手势一致
+    // 概览页可通过顶栏关闭按钮或返回键退出
     BackHandler(previewMode) {
         previewMode = false
     }
@@ -572,8 +585,8 @@ private fun ChatPageContent(
                         editWillRegenerate = editWillRegenerate,
                         messageQueue = messageQueue,
                         onRemoveQueuedMessage = vm::removeQueuedMessage,
-                        onBeginEditQueuedMessage = vm::beginEditQueuedMessage,
-                        onFinishEditQueuedMessage = vm::finishEditQueuedMessage,
+                        onMoveQueuedMessage = vm::moveQueuedMessage,
+                        onEditQueuedMessage = vm::editQueuedMessage,
                         onResumeMessageQueue = vm::resumeMessageQueue,
                         onStartVoiceMode = onStartVoiceMode,
                         voiceState = voiceState,
@@ -664,7 +677,6 @@ private fun ChatPageContent(
                     compressing = sessionActivity == SessionActivity.Compressing,
                     processingStatus = processingStatus,
                     previewMode = previewMode,
-                    onPreviewModeChange = { previewMode = it },
                     settings = setting,
                     hazeState = hazeState,
                     showJumper = showMessageJumperOverlay,
@@ -1155,6 +1167,7 @@ private fun TopBar(
             if (showParamsSheet) {
                 ConversationParamsSheet(
                     conversation = conversation,
+                    assistant = assistant,
                     settings = settings,
                     vm = vm,
                     onDismiss = { showParamsSheet = false },
@@ -1239,19 +1252,22 @@ private fun TopBar(
 @Composable
 private fun ConversationParamsSheet(
     conversation: Conversation,
+    assistant: Assistant,
     settings: Settings,
     vm: ChatVM,
     onDismiss: () -> Unit,
     onUpdate: (ConversationParams) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val assistant = settings.getCurrentAssistant()
     val colors = MaterialTheme.colorScheme
-    // 当前编辑的参数，初始值来自对话的持久化参数
-    var params by remember {
+    // 当前编辑的参数，随外部会话变化（如后台推进裁剪锚点）保持同步
+    var params by remember(conversation.conversationParams) {
         mutableStateOf(conversation.conversationParams)
     }
-    val hasCustomOverrides = params.contextMessageSize != null ||
+    val hasCustomOverrides = params.contextLimitMode != null ||
+        params.contextMessageSize != null ||
+        params.contextTokenLimit != null ||
+        params.contextAnchorNodeId != null ||
         params.battleModeEnabled ||
         params.systemPrompt != null ||
         params.temperature != null ||
@@ -1365,18 +1381,92 @@ private fun ConversationParamsSheet(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
 
-            // Context Message Size
-            // [FORK] 拖动滑块时的实时显示值：IntSliderItem 松手才提交，用它让下方数字/内訳实时更新
-            var contextSizeDisplay by remember(params.contextMessageSize, assistant.contextMessageLimit) {
-                mutableStateOf(params.contextMessageSize ?: assistant.contextMessageLimit)
-            }
-            val budget = contextSizeDisplay
+            // Context Limit (缓存优先双水位滑块)
+            val resolvedParams = remember(params, assistant) { params.resolveWith(assistant) }
             val pinnedIds = remember(conversation.messageNodes) { conversation.collectProtectedMessageIds() }
             val pinnedCount = remember(conversation.messageNodes, pinnedIds) {
                 conversation.contextMessages.count { it.id in pinnedIds }
             }
             val pinnedGroups = remember(conversation.messageNodes) { conversation.pinnedGroupCount() }
-            val contextCustomEnabled = params.contextMessageSize != null
+            val contextCustomEnabled = params.contextLimitMode != null ||
+                params.contextMessageSize != null ||
+                params.contextTokenLimit != null
+
+            var editingMode by remember(
+                params.contextLimitMode,
+                params.contextMessageSize,
+                params.contextTokenLimit,
+            ) {
+                mutableStateOf(resolvedParams.contextLimitMode)
+            }
+            var editingTokenLimit by remember(params.contextTokenLimit) {
+                mutableIntStateOf(
+                    params.contextTokenLimit ?: ContextLimitPresets.DEFAULT_TOKEN_LIMIT
+                )
+            }
+            var editingMessageLimit by remember(params.contextMessageSize, assistant.contextMessageLimit) {
+                mutableIntStateOf(
+                    params.contextMessageSize
+                        ?: assistant.contextMessageLimit.takeIf { it >= 20 }
+                        ?: ContextLimitPresets.DEFAULT_MESSAGE_LIMIT
+                )
+            }
+            var editingPolicy by remember(params.contextKeepPolicy) {
+                mutableStateOf(params.contextKeepPolicy)
+            }
+
+            val currentStops = if (editingMode == ContextLimitMode.TOKENS) {
+                ContextLimitPresets.TOKEN_STOPS
+            } else {
+                ContextLimitPresets.MESSAGE_STOPS
+            }
+            val committedValue = if (editingMode == ContextLimitMode.TOKENS) {
+                editingTokenLimit
+            } else {
+                editingMessageLimit
+            }
+            val committedStopIndex = remember(editingMode, committedValue) {
+                if (editingMode == ContextLimitMode.TOKENS) {
+                    ContextLimitPresets.closestTokenStopIndex(committedValue)
+                } else {
+                    ContextLimitPresets.closestMessageStopIndex(committedValue)
+                }
+            }
+            var displayStopIndex by remember(editingMode, committedStopIndex) {
+                mutableIntStateOf(committedStopIndex)
+            }
+            val displayLimitValue = currentStops.getOrElse(displayStopIndex) { 0 }
+
+            val previewParams = remember(params, contextCustomEnabled, editingMode, displayLimitValue, editingPolicy) {
+                if (contextCustomEnabled) {
+                    params.copy(
+                        contextLimitMode = editingMode,
+                        contextTokenLimit = if (editingMode == ContextLimitMode.TOKENS) displayLimitValue else null,
+                        contextMessageSize = if (editingMode == ContextLimitMode.MESSAGES) displayLimitValue else null,
+                        contextKeepPolicy = editingPolicy,
+                    )
+                } else {
+                    params
+                }
+            }
+            val previewResult by produceState<ContextLimitResult?>(
+                initialValue = null,
+                conversation.messageNodes,
+                conversation.conversationParams.contextAnchorNodeId,
+                previewParams,
+                assistant,
+                settings,
+            ) {
+                value = withContext(Dispatchers.IO) {
+                    conversation.previewContextLimit(assistant, previewParams, settings)
+                }
+            }
+            val lastUsageReadout = remember(conversation.messageNodes) {
+                conversation.currentMessages
+                    .lastOrNull { it.role == MessageRole.ASSISTANT }
+                    ?.lastRequestUsage()
+                    ?.takeIf { it.promptTokens > 0 }
+            }
 
             CardGroup {
                 formItem(
@@ -1397,15 +1487,38 @@ private fun ConversationParamsSheet(
                         ) {
                             if (contextCustomEnabled) {
                                 CardGroupValue(
-                                    text = if (contextSizeDisplay > 0) "$contextSizeDisplay" else "不限"
+                                    text = ContextLimitPresets.formatLimitValue(editingMode, displayLimitValue)
                                 )
                             }
                             AppSwitch(
                                 checked = contextCustomEnabled,
                                 onCheckedChange = { enabled ->
-                                    val newParams = params.copy(
-                                        contextMessageSize = if (enabled) assistant.contextMessageLimit else null
-                                    )
+                                    val newParams = if (enabled) {
+                                        if (assistant.contextMessageLimit > 0) {
+                                            params.copy(
+                                                contextLimitMode = ContextLimitMode.MESSAGES,
+                                                contextMessageSize = assistant.contextMessageLimit.coerceAtLeast(20),
+                                                contextTokenLimit = null,
+                                            )
+                                        } else {
+                                            params.copy(
+                                                contextLimitMode = ContextLimitMode.TOKENS,
+                                                contextTokenLimit = ContextLimitPresets.DEFAULT_TOKEN_LIMIT,
+                                                contextMessageSize = null,
+                                            )
+                                        }
+                                    } else {
+                                        params.copy(
+                                            contextLimitMode = null,
+                                            contextMessageSize = null,
+                                            contextTokenLimit = null,
+                                            contextAnchorNodeId = if (assistant.contextMessageLimit <= 0) {
+                                                null
+                                            } else {
+                                                params.contextAnchorNodeId
+                                            },
+                                        )
+                                    }
                                     params = newParams
                                     onUpdate(newParams)
                                 }
@@ -1414,30 +1527,235 @@ private fun ConversationParamsSheet(
                     },
                     contentSpacing = 0.dp,
                 ) {
-                    var lastContextSize by remember { mutableIntStateOf(assistant.contextMessageLimit) }
-                    params.contextMessageSize?.let { lastContextSize = it }
                     ParamAnimatedVisibility(
-                        visible = params.contextMessageSize != null,
+                        visible = contextCustomEnabled,
                         onExpandingBoundsChanged = ensureVisibleInViewport,
                     ) {
                         Column(
                             modifier = Modifier.padding(top = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            IntSliderItem(
-                                value = lastContextSize,
-                                onValueChange = { newSize ->
-                                    contextSizeDisplay = newSize
-                                    val newParams = params.copy(contextMessageSize = newSize)
+                            // 1. 计量模式切换（Token 预算防 429 vs 消息条数）
+                            val limitModes = remember {
+                                listOf(ContextLimitMode.TOKENS, ContextLimitMode.MESSAGES)
+                            }
+                            ConnectedChoiceButtons(
+                                options = limitModes,
+                                selected = editingMode,
+                                onSelect = { nextMode ->
+                                    editingMode = nextMode
+                                    val newParams = when (nextMode) {
+                                        ContextLimitMode.TOKENS -> params.copy(
+                                            contextLimitMode = ContextLimitMode.TOKENS,
+                                            contextTokenLimit = editingTokenLimit.takeIf { it > 0 }
+                                                ?: ContextLimitPresets.DEFAULT_TOKEN_LIMIT,
+                                            contextMessageSize = null,
+                                        )
+
+                                        ContextLimitMode.MESSAGES -> params.copy(
+                                            contextLimitMode = ContextLimitMode.MESSAGES,
+                                            contextMessageSize = editingMessageLimit.takeIf { it >= 20 }
+                                                ?: ContextLimitPresets.DEFAULT_MESSAGE_LIMIT,
+                                            contextTokenLimit = null,
+                                        )
+                                    }
                                     params = newParams
                                     onUpdate(newParams)
                                 },
-                                onValueChanging = { contextSizeDisplay = it },
-                                valueRange = 0..512,
+                                minHeight = 36.dp,
+                            ) { mode, selected ->
+                                ConnectedChoiceLabel(
+                                    text = when (mode) {
+                                        ContextLimitMode.TOKENS -> "按 Token (防429)"
+                                        ContextLimitMode.MESSAGES -> "按条数"
+                                    },
+                                    selected = selected,
+                                    icon = HugeIcons.Tick01,
+                                )
+                            }
+
+                            // 2. 离散缓存档位滑块（步进稳定，拖动实时预览，松手才落库）
+                            IntSliderItem(
+                                value = committedStopIndex,
+                                onValueChange = { nextIdx ->
+                                    displayStopIndex = nextIdx
+                                    val nextValue = currentStops[nextIdx]
+                                    if (editingMode == ContextLimitMode.TOKENS) {
+                                        editingTokenLimit = nextValue
+                                    } else {
+                                        editingMessageLimit = nextValue
+                                    }
+                                    val newParams = params.copy(
+                                        contextLimitMode = editingMode,
+                                        contextTokenLimit = if (editingMode == ContextLimitMode.TOKENS) nextValue else null,
+                                        contextMessageSize = if (editingMode == ContextLimitMode.MESSAGES) nextValue else null,
+                                    )
+                                    params = newParams
+                                    onUpdate(newParams)
+                                },
+                                onValueChanging = { displayStopIndex = it },
+                                valueRange = 0..currentStops.lastIndex,
                             )
 
+                            // 3. 越限回落策略（极限 20% / 高缓存 35% / 均衡 50% / 偏记忆 70%）
+                            // 注意：百分比是“触发上限后保留多少历史”，不是缓存率；保留越少，缓存周期越长、缓存率越高
+                            if (displayLimitValue > 0) {
+                                Text(
+                                    text = "触发上限后保留比例（越低，缓存率越高）",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = colors.onSurfaceVariant,
+                                )
+                                val policies = remember {
+                                    listOf(
+                                        ContextKeepPolicy.ULTRA_CACHE,
+                                        ContextKeepPolicy.HIGH_CACHE,
+                                        ContextKeepPolicy.BALANCED,
+                                        ContextKeepPolicy.HIGH_MEMORY,
+                                    )
+                                }
+                                ConnectedChoiceButtons(
+                                    options = policies,
+                                    selected = editingPolicy,
+                                    onSelect = { nextPolicy ->
+                                        editingPolicy = nextPolicy
+                                        val newParams = params.copy(contextKeepPolicy = nextPolicy)
+                                        params = newParams
+                                        onUpdate(newParams)
+                                    },
+                                    minHeight = 36.dp,
+                                ) { policy, selected ->
+                                    ConnectedChoiceLabel(
+                                        text = when (policy) {
+                                            ContextKeepPolicy.ULTRA_CACHE -> "极限 20%"
+                                            ContextKeepPolicy.HIGH_CACHE -> "高缓存 35%"
+                                            ContextKeepPolicy.BALANCED -> "均衡 50%"
+                                            ContextKeepPolicy.HIGH_MEMORY -> "偏记忆 70%"
+                                        },
+                                        selected = selected,
+                                        icon = HugeIcons.Tick01,
+                                    )
+                                }
+                            }
+
+                            // 4. 实时缓存预估与单调锚点状态面板
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = colors.surfaceContainerHigh.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    lastUsageReadout?.let { usage ->
+                                        val pct = ((usage.cachedTokens.toDouble() / usage.promptTokens) * 100)
+                                            .roundToInt()
+                                            .coerceIn(0, 100)
+                                        Text(
+                                            text = "上轮输入 ${usage.promptTokens.formatNumber()} · 缓存命中 ${usage.cachedTokens.formatNumber()} ($pct%)",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = colors.onSurfaceVariant,
+                                        )
+                                    }
+
+                                    val preview = previewResult
+                                    if (displayLimitValue > 0 && preview != null) {
+                                        val watermarkSummary = if (editingMode == ContextLimitMode.TOKENS) {
+                                            val low = preview.targetTokensAfterTruncate
+                                            val stride = (displayLimitValue - low).coerceAtLeast(0)
+                                            "上限 ${ContextLimitPresets.formatCompactTokens(displayLimitValue)} · 回落至 ~${ContextLimitPresets.formatCompactTokens(low)} · 连续缓存空间 ~${ContextLimitPresets.formatCompactTokens(stride)}"
+                                        } else {
+                                            val budget = (displayLimitValue - pinnedCount).coerceAtLeast(1)
+                                            val targetCount = (budget * editingPolicy.keepRatio).roundToInt()
+                                                .coerceIn(1, budget)
+                                            val stride = (budget - targetCount).coerceAtLeast(0)
+                                            "上限 $displayLimitValue 条 · 裁剪回落至约 $targetCount 条 · 步幅约 $stride 条"
+                                        }
+                                        val hitRateText = run {
+                                            val high: Double
+                                            val low: Double
+                                            val delta: Double
+                                            if (editingMode == ContextLimitMode.TOKENS) {
+                                                high = displayLimitValue.toDouble()
+                                                low = preview.targetTokensAfterTruncate.toDouble()
+                                                delta = 2_000.0
+                                            } else {
+                                                high = (displayLimitValue - pinnedCount).coerceAtLeast(1).toDouble()
+                                                low = (high * editingPolicy.keepRatio).coerceAtLeast(1.0)
+                                                delta = 2.0
+                                            }
+                                            val rate = estimateSteadyStateHitRate(high, low, delta)
+                                            " · 预计稳态缓存率 ~${(rate * 100).roundToInt()}%"
+                                        }
+                                        Text(
+                                            text = watermarkSummary + hitRateText,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = colors.onSurfaceVariant,
+                                        )
+                                    } else if (displayLimitValue <= 0) {
+                                        Text(
+                                            text = "不设上限 · 新消息直接追加到末尾以延续当前前缀缓存",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = colors.onSurfaceVariant,
+                                        )
+                                    }
+
+                                    if (preview != null) {
+                                        val startOrdinal = preview.activeNormalStartIndex + 1
+                                        val totalTokensText = ContextLimitPresets.formatCompactTokens(preview.estimatedTotalTokens)
+                                        val anchorStatusText = when {
+                                            preview.didAdvanceAnchor ->
+                                                "起点将前移至第 #$startOrdinal 条（约 $totalTokensText tokens），下次发送需重建一次缓存"
+                                            params.contextAnchorNodeId != null && preview.hasTruncatedHistory ->
+                                                "起点保持第 #$startOrdinal 条（当前约 $totalTokensText tokens），继续命中当前缓存"
+                                            else ->
+                                                "当前从第 1 条起（约 $totalTokensText tokens），未触发裁剪"
+                                        }
+                                        Text(
+                                            text = anchorStatusText,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = if (preview.didAdvanceAnchor) colors.primary else colors.onSurfaceVariant,
+                                        )
+                                    }
+
+                                    if (params.contextAnchorNodeId != null) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.End,
+                                        ) {
+                                            TextButton(
+                                                onClick = {
+                                                    val resetAnchor = params.copy(contextAnchorNodeId = null)
+                                                    params = resetAnchor
+                                                    onUpdate(resetAnchor)
+                                                },
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                                modifier = Modifier.height(28.dp),
+                                            ) {
+                                                Icon(
+                                                    imageVector = HugeIcons.Refresh01,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(13.dp),
+                                                )
+                                                Spacer(Modifier.width(4.dp))
+                                                Text(
+                                                    text = "恢复全部历史起点（将重建缓存）",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
                             if (pinnedCount > 0) {
-                                val isOverBudget = budget > 0 && pinnedCount >= budget
+                                val preview = previewResult
+                                val isOverBudget = when {
+                                    displayLimitValue <= 0 -> false
+                                    editingMode == ContextLimitMode.TOKENS ->
+                                        preview != null && preview.estimatedProtectedTokens >= displayLimitValue
+                                    else -> pinnedCount >= displayLimitValue
+                                }
                                 Row(
                                     modifier = Modifier.padding(horizontal = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically,
@@ -1449,14 +1767,21 @@ private fun ConversationParamsSheet(
                                         modifier = Modifier.size(14.dp),
                                         tint = if (isOverBudget) colors.error else colors.primary,
                                     )
+                                    val pinnedTokensDesc = preview?.let {
+                                        " · 约 ${ContextLimitPresets.formatCompactTokens(it.estimatedProtectedTokens)}"
+                                    }.orEmpty()
                                     Text(
-                                        text = if (isOverBudget) {
-                                            "固定消息已占 $pinnedCount 条 ≥ 总预算 $budget 条，普通消息将不会被发送"
-                                        } else if (budget <= 0) {
-                                            "当前固定 $pinnedGroups 组（占 $pinnedCount 条）"
-                                        } else {
-                                            val normalShown = (budget - pinnedCount).coerceAtLeast(0)
-                                            "固定 $pinnedGroups 组（占 $pinnedCount 条）· 普通最多 $normalShown 条"
+                                        text = when {
+                                            isOverBudget ->
+                                                "固定消息已占 $pinnedCount 条$pinnedTokensDesc ≥ 上限，仅保留最新提问以保护缓存"
+                                            editingMode == ContextLimitMode.TOKENS ->
+                                                "固定 $pinnedGroups 组（$pinnedCount 条$pinnedTokensDesc）已隔离在前缀固定区"
+                                            displayLimitValue <= 0 ->
+                                                "当前固定 $pinnedGroups 组（占 $pinnedCount 条）"
+                                            else -> {
+                                                val normalShown = (displayLimitValue - pinnedCount).coerceAtLeast(0)
+                                                "固定 $pinnedGroups 组（占 $pinnedCount 条）· 普通最多 $normalShown 条"
+                                            }
                                         },
                                         style = MaterialTheme.typography.labelSmall,
                                         color = if (isOverBudget) colors.error else colors.onSurfaceVariant,

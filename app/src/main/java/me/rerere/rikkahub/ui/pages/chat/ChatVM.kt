@@ -46,6 +46,7 @@ import me.rerere.rikkahub.service.BackgroundShellManager
 import me.rerere.rikkahub.service.BackgroundShellTask
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.service.ChatService
+import me.rerere.rikkahub.service.QueuedMessage
 import me.rerere.rikkahub.service.SessionActivity
 import me.rerere.rikkahub.ui.hooks.writeStringPreference
 import me.rerere.rikkahub.ui.hooks.ChatInputState
@@ -170,10 +171,11 @@ class ChatVM(
 
     fun removeQueuedMessage(id: Uuid) = chatService.removeInboxItem(_conversationId, id)
 
-    fun beginEditQueuedMessage(id: Uuid) = chatService.beginEditQueuedMessage(_conversationId, id)
+    fun moveQueuedMessage(fromId: Uuid, toId: Uuid) =
+        chatService.moveInboxItem(_conversationId, fromId, toId)
 
-    fun finishEditQueuedMessage(id: Uuid, parts: List<UIMessagePart>?) =
-        chatService.finishEditQueuedMessage(_conversationId, id, parts)
+    fun editQueuedMessage(id: Uuid): QueuedMessage? =
+        chatService.editQueuedMessage(_conversationId, id)
 
     fun resumeMessageQueue() = chatService.resumeInbox(_conversationId)
 
@@ -430,12 +432,9 @@ class ChatVM(
     }
 
     fun updateConversationParams(params: ConversationParams) {
-        // 先强制更新内存状态，确保发消息时能读到最新参数
-        // saveConversation 在对话为空时会提前返回，不更新内存，导致参数丢失
         chatService.updateConversationState(_conversationId) { it.copy(conversationParams = params) }
         viewModelScope.launch {
-            val updatedConversation = conversation.value.copy(conversationParams = params)
-            chatService.saveConversation(_conversationId, updatedConversation)
+            chatService.updateConversationParams(_conversationId, params)
         }
     }
 

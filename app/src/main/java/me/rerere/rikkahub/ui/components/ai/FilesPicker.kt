@@ -54,6 +54,7 @@ import kotlin.uuid.Uuid
 import kotlinx.coroutines.Job
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.rikkahub.data.ai.resolveWith
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowLeft01
 import me.rerere.hugeicons.stroke.ArrowRight01
@@ -227,8 +228,8 @@ internal fun FilesPicker(
                 val showAsr = settings.asrProviders.isNotEmpty() && onToggleAsr != null
                 val showWorkspace = workspaces.isNotEmpty()
                 val showMcp = settings.mcpServers.isNotEmpty()
-                // 限制了上下文消息数就是滚动上下文，旧消息会自动移出，不需要压缩
-                val showCompress = assistant.contextMessageLimit <= 0
+                // 限制了上下文就是滚动上下文，旧消息会自动移出，不需要压缩
+                val showCompress = !conversation.conversationParams.resolveWith(assistant).hasActiveContextLimit
                 val itemCount =
                     2 + listOf(showAsr, showWorkspace, showWorkspace && showCwd, showMcp, showCompress).count { it }
                 var itemIndex = 0
@@ -691,7 +692,7 @@ private fun ContextUsageRing(fraction: Float) {
         modifier = Modifier.size(24.dp),
         color = color,
         strokeWidth = 3.dp,
-        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
     )
 }
 

@@ -39,6 +39,7 @@ import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.isEmptyInputMessage
+import me.rerere.ai.util.HttpException
 import me.rerere.common.android.Logging
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.R
@@ -49,6 +50,7 @@ import me.rerere.rikkahub.data.ai.MemoryConsolidationScheduler
 import me.rerere.rikkahub.data.ai.TranslationHandler
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.prompts.buildCompressPrompt
+import me.rerere.rikkahub.data.ai.resolveWith
 import me.rerere.rikkahub.data.ai.tools.InvalidMcpServerNamesException
 import me.rerere.rikkahub.data.ai.tools.shouldUseExternalWebSearch
 import me.rerere.rikkahub.data.datastore.SettingsStore
@@ -58,9 +60,12 @@ import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.ConversationParams
 import me.rerere.rikkahub.data.model.bindConfig
 import me.rerere.rikkahub.data.model.cancelInterruptedTools
 import me.rerere.rikkahub.data.model.deleteMessage
+import me.rerere.rikkahub.data.model.deleteMessagesAfter
+import me.rerere.rikkahub.data.model.deleteMessagesBefore
 import me.rerere.rikkahub.data.model.editMessage
 import me.rerere.rikkahub.data.model.fillModelSnapshots
 import me.rerere.rikkahub.data.model.fork
@@ -72,6 +77,7 @@ import me.rerere.rikkahub.data.model.insertContextCheckpoint
 import me.rerere.rikkahub.data.model.isAwaitingToolApproval
 import me.rerere.rikkahub.data.model.lastContextTokens
 import me.rerere.rikkahub.data.model.localFileUrls
+import me.rerere.rikkahub.data.model.normalizeContextAnchorNodeId
 import me.rerere.rikkahub.data.model.replaceUserRegexes
 import me.rerere.rikkahub.data.model.selectBranch
 import me.rerere.rikkahub.data.model.toMessageNode
@@ -453,17 +459,16 @@ class ChatService(
         dispatchInbox(conversationId)
     }
 
-    fun beginEditQueuedMessage(conversationId: Uuid, messageId: Uuid): QueuedMessage? =
-        sessionManager.get(conversationId)?.inbox?.beginEdit(messageId)
+    /** 拖拽重排队列中的用户输入 */
+    fun moveInboxItem(conversationId: Uuid, fromId: Uuid, toId: Uuid) {
+        sessionManager.get(conversationId)?.inbox?.move(fromId, toId)
+    }
 
-    fun finishEditQueuedMessage(
-        conversationId: Uuid,
-        messageId: Uuid,
-        parts: List<UIMessagePart>? = null
-    ) {
-        sessionManager.get(conversationId)?.inbox?.finishEdit(messageId, parts)
-            ?.let(::cleanupQueuedAttachments)
-        dispatchInbox(conversationId)
+    /** 取出一条排队消息回填到主输入框编辑：移出队列但保留其本地附件文件 */
+    fun editQueuedMessage(conversationId: Uuid, itemId: Uuid): QueuedMessage? {
+        val removed = sessionManager.get(conversationId)?.inbox?.remove(itemId) as? QueuedMessage
+        if (removed != null) dispatchInbox(conversationId)
+        return removed
     }
 
     private fun cleanupQueuedAttachments(previous: QueuedMessage) {
@@ -725,7 +730,10 @@ class ChatService(
                             Log.w(TAG, "regenerateAtMessage: USER node not found (id=${message.id}), abort")
                             return@launchGenerationJob
                         }
-                        session.update { it.copy(messageNodes = it.messageNodes.take(indexAt + 1)) }
+                        session.update {
+                            it.copy(messageNodes = it.messageNodes.take(indexAt + 1))
+                                .normalizeContextAnchorNodeId()
+                        }
                         session.flush()
                         cleanupDanglingNodeFavorites(conversationId)
                         dispatchTurn(session)
@@ -759,7 +767,10 @@ class ChatService(
                                 return@launchGenerationJob
                             }
                             // 截断到被重试节点之前，重试结果替换该回答
-                            session.update { it.copy(messageNodes = it.messageNodes.take(nodeIndex)) }
+                            session.update {
+                                it.copy(messageNodes = it.messageNodes.take(nodeIndex))
+                                    .normalizeContextAnchorNodeId()
+                            }
                             session.flush()
                             cleanupDanglingNodeFavorites(conversationId)
                             runTurn(session)
@@ -797,6 +808,7 @@ class ChatService(
                             // 查找之后这条消息被删掉了
                             if (index == -1) return@tryUpdate null
                             conversation.copy(messageNodes = conversation.messageNodes.take(index + 1))
+                                .normalizeContextAnchorNodeId()
                         } ?: return@launchGenerationJob
                         session.flush()
                         runTurn(session)
@@ -895,6 +907,16 @@ class ChatService(
     fun updateConversationState(conversationId: Uuid, update: (Conversation) -> Conversation) {
         val session = sessionManager.get(conversationId)?.takeIf { it.isInitialized } ?: return
         session.update(update)
+    }
+
+    /**
+     * [FORK] 更新并持久化对话专属参数（在会话串行修改通道内完成，避免与并发回复互相覆盖）。
+     */
+    suspend fun updateConversationParams(conversationId: Uuid, params: ConversationParams) {
+        val session = sessionManager.get(conversationId) ?: return
+        if (!session.isInitialized) return
+        session.update { it.copy(conversationParams = params) }
+        session.flush()
     }
 
     /**
@@ -1017,7 +1039,34 @@ class ChatService(
             // 中途压缩把检查点插在回复之后；重新生成较早的消息时后面还有别的节点，不压缩
             val canCompress = regenerateNodeId == null || conversation.messageNodes.lastOrNull()?.id == regenerateNodeId
 
-            val turn = requestFactory.createContext(settings, conversation, protectedMessageIds)
+            val turn = requestFactory.createContext(
+                settings = settings,
+                conversation = conversation,
+                protectedMessageIds = protectedMessageIds,
+                anchorNodeIdProvider = { session.state.value.conversationParams.contextAnchorNodeId },
+                resolveAnchorMessageId = { nodeId ->
+                    session.state.value.messageNodes.firstOrNull { it.id == nodeId }?.contextMessage?.id
+                },
+                resolveNodeIdByMessageId = { msgId ->
+                    session.state.value.getMessageNodeByMessageId(msgId)?.id
+                },
+                onAnchorNodeIdUpdated = { nextNodeId ->
+                    // 重新生成中间分支时只读取历史前缀，不覆写末尾锚点
+                    if (canCompress) {
+                        session.update { latest ->
+                            if (latest.conversationParams.contextAnchorNodeId == nextNodeId) {
+                                latest
+                            } else {
+                                latest.copy(
+                                    conversationParams = latest.conversationParams.copy(
+                                        contextAnchorNodeId = nextNodeId
+                                    )
+                                )
+                            }
+                        }
+                    }
+                },
+            )
             senderName = if (turn.assistant.useAssistantAvatar) {
                 turn.assistant.name.ifEmpty { context.getString(R.string.assistant_page_default_assistant) }
             } else {
@@ -1040,6 +1089,7 @@ class ChatService(
                         takePendingParts = session.inbox::takeNotices,
                         pauseAfterTools = pause@{ message ->
                             if (!canCompress || compressionUseless) return@pause false
+                            if (turn.resolvedParams.hasActiveContextLimit) return@pause false
                             // 同一条回复只试一次，压缩失败后接着它写时不再重试
                             if (message.id == session.autoCompressedReplyId) return@pause false
                             if (!reachesAutoCompressThreshold(turn.model, message.contextTokens())) return@pause false
@@ -1160,7 +1210,22 @@ class ChatService(
     }
 
     private fun retryStatus(attempt: RetryAttempt): String {
-        val reason = when (attempt.cause) {
+        val cause = attempt.cause
+        if (cause is HttpException) {
+            val detail = when (cause.statusCode) {
+                429 -> "触发限流 (429)"
+                503 -> "服务暂时繁忙 (503)"
+                null -> context.getString(R.string.chat_generation_network_disconnected)
+                else -> "请求失败 (${cause.statusCode})"
+            }
+            return context.getString(
+                R.string.chat_generation_network_retrying,
+                detail,
+                attempt.retry,
+                attempt.maxRetries,
+            )
+        }
+        val reason = when (cause) {
             is UnknownHostException -> R.string.chat_generation_network_unknown_host
             is SocketTimeoutException -> R.string.chat_generation_network_timeout
             is ConnectException, is NoRouteToHostException -> R.string.chat_generation_network_unreachable
@@ -1297,6 +1362,8 @@ class ChatService(
             if (!settings.enableAutoCompress || !session.isInitialized) return null
             if (!session.canStartNextTurn || session.inbox.state.value.paused) return null
             val conversation = session.state.value
+            val assistant = settings.getAssistantOf(conversation)
+            if (conversation.conversationParams.resolveWith(assistant).hasActiveContextLimit) return null
             val reply = conversation.currentMessages.lastOrNull { it.role == MessageRole.ASSISTANT } ?: return null
             if (reply.id == session.autoCompressedReplyId) return null
             // 已经压缩过的话检查点在回复之后，这里取到的是 null
@@ -1450,7 +1517,10 @@ class ChatService(
             ) ?: throw IllegalStateException(
                 context.getString(R.string.chat_page_compress_conversation_changed)
             )
-            if (clearSuggestions) updated.copy(chatSuggestions = emptyList()) else updated
+            val withClearedAnchor = updated.copy(
+                conversationParams = updated.conversationParams.copy(contextAnchorNodeId = null)
+            )
+            if (clearSuggestions) withClearedAnchor.copy(chatSuggestions = emptyList()) else withClearedAnchor
         }
         session.flush()
     }
@@ -1836,15 +1906,9 @@ class ChatService(
         conversationId: Uuid,
         messageId: Uuid,
     ) {
-        val currentConversation = getConversationFlow(conversationId).value
-        val targetNodeIndex = currentConversation.messageNodes.indexOfFirst { node ->
-            node.messages.any { it.id == messageId }
+        mutate(conversationId) { conversation ->
+            conversation.deleteMessagesBefore(messageId) ?: conversation
         }
-        if (targetNodeIndex == -1) return
-        if (targetNodeIndex == 0) return // 没有之前的消息，无需操作
-
-        val updatedNodes = currentConversation.messageNodes.subList(targetNodeIndex, currentConversation.messageNodes.size)
-        saveConversation(conversationId, currentConversation.copy(messageNodes = updatedNodes))
         cleanupDanglingNodeFavorites(conversationId)
     }
 
@@ -1852,16 +1916,9 @@ class ChatService(
         conversationId: Uuid,
         messageId: Uuid,
     ) {
-        val currentConversation = getConversationFlow(conversationId).value
-        val targetNodeIndex = currentConversation.messageNodes.indexOfFirst { node ->
-            node.messages.any { it.id == messageId }
+        mutate(conversationId) { conversation ->
+            conversation.deleteMessagesAfter(messageId) ?: conversation
         }
-        if (targetNodeIndex == -1) return
-        val lastIndex = currentConversation.messageNodes.lastIndex
-        if (targetNodeIndex == lastIndex) return // 没有之后的消息，无需操作
-
-        val updatedNodes = currentConversation.messageNodes.subList(0, targetNodeIndex + 1)
-        saveConversation(conversationId, currentConversation.copy(messageNodes = updatedNodes))
         cleanupDanglingNodeFavorites(conversationId)
     }
 
@@ -1871,8 +1928,9 @@ class ChatService(
         failIfMissing: Boolean = true,
     ) {
         mutate(conversationId) { conversation ->
-            conversation.deleteMessage(messageId)
-                ?: if (failIfMissing) throw NotFoundException("Message not found") else conversation
+            (conversation.deleteMessage(messageId)
+                ?: if (failIfMissing) throw NotFoundException("Message not found") else conversation)
+                .normalizeContextAnchorNodeId()
         }
     }
 
@@ -1889,11 +1947,12 @@ class ChatService(
             val afterDelete = conversation.deleteMessage(message.id) ?: conversation
             // [FORK] 删除的是 USER 消息、且其后紧跟 ASSISTANT 节点时，一并删除该回答，
             // 避免留下一段没有提问的孤立回答
-            if (message.role == MessageRole.USER && nextNode?.currentMessage?.role == MessageRole.ASSISTANT) {
+            val updated = if (message.role == MessageRole.USER && nextNode?.currentMessage?.role == MessageRole.ASSISTANT) {
                 afterDelete.copy(messageNodes = afterDelete.messageNodes.filterNot { it.id == nextNode.id })
             } else {
                 afterDelete
             }
+            updated.normalizeContextAnchorNodeId()
         }
         cleanupDanglingNodeFavorites(conversationId)
     }

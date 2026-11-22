@@ -42,12 +42,14 @@ import me.rerere.rikkahub.data.ai.transformers.ThinkTagTransformer
 import me.rerere.rikkahub.data.ai.transformers.TimeReminderTransformer
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
-import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.skills.SkillManager
+import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MemoryFile
 import me.rerere.rikkahub.data.model.MessageNode
+import me.rerere.rikkahub.data.model.getAssistantOf
+import me.rerere.rikkahub.data.model.resolveContextAnchorMessageId
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.memoryId
 import java.time.Instant
@@ -157,9 +159,9 @@ class BattleService(
             return
         }
 
-        val assistant = settings.getCurrentAssistant()
+        val assistant = settings.getAssistantOf(conversation)
         val memories: List<MemoryFile> = memoryRepository.getFiles(assistant.memoryId)
-        val tools = buildTools(settings)
+        val tools = buildTools(settings, assistant)
 
         // 为每个模型创建空占位 UIMessage，并预先写入 modelId 以便失败时仍可单独重试
         val placeholderMessages = battleModels.map { model ->
@@ -320,9 +322,9 @@ class BattleService(
             return
         }
 
-        val assistant = settings.getCurrentAssistant()
+        val assistant = settings.getAssistantOf(conversation)
         val memories: List<MemoryFile> = memoryRepository.getFiles(assistant.memoryId)
-        val tools = buildTools(settings)
+        val tools = buildTools(settings, assistant)
 
         // 根据开关决定重试时使用哪种上下文
         val independentContext = conversation.conversationParams.battleIndependentContext
@@ -450,8 +452,8 @@ class BattleService(
         val retryDelayMs = 2000L
 
         val settings = settingsStore.awaitLoaded()
-        val assistant = settings.getCurrentAssistant()
         val conversation = getConversation()
+        val assistant = settings.getAssistantOf(conversation)
 
         runCatching {
             generationHandler.generateText(
@@ -471,6 +473,24 @@ class BattleService(
                 // [FORK] Battle Mode：传入该模型独立的思考深度
                 reasoningLevelOverride = reasoningLevel,
                 protectedMessageIds = protectedMessageIds,
+                anchorMessageIdProvider = { getConversation().resolveContextAnchorMessageId() },
+                onAnchorMessageIdUpdated = { nextMsgId ->
+                    updateConversationState(conversationId) { conv ->
+                        val nextNodeId = nextMsgId?.let { conv.getMessageNodeByMessageId(it)?.id }
+                        val currentId = conv.conversationParams.contextAnchorNodeId
+                        if (nextNodeId == currentId || nextNodeId == null) {
+                            conv
+                        } else {
+                            val currentIdx = currentId?.let { id -> conv.messageNodes.indexOfFirst { it.id == id } } ?: -1
+                            val nextIdx = conv.messageNodes.indexOfFirst { it.id == nextNodeId }
+                            if (nextIdx > currentIdx) {
+                                conv.copy(conversationParams = conv.conversationParams.copy(contextAnchorNodeId = nextNodeId))
+                            } else {
+                                conv
+                            }
+                        }
+                    }
+                },
             ).onCompletion {
                 // 生成结束后确保 reasoning 状态归位
                 updateConversationState(conversationId) { conv ->
@@ -528,8 +548,7 @@ class BattleService(
 
     // --- 工具构建 ---
 
-    private fun buildTools(settings: Settings): List<Tool> = buildList {
-        val assistant = settings.getCurrentAssistant()
+    private fun buildTools(settings: Settings, assistant: Assistant): List<Tool> = buildList {
         if (assistant.enableWebSearch) {
             addAll(createSearchTools(settings))
         }

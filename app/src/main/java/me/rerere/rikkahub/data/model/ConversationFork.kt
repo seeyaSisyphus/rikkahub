@@ -27,18 +27,23 @@ internal fun Conversation.fork(
 ): Conversation? {
     val nodeIndex = messageNodes.indexOfFirst { node -> node.messages.any { it.id == messageId } }
     if (nodeIndex == -1) return null
+    val nodeIdMap = HashMap<Uuid, Uuid>(nodeIndex + 1)
+    val copiedNodes = messageNodes.take(nodeIndex + 1).map { node ->
+        val newNodeId = Uuid.random()
+        nodeIdMap[node.id] = newNodeId
+        node.copy(
+            id = newNodeId,
+            messages = node.messages.map { message ->
+                message.copy(parts = message.parts.map { it.mapLocalFileUrls(copyFile) })
+            },
+        )
+    }
+    val remappedAnchor = conversationParams.contextAnchorNodeId?.let(nodeIdMap::get)
     return Conversation(
         id = Uuid.random(),
         assistantId = assistantId,
         title = forkConversationTitle(title, existingTitles),
-        messageNodes = messageNodes.take(nodeIndex + 1).map { node ->
-            node.copy(
-                id = Uuid.random(),
-                messages = node.messages.map { message ->
-                    message.copy(parts = message.parts.map { it.mapLocalFileUrls(copyFile) })
-                },
-            )
-        },
+        messageNodes = copiedNodes,
         customSystemPrompt = customSystemPrompt,
         modeInjectionIds = modeInjectionIds,
         lorebookIds = lorebookIds,
@@ -46,7 +51,7 @@ internal fun Conversation.fork(
         workspaceCwd = workspaceCwd,
         folderId = folderId,
         // [FORK] fork 时一并继承对话专属参数与标签，避免新会话丢失 Battle/温度等设置
-        conversationParams = conversationParams,
+        conversationParams = conversationParams.copy(contextAnchorNodeId = remappedAnchor),
         conversationTagId = conversationTagId,
     )
 }

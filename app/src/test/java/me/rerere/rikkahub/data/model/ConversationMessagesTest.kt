@@ -40,6 +40,58 @@ class ConversationMessagesTest {
     }
 
     @Test
+    fun `deleteMessagesAfter keeps target node and drops following nodes`() {
+        val q1 = UIMessage.user("q1").toMessageNode()
+        val a1 = UIMessage.assistant("a1").toMessageNode()
+        val q2 = UIMessage.user("q2").toMessageNode()
+        val a2 = UIMessage.assistant("a2").toMessageNode()
+        val conversation = conversationOf(q1, a1, q2, a2).copy(
+            conversationParams = ConversationParams(contextAnchorNodeId = a2.id),
+        )
+
+        val updated = conversation.deleteMessagesAfter(a1.currentMessage.id)!!
+
+        assertEquals(listOf(q1.id, a1.id), updated.messageNodes.map { it.id })
+        assertNull(updated.conversationParams.contextAnchorNodeId)
+    }
+
+    @Test
+    fun `deleteMessagesAfter returns null on last node or missing message`() {
+        val q1 = UIMessage.user("q1").toMessageNode()
+        val a1 = UIMessage.assistant("a1").toMessageNode()
+        val conversation = conversationOf(q1, a1)
+
+        assertNull(conversation.deleteMessagesAfter(a1.currentMessage.id))
+        assertNull(conversation.deleteMessagesAfter(Uuid.random()))
+    }
+
+    @Test
+    fun `deleteMessagesBefore keeps target node and drops preceding nodes`() {
+        val q1 = UIMessage.user("q1").toMessageNode()
+        val a1 = UIMessage.assistant("a1").toMessageNode()
+        val q2 = UIMessage.user("q2").toMessageNode()
+        val a2 = UIMessage.assistant("a2").toMessageNode()
+        val conversation = conversationOf(q1, a1, q2, a2).copy(
+            conversationParams = ConversationParams(contextAnchorNodeId = q1.id),
+        )
+
+        val updated = conversation.deleteMessagesBefore(q2.currentMessage.id)!!
+
+        assertEquals(listOf(q2.id, a2.id), updated.messageNodes.map { it.id })
+        assertNull(updated.conversationParams.contextAnchorNodeId)
+    }
+
+    @Test
+    fun `deleteMessagesBefore returns null on first node or missing message`() {
+        val q1 = UIMessage.user("q1").toMessageNode()
+        val a1 = UIMessage.assistant("a1").toMessageNode()
+        val conversation = conversationOf(q1, a1)
+
+        assertNull(conversation.deleteMessagesBefore(q1.currentMessage.id))
+        assertNull(conversation.deleteMessagesBefore(Uuid.random()))
+    }
+
+    @Test
     fun `editing a message rewrites it in place and keeps its model`() {
         val modelId = Uuid.random()
         val reply = UIMessage.assistant("old").copy(modelId = modelId)

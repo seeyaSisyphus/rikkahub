@@ -115,6 +115,7 @@ import me.rerere.hugeicons.stroke.ArrowShrink02
 import me.rerere.hugeicons.stroke.ArrowUp02
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.ArrowUpDown
+import me.rerere.hugeicons.stroke.Clock01
 import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.FloppyDisk
 import me.rerere.hugeicons.stroke.Zap
@@ -155,6 +156,9 @@ private val ComposerExpandEasing = CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
 
 internal fun isStopGenerationAction(loading: Boolean, inputEmpty: Boolean): Boolean = loading && inputEmpty
 
+internal fun isQueuedSendAction(loading: Boolean, inputEmpty: Boolean, isEditing: Boolean): Boolean =
+    loading && !inputEmpty && !isEditing
+
 @Composable
 fun ChatInput(
     state: ChatInputState,
@@ -183,8 +187,8 @@ fun ChatInput(
     editWillRegenerate: Boolean = false,
     messageQueue: InboxState = InboxState(),
     onRemoveQueuedMessage: (Uuid) -> Unit = {},
-    onBeginEditQueuedMessage: (Uuid) -> QueuedMessage? = { null },
-    onFinishEditQueuedMessage: (Uuid, List<UIMessagePart>?) -> Unit = { _, _ -> },
+    onMoveQueuedMessage: (Uuid, Uuid) -> Unit = { _, _ -> },
+    onEditQueuedMessage: (Uuid) -> QueuedMessage? = { null },
     onResumeMessageQueue: () -> Unit = {},
     runningBackgroundTasks: Int = 0,
     onShowBackgroundTasks: () -> Unit = {},
@@ -352,8 +356,15 @@ fun ChatInput(
                 MessageQueuePanel(
                     state = messageQueue,
                     onRemove = onRemoveQueuedMessage,
-                    onBeginEdit = onBeginEditQueuedMessage,
-                    onFinishEdit = onFinishEditQueuedMessage,
+                    onMove = onMoveQueuedMessage,
+                    onEdit = { id ->
+                        onEditQueuedMessage(id)?.let { queued ->
+                            // 回到主输入框继续编辑（参考 CyberSlots 移动端：清空旧编辑态并回填内容与附件）
+                            state.clearInput()
+                            state.setContents(queued.parts)
+                            onRequestComposerFocus()
+                        }
+                    },
                     onResume = onResumeMessageQueue,
                 )
             }
@@ -560,6 +571,7 @@ fun ChatInput(
                                     loading = loading,
                                     empty = state.isEmpty(),
                                     editSaving = state.isEditing() && !editWillRegenerate,
+                                    isEditing = state.isEditing(),
                                     onClick = { sendMessage() },
                                     onLongClick = { sendMessageWithoutAnswer() },
                                 )
@@ -578,16 +590,31 @@ fun ChatInput(
     )
 }
 
+private enum class SendIconKind {
+    STOP,
+    SAVE,
+    QUEUED,
+    SEND,
+}
+
 @Composable
 private fun SendButton(
     loading: Boolean,
     empty: Boolean,
     editSaving: Boolean = false,
+    isEditing: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val showStop = isStopGenerationAction(loading, empty)
+    val showQueuedSend = isQueuedSendAction(loading, empty, isEditing) && !editSaving
+    val iconKind = when {
+        showStop -> SendIconKind.STOP
+        editSaving -> SendIconKind.SAVE
+        showQueuedSend -> SendIconKind.QUEUED
+        else -> SendIconKind.SEND
+    }
     val containerColor = when {
         showStop -> MaterialTheme.colorScheme.onSurface
         empty -> MaterialTheme.colorScheme.surfaceContainerHigh
@@ -616,28 +643,52 @@ private fun SendButton(
             color = containerColor,
             content = {},
         )
-        if (showStop) {
-            KeepScreenOn()
-            Box(
-                modifier = Modifier
-                    .size(11.dp)
-                    .background(contentColor, RoundedCornerShape(2.5.dp)),
-            )
-        } else if (editSaving) {
-            // [FORK] 编辑且点击仅保存（不触发重试）时显示保存图标，区分“发送并重试”语义
-            Icon(
-                imageVector = HugeIcons.FloppyDisk,
-                contentDescription = stringResource(R.string.chat_page_save),
-                tint = contentColor,
-                modifier = Modifier.size(17.dp)
-            )
-        } else {
-            Icon(
-                imageVector = HugeIcons.ArrowUp02,
-                contentDescription = stringResource(R.string.send),
-                tint = contentColor,
-                modifier = Modifier.size(17.dp)
-            )
+        AnimatedContent(
+            targetState = iconKind,
+            transitionSpec = {
+                (fadeIn(tween(150)) + scaleIn(tween(180), initialScale = 0.8f)) togetherWith
+                    (fadeOut(tween(120)) + scaleOut(tween(150), targetScale = 0.8f))
+            },
+            label = "send_button_icon",
+        ) { kind ->
+            when (kind) {
+                SendIconKind.STOP -> {
+                    KeepScreenOn()
+                    Box(
+                        modifier = Modifier
+                            .size(11.dp)
+                            .background(contentColor, RoundedCornerShape(2.5.dp)),
+                    )
+                }
+
+                SendIconKind.SAVE -> {
+                    // [FORK] 编辑且点击仅保存（不触发重试）时显示保存图标，区分“发送并重试”语义
+                    Icon(
+                        imageVector = HugeIcons.FloppyDisk,
+                        contentDescription = stringResource(R.string.chat_page_save),
+                        tint = contentColor,
+                        modifier = Modifier.size(17.dp)
+                    )
+                }
+
+                SendIconKind.QUEUED -> {
+                    Icon(
+                        imageVector = HugeIcons.Clock01,
+                        contentDescription = stringResource(R.string.send),
+                        tint = contentColor,
+                        modifier = Modifier.size(17.dp)
+                    )
+                }
+
+                SendIconKind.SEND -> {
+                    Icon(
+                        imageVector = HugeIcons.ArrowUp02,
+                        contentDescription = stringResource(R.string.send),
+                        tint = contentColor,
+                        modifier = Modifier.size(17.dp)
+                    )
+                }
+            }
         }
     }
 }

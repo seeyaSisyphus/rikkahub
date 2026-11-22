@@ -252,4 +252,25 @@ class ConversationInboxTest {
         assertTrue(removed is QueuedNotice)
         assertTrue(inbox.takeNotices().isEmpty())
     }
+
+    @Test
+    fun `moving queued messages reorders dispatch order while ignoring notices`() {
+        val inbox = ConversationInbox()
+        inbox.enqueue(text("first"))
+        inbox.post("n1", notice("n1"))
+        inbox.enqueue(text("second"))
+        inbox.enqueue(text("third"))
+
+        val messages = inbox.state.value.messages
+        val noticeItem = inbox.state.value.notices.single()
+
+        assertTrue(inbox.move(messages[2].id, messages[0].id))
+        assertFalse(inbox.move(messages[0].id, noticeItem.id))
+        assertFalse(inbox.move(noticeItem.id, messages[0].id))
+
+        assertEquals(text("third"), inbox.nextMessage()!!.parts)
+        assertEquals(text("first"), inbox.nextMessage()!!.parts)
+        assertEquals(text("second"), inbox.nextMessage()!!.parts)
+        assertEquals(InboxTurn.Notices, inbox.takeNext())
+    }
 }
