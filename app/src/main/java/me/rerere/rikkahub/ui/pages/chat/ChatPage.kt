@@ -119,7 +119,6 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.ContextLimitResult
-import me.rerere.ai.ui.estimateSteadyStateHitRate
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.common.android.appTempFolder
 import me.rerere.hugeicons.HugeIcons
@@ -1414,6 +1413,7 @@ private fun ConversationParamsSheet(
             var editingPolicy by remember(params.contextKeepPolicy) {
                 mutableStateOf(params.contextKeepPolicy)
             }
+            var showAdvancedContextSettings by rememberSaveable { mutableStateOf(false) }
 
             val currentStops = if (editingMode == ContextLimitMode.TOKENS) {
                 ContextLimitPresets.TOKEN_STOPS
@@ -1478,7 +1478,7 @@ private fun ConversationParamsSheet(
                         )
                     },
                     headlineContent = {
-                        Text(stringResource(R.string.assistant_page_context_message_limit))
+                        Text("上下文长度")
                     },
                     trailingContent = {
                         Row(
@@ -1535,46 +1535,71 @@ private fun ConversationParamsSheet(
                             modifier = Modifier.padding(top = 12.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            // 1. 计量模式切换（Token 预算防 429 vs 消息条数）
-                            val limitModes = remember {
-                                listOf(ContextLimitMode.TOKENS, ContextLimitMode.MESSAGES)
+                            val limitDescription = when {
+                                displayLimitValue <= 0 ->
+                                    "发送全部历史消息，不设置长度上限。不会删除聊天记录。"
+                                editingMode == ContextLimitMode.TOKENS -> {
+                                    val limit = ContextLimitPresets.formatCompactTokens(displayLimitValue)
+                                    "每次最多发送约 $limit tokens 的历史。" +
+                                        "超出后自动跳过最早的消息，不会删除聊天记录。"
+                                }
+                                else ->
+                                    "每次最多发送最近 $displayLimitValue 条消息。" +
+                                        "超出后自动跳过最早的消息，不会删除聊天记录。"
                             }
-                            ConnectedChoiceButtons(
-                                options = limitModes,
-                                selected = editingMode,
-                                onSelect = { nextMode ->
-                                    editingMode = nextMode
-                                    val newParams = when (nextMode) {
-                                        ContextLimitMode.TOKENS -> params.copy(
-                                            contextLimitMode = ContextLimitMode.TOKENS,
-                                            contextTokenLimit = editingTokenLimit.takeIf { it > 0 }
-                                                ?: ContextLimitPresets.DEFAULT_TOKEN_LIMIT,
-                                            contextMessageSize = null,
-                                        )
+                            Text(
+                                text = limitDescription,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.onSurfaceVariant,
+                            )
 
-                                        ContextLimitMode.MESSAGES -> params.copy(
-                                            contextLimitMode = ContextLimitMode.MESSAGES,
-                                            contextMessageSize = editingMessageLimit.takeIf { it >= 20 }
-                                                ?: ContextLimitPresets.DEFAULT_MESSAGE_LIMIT,
-                                            contextTokenLimit = null,
+                            AnimatedVisibility(visible = showAdvancedContextSettings) {
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(
+                                        text = "长度计算方式",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = colors.onSurfaceVariant,
+                                    )
+                                    val limitModes = remember {
+                                        listOf(ContextLimitMode.TOKENS, ContextLimitMode.MESSAGES)
+                                    }
+                                    ConnectedChoiceButtons(
+                                        options = limitModes,
+                                        selected = editingMode,
+                                        onSelect = { nextMode ->
+                                            editingMode = nextMode
+                                            val newParams = when (nextMode) {
+                                                ContextLimitMode.TOKENS -> params.copy(
+                                                    contextLimitMode = ContextLimitMode.TOKENS,
+                                                    contextTokenLimit = editingTokenLimit.takeIf { it > 0 }
+                                                        ?: ContextLimitPresets.DEFAULT_TOKEN_LIMIT,
+                                                    contextMessageSize = null,
+                                                )
+
+                                                ContextLimitMode.MESSAGES -> params.copy(
+                                                    contextLimitMode = ContextLimitMode.MESSAGES,
+                                                    contextMessageSize = editingMessageLimit.takeIf { it >= 20 }
+                                                        ?: ContextLimitPresets.DEFAULT_MESSAGE_LIMIT,
+                                                    contextTokenLimit = null,
+                                                )
+                                            }
+                                            params = newParams
+                                            onUpdate(newParams)
+                                        },
+                                        minHeight = 36.dp,
+                                    ) { mode, selected ->
+                                        ConnectedChoiceLabel(
+                                            text = when (mode) {
+                                                ContextLimitMode.TOKENS -> "按 Token"
+                                                ContextLimitMode.MESSAGES -> "按条数"
+                                            },
+                                            selected = selected,
+                                            icon = HugeIcons.Tick01,
                                         )
                                     }
-                                    params = newParams
-                                    onUpdate(newParams)
-                                },
-                                minHeight = 36.dp,
-                            ) { mode, selected ->
-                                ConnectedChoiceLabel(
-                                    text = when (mode) {
-                                        ContextLimitMode.TOKENS -> "按 Token (防429)"
-                                        ContextLimitMode.MESSAGES -> "按条数"
-                                    },
-                                    selected = selected,
-                                    icon = HugeIcons.Tick01,
-                                )
+                                }
                             }
 
-                            // 2. 离散缓存档位滑块（步进稳定，拖动实时预览，松手才落库）
                             IntSliderItem(
                                 value = committedStopIndex,
                                 onValueChange = { nextIdx ->
@@ -1587,8 +1612,16 @@ private fun ConversationParamsSheet(
                                     }
                                     val newParams = params.copy(
                                         contextLimitMode = editingMode,
-                                        contextTokenLimit = if (editingMode == ContextLimitMode.TOKENS) nextValue else null,
-                                        contextMessageSize = if (editingMode == ContextLimitMode.MESSAGES) nextValue else null,
+                                        contextTokenLimit = if (editingMode == ContextLimitMode.TOKENS) {
+                                            nextValue
+                                        } else {
+                                            null
+                                        },
+                                        contextMessageSize = if (editingMode == ContextLimitMode.MESSAGES) {
+                                            nextValue
+                                        } else {
+                                            null
+                                        },
                                     )
                                     params = newParams
                                     onUpdate(newParams)
@@ -1597,132 +1630,147 @@ private fun ConversationParamsSheet(
                                 valueRange = 0..currentStops.lastIndex,
                             )
 
-                            // 3. 越限回落策略（极限 20% / 高缓存 35% / 均衡 50% / 偏记忆 70%）
-                            // 注意：百分比是“触发上限后保留多少历史”，不是缓存率；保留越少，缓存周期越长、缓存率越高
-                            if (displayLimitValue > 0) {
+                            previewResult?.let { preview ->
+                                val currentTokens = ContextLimitPresets.formatCompactTokens(
+                                    preview.estimatedTotalTokens
+                                )
+                                val statusText = when {
+                                    preview.didAdvanceAnchor ->
+                                        "下次发送将省略部分较早消息，之后沿用新的范围。"
+                                    preview.hasTruncatedHistory ->
+                                        "当前发送第 ${preview.activeNormalStartIndex + 1} 条起的消息，" +
+                                            "早期内容仍保留在本机。"
+                                    displayLimitValue <= 0 ->
+                                        "当前约 $currentTokens tokens，未设置上限。"
+                                    else ->
+                                        "当前约 $currentTokens tokens，未超过上限。"
+                                }
                                 Text(
-                                    text = "触发上限后保留比例（越低，缓存率越高）",
+                                    text = statusText,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (preview.didAdvanceAnchor) colors.primary else colors.onSurfaceVariant,
+                                )
+                            }
+                            lastUsageReadout?.let { usage ->
+                                val pct = ((usage.cachedTokens.toDouble() / usage.promptTokens) * 100)
+                                    .roundToInt()
+                                    .coerceIn(0, 100)
+                                Text(
+                                    text = "上轮缓存命中 $pct%（${usage.cachedTokens.formatNumber()} tokens）",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = colors.onSurfaceVariant,
                                 )
-                                val policies = remember {
-                                    listOf(
-                                        ContextKeepPolicy.ULTRA_CACHE,
-                                        ContextKeepPolicy.HIGH_CACHE,
-                                        ContextKeepPolicy.BALANCED,
-                                        ContextKeepPolicy.HIGH_MEMORY,
-                                    )
-                                }
-                                ConnectedChoiceButtons(
-                                    options = policies,
-                                    selected = editingPolicy,
-                                    onSelect = { nextPolicy ->
-                                        editingPolicy = nextPolicy
-                                        val newParams = params.copy(contextKeepPolicy = nextPolicy)
-                                        params = newParams
-                                        onUpdate(newParams)
-                                    },
-                                    minHeight = 36.dp,
-                                ) { policy, selected ->
-                                    ConnectedChoiceLabel(
-                                        text = when (policy) {
-                                            ContextKeepPolicy.ULTRA_CACHE -> "极限 20%"
-                                            ContextKeepPolicy.HIGH_CACHE -> "高缓存 35%"
-                                            ContextKeepPolicy.BALANCED -> "均衡 50%"
-                                            ContextKeepPolicy.HIGH_MEMORY -> "偏记忆 70%"
-                                        },
-                                        selected = selected,
-                                        icon = HugeIcons.Tick01,
-                                    )
+                            }
+                            TextButton(
+                                onClick = { showAdvancedContextSettings = !showAdvancedContextSettings },
+                                modifier = Modifier
+                                    .align(Alignment.Start)
+                                    .height(32.dp),
+                                contentPadding = PaddingValues(0.dp),
+                            ) {
+                                Text(
+                                    text = if (showAdvancedContextSettings) "收起高级设置" else "高级设置",
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                            }
+
+                            AnimatedVisibility(visible = showAdvancedContextSettings) {
+                                if (displayLimitValue > 0) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text(
+                                            text = "超出上限后，保留多少近期历史",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = colors.onSurfaceVariant,
+                                        )
+                                        val policies = remember {
+                                            listOf(
+                                                ContextKeepPolicy.ULTRA_CACHE,
+                                                ContextKeepPolicy.HIGH_CACHE,
+                                                ContextKeepPolicy.BALANCED,
+                                                ContextKeepPolicy.HIGH_MEMORY,
+                                            )
+                                        }
+                                        ConnectedChoiceButtons(
+                                            options = policies,
+                                            selected = editingPolicy,
+                                            onSelect = { nextPolicy ->
+                                                editingPolicy = nextPolicy
+                                                val newParams = params.copy(contextKeepPolicy = nextPolicy)
+                                                params = newParams
+                                                onUpdate(newParams)
+                                            },
+                                            minHeight = 36.dp,
+                                        ) { policy, selected ->
+                                            ConnectedChoiceLabel(
+                                                text = "${(policy.keepRatio * 100).roundToInt()}%",
+                                                selected = selected,
+                                                icon = HugeIcons.Tick01,
+                                            )
+                                        }
+                                        Text(
+                                            text = "比例越低，发送量越少；" +
+                                                "比例越高，保留的旧对话越多。",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = colors.onSurfaceVariant,
+                                        )
+                                    }
                                 }
                             }
 
-                            // 4. 实时缓存预估与单调锚点状态面板
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = colors.surfaceContainerHigh.copy(alpha = 0.5f),
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                            AnimatedVisibility(visible = showAdvancedContextSettings) {
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = colors.surfaceContainerHigh.copy(alpha = 0.5f),
+                                    modifier = Modifier.fillMaxWidth(),
                                 ) {
-                                    lastUsageReadout?.let { usage ->
-                                        val pct = ((usage.cachedTokens.toDouble() / usage.promptTokens) * 100)
-                                            .roundToInt()
-                                            .coerceIn(0, 100)
-                                        Text(
-                                            text = "上轮输入 ${usage.promptTokens.formatNumber()} · 缓存命中 ${usage.cachedTokens.formatNumber()} ($pct%)",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = colors.onSurfaceVariant,
-                                        )
-                                    }
-
-                                    val preview = previewResult
-                                    if (displayLimitValue > 0 && preview != null) {
-                                        val watermarkSummary = if (editingMode == ContextLimitMode.TOKENS) {
-                                            val low = preview.targetTokensAfterTruncate
-                                            val stride = (displayLimitValue - low).coerceAtLeast(0)
-                                            "上限 ${ContextLimitPresets.formatCompactTokens(displayLimitValue)} · 回落至 ~${ContextLimitPresets.formatCompactTokens(low)} · 连续缓存空间 ~${ContextLimitPresets.formatCompactTokens(stride)}"
-                                        } else {
-                                            val budget = (displayLimitValue - pinnedCount).coerceAtLeast(1)
-                                            val targetCount = (budget * editingPolicy.keepRatio).roundToInt()
-                                                .coerceIn(1, budget)
-                                            val stride = (budget - targetCount).coerceAtLeast(0)
-                                            "上限 $displayLimitValue 条 · 裁剪回落至约 $targetCount 条 · 步幅约 $stride 条"
+                                    Column(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                                    ) {
+                                        lastUsageReadout?.let { usage ->
+                                            val pct = ((usage.cachedTokens.toDouble() / usage.promptTokens) * 100)
+                                                .roundToInt()
+                                                .coerceIn(0, 100)
+                                            val prompt = usage.promptTokens.formatNumber()
+                                            val cached = usage.cachedTokens.formatNumber()
+                                            Text(
+                                                text = "上轮输入 $prompt · 缓存命中 $cached ($pct%)",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = colors.onSurfaceVariant,
+                                            )
                                         }
-                                        val hitRateText = run {
-                                            val high: Double
-                                            val low: Double
-                                            val delta: Double
-                                            if (editingMode == ContextLimitMode.TOKENS) {
-                                                high = displayLimitValue.toDouble()
-                                                low = preview.targetTokensAfterTruncate.toDouble()
-                                                delta = 2_000.0
+
+                                        val preview = previewResult
+                                        if (displayLimitValue > 0 && preview != null) {
+                                            val truncationSummary = if (editingMode == ContextLimitMode.TOKENS) {
+                                                val low = preview.targetTokensAfterTruncate
+                                                val stride = (displayLimitValue - low).coerceAtLeast(0)
+                                                val lowText = ContextLimitPresets.formatCompactTokens(low)
+                                                val strideText = ContextLimitPresets.formatCompactTokens(stride)
+                                                "裁剪后约保留 $lowText tokens，" +
+                                                    "之后可再新增约 $strideText tokens"
                                             } else {
-                                                high = (displayLimitValue - pinnedCount).coerceAtLeast(1).toDouble()
-                                                low = (high * editingPolicy.keepRatio).coerceAtLeast(1.0)
-                                                delta = 2.0
+                                                val budget = (displayLimitValue - pinnedCount).coerceAtLeast(1)
+                                                val targetCount = (budget * editingPolicy.keepRatio).roundToInt()
+                                                    .coerceIn(1, budget)
+                                                val stride = (budget - targetCount).coerceAtLeast(0)
+                                                "裁剪后约保留 $targetCount 条普通消息，" +
+                                                    "之后可再新增约 $stride 条"
                                             }
-                                            val rate = estimateSteadyStateHitRate(high, low, delta)
-                                            " · 预计稳态缓存率 ~${(rate * 100).roundToInt()}%"
+                                            Text(
+                                                text = truncationSummary,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = colors.onSurfaceVariant,
+                                            )
+                                        } else if (displayLimitValue <= 0) {
+                                            Text(
+                                                text = "不限制历史长度，新消息会继续追加。",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = colors.onSurfaceVariant,
+                                            )
                                         }
-                                        Text(
-                                            text = watermarkSummary + hitRateText,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = colors.onSurfaceVariant,
-                                        )
-                                    } else if (displayLimitValue <= 0) {
-                                        Text(
-                                            text = "不设上限 · 新消息直接追加到末尾以延续当前前缀缓存",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = colors.onSurfaceVariant,
-                                        )
-                                    }
 
-                                    if (preview != null) {
-                                        val startOrdinal = preview.activeNormalStartIndex + 1
-                                        val totalTokensText = ContextLimitPresets.formatCompactTokens(preview.estimatedTotalTokens)
-                                        val anchorStatusText = when {
-                                            preview.didAdvanceAnchor ->
-                                                "起点将前移至第 #$startOrdinal 条（约 $totalTokensText tokens），下次发送需重建一次缓存"
-                                            params.contextAnchorNodeId != null && preview.hasTruncatedHistory ->
-                                                "起点保持第 #$startOrdinal 条（当前约 $totalTokensText tokens），继续命中当前缓存"
-                                            else ->
-                                                "当前从第 1 条起（约 $totalTokensText tokens），未触发裁剪"
-                                        }
-                                        Text(
-                                            text = anchorStatusText,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = if (preview.didAdvanceAnchor) colors.primary else colors.onSurfaceVariant,
-                                        )
-                                    }
-
-                                    if (params.contextAnchorNodeId != null) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.End,
-                                        ) {
+                                        if (params.contextAnchorNodeId != null) {
                                             TextButton(
                                                 onClick = {
                                                     val resetAnchor = params.copy(contextAnchorNodeId = null)
@@ -1730,7 +1778,9 @@ private fun ConversationParamsSheet(
                                                     onUpdate(resetAnchor)
                                                 },
                                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                                modifier = Modifier.height(28.dp),
+                                                modifier = Modifier
+                                                    .align(Alignment.End)
+                                                    .height(28.dp),
                                             ) {
                                                 Icon(
                                                     imageVector = HugeIcons.Refresh01,
@@ -1739,7 +1789,7 @@ private fun ConversationParamsSheet(
                                                 )
                                                 Spacer(Modifier.width(4.dp))
                                                 Text(
-                                                    text = "恢复全部历史起点（将重建缓存）",
+                                                    text = "重新包含全部历史（下次会重建缓存）",
                                                     style = MaterialTheme.typography.labelSmall,
                                                 )
                                             }
@@ -1768,19 +1818,24 @@ private fun ConversationParamsSheet(
                                         tint = if (isOverBudget) colors.error else colors.primary,
                                     )
                                     val pinnedTokensDesc = preview?.let {
-                                        " · 约 ${ContextLimitPresets.formatCompactTokens(it.estimatedProtectedTokens)}"
+                                        val tokens = ContextLimitPresets.formatCompactTokens(
+                                            it.estimatedProtectedTokens
+                                        )
+                                        " · 约 $tokens"
                                     }.orEmpty()
+                                    val pinnedSummary =
+                                        "固定 $pinnedGroups 组（$pinnedCount 条$pinnedTokensDesc）"
                                     Text(
                                         text = when {
                                             isOverBudget ->
-                                                "固定消息已占 $pinnedCount 条$pinnedTokensDesc ≥ 上限，仅保留最新提问以保护缓存"
-                                            editingMode == ContextLimitMode.TOKENS ->
-                                                "固定 $pinnedGroups 组（$pinnedCount 条$pinnedTokensDesc）已隔离在前缀固定区"
-                                            displayLimitValue <= 0 ->
-                                                "当前固定 $pinnedGroups 组（占 $pinnedCount 条）"
+                                                "固定消息已超过上限" +
+                                                    "（$pinnedCount 条$pinnedTokensDesc），" +
+                                                    "只额外保留最新提问"
+                                            editingMode == ContextLimitMode.TOKENS || displayLimitValue <= 0 ->
+                                                "$pinnedSummary，会始终随上下文发送"
                                             else -> {
                                                 val normalShown = (displayLimitValue - pinnedCount).coerceAtLeast(0)
-                                                "固定 $pinnedGroups 组（占 $pinnedCount 条）· 普通最多 $normalShown 条"
+                                                "$pinnedSummary，另外最多发送 $normalShown 条普通消息"
                                             }
                                         },
                                         style = MaterialTheme.typography.labelSmall,
