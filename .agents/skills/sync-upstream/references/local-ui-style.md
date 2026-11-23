@@ -52,8 +52,9 @@
 1. **聊天页顶栏与列表边界**（[ChatPage.kt](file:///home/mytit/ai-agent/rikkahub/app/src/main/java/me/rerere/rikkahub/ui/pages/chat/ChatPage.kt)、[ChatList.kt](file:///home/mytit/ai-agent/rikkahub/app/src/main/java/me/rerere/rikkahub/ui/pages/chat/ChatList.kt)）
    - 顶栏使用无底部 `HorizontalDivider` 的不透明 `TopAppBar`（`containerColor = MaterialTheme.colorScheme.background`）；列表顶部不使用 `topFadingEdge` 羽化，保证阅读区顶部文字清晰锐利裁切。
    - `ChatPage` / `ChatList` / `ChatListPreview` 对 `Scaffold.innerPadding` 统一采用**布局期代理 `PaddingValues`**（如 `stabilizedInnerPadding`、`listContentPadding`、`topInsetPadding`），并由 `ChatPage` 向 `ChatList` 传入 `suppressBottomPaddingAutoScroll: () -> Boolean`，禁止在组合期快照 `innerPadding.calculateBottomPadding()`。
-2. **输入法跟滚补偿**（[ImeAutoScroller.kt](file:///home/mytit/ai-agent/rikkahub/app/src/main/java/me/rerere/rikkahub/ui/hooks/ImeAutoScroller.kt)）
+2. **输入法跟滚补偿与 Lookahead 触底防回跳**（[ImeAutoScroller.kt](file:///home/mytit/ai-agent/rikkahub/app/src/main/java/me/rerere/rikkahub/ui/hooks/ImeAutoScroller.kt)、[LazyListLookaheadSanitizer.kt](file:///home/mytit/ai-agent/rikkahub/app/src/main/java/me/rerere/rikkahub/ui/hooks/LazyListLookaheadSanitizer.kt)）
    - 保留 `computeImeAutoScrollDelta` 与 `scrollBy` 期间不吞连续键盘帧的逻辑，配套单元测试 `ImeAutoScrollerTest`。
+   - 保留 `ChatList.kt` / `ChatListPreview.kt` 中的 `LazyListLookaheadScrollBackSanitizer(...)`、`ChatList.kt` 流式自动贴底的 `canScrollForward` 守卫、以及 `ChatListOverlays.kt` 跳底按钮的 `if (state.canScrollForward)` 守卫（配套单元测试 `LazyListLookaheadSanitizerTest`），防止 `SharedTransitionLayout`（`LookaheadScope`）下残留 `scrollBackAmount` 导致长对话首次下滑越过输入区高度时突然跳回底部再弹回手指位置。
 3. **聊天输入框**（[ChatInput.kt](file:///home/mytit/ai-agent/rikkahub/app/src/main/java/me/rerere/rikkahub/ui/components/ai/ChatInput.kt)）
    - 展开图标为左下到右上 `HugeIcons.ArrowExpand01`（与缩小图标 `HugeIcons.ArrowShrink02` 对称配对，不要改回 `ArrowExpand02`）。
    - 卡片边框为 `BorderStroke(1.dp, borderColor)`（浅色 `0.90f` / 深色 `0.78f`），非模糊模式下轻阴影 `elevation = 5.dp`（深色 `2.dp`），外边距 `horizontal = 14.dp`、内边距 `(start = 14.dp, end = 10.dp, top = 12.dp, bottom = 10.dp)`。

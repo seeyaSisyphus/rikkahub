@@ -173,7 +173,10 @@ internal fun BoxScope.MessageJumper(
                 iconTint = jumperIconTint,
                 onClick = {
                     scope.launch {
-                        state.scrollToItem((state.layoutInfo.totalItemsCount - 1).coerceAtLeast(0))
+                        // [FORK] 已在底部时不重复 scrollToItem，避免在 LookaheadScope 下再次产生残留 scrollBackAmount
+                        if (state.canScrollForward) {
+                            state.scrollToItem((state.layoutInfo.totalItemsCount - 1).coerceAtLeast(0))
+                        }
                     }
                     onDismissJumper()
                 },

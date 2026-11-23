@@ -65,6 +65,7 @@ import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.ui.components.message.ChatMessage
 import me.rerere.rikkahub.ui.components.ui.ErrorCardsDisplay
 import me.rerere.rikkahub.ui.hooks.ImeLazyListAutoScroller
+import me.rerere.rikkahub.ui.hooks.LazyListLookaheadScrollBackSanitizer
 import me.rerere.rikkahub.ui.pages.quickstart.QuickStartCard
 import me.rerere.rikkahub.ui.theme.ChatFontProvider
 import me.rerere.rikkahub.utils.plus
@@ -281,6 +282,11 @@ private fun ChatListNormal(
         isSuppressed = suppressBottomPaddingAutoScroll,
     )
 
+    // [FORK] 保留项（sync-upstream 合并时不要删）：
+    // 清理 SharedTransitionLayout(LookaheadScope) 下触底回滚残留的 scrollBackAmount，
+    // 防止进入对话后首次下滑穿过输入区高度时突然跳回底部再弹回手指位置
+    LazyListLookaheadScrollBackSanitizer(lazyListState = state)
+
     val assistant = remember(
         settings.assistants,
         conversation.assistantId,
@@ -350,15 +356,26 @@ private fun ChatListNormal(
                 }
             }
 
-            LaunchedEffect(state, isUserDragging, shouldAutoFollow, loadingState, conversation) {
+            // [FORK] 仅在列表确实未贴底（canScrollForward）时再触发 requestScrollToItem 贴底，
+            // 避免流式每个 chunk 都原地触底回滚产生残留 scrollBackAmount（合并上游时保留 canScrollForward 判断）
+            LaunchedEffect(state, isUserDragging, shouldAutoFollow, loadingState) {
                 snapshotFlow {
+                    val info = state.layoutInfo
                     Triple(
-                        state.layoutInfo.totalItemsCount,
-                        conversation.messageNodes.lastOrNull()?.currentMessage?.toText()?.length ?: 0,
+                        info.totalItemsCount,
+                        state.canScrollForward,
                         state.isScrollInProgress,
-                    )
-                }.collect { (totalItems, _, inProgress) ->
-                    if (!isUserDragging && !inProgress && loadingState && shouldAutoFollow && totalItems > 0) {
+                    ) to info
+                }.collect { (scrollState, _) ->
+                    val (totalItems, canScrollForward, inProgress) = scrollState
+                    if (
+                        !isUserDragging &&
+                        !inProgress &&
+                        loadingState &&
+                        shouldAutoFollow &&
+                        totalItems > 0 &&
+                        canScrollForward
+                    ) {
                         state.requestScrollToItem(totalItems - 1)
                     }
                 }

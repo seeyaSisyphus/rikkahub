@@ -98,6 +98,7 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
+import me.rerere.rikkahub.ui.hooks.LazyListLookaheadScrollBackSanitizer
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -227,6 +228,9 @@ internal fun ChatListPreview(
     LaunchedEffect(listState) {
         snapshotFlow { searchQuery.trim() }.drop(1).collect { listState.scrollToItem(0) }
     }
+    // [FORK] 清理 SharedTransitionLayout(LookaheadScope) 下触底回滚残留的 scrollBackAmount，
+    // 防止在长对话底部打开概览后首次下滑跳回底部（合并上游时务必保留）
+    LazyListLookaheadScrollBackSanitizer(lazyListState = listState)
 
     val previewTopPadding = remember(innerPadding) {
         object : PaddingValues {

@@ -361,10 +361,16 @@ class ForkUiStyleGuardTest {
             "app/src/main/java/me/rerere/rikkahub/ui/pages/chat/ChatList.kt" to listOf(
                 "listContentPadding",
                 "topInsetPadding",
+                "LazyListLookaheadScrollBackSanitizer(lazyListState = state)",
+                "canScrollForward",
             ),
             "app/src/main/java/me/rerere/rikkahub/ui/pages/chat/ChatListPreview.kt" to listOf(
                 "previewTopPadding",
                 "previewContentPadding",
+                "LazyListLookaheadScrollBackSanitizer(lazyListState = listState)",
+            ),
+            "app/src/main/java/me/rerere/rikkahub/ui/pages/chat/ChatListOverlays.kt" to listOf(
+                "if (state.canScrollForward)",
             ),
             "app/src/main/java/me/rerere/rikkahub/ui/components/ai/ChatInput.kt" to listOf(
                 "HugeIcons.ArrowExpand01",
@@ -374,6 +380,10 @@ class ForkUiStyleGuardTest {
             ),
             "app/src/main/java/me/rerere/rikkahub/ui/hooks/ImeAutoScroller.kt" to listOf(
                 "fun computeImeAutoScrollDelta(",
+            ),
+            "app/src/main/java/me/rerere/rikkahub/ui/hooks/LazyListLookaheadSanitizer.kt" to listOf(
+                "fun LazyListLookaheadScrollBackSanitizer(",
+                "internal class LookaheadScrollBackSanitizerTracker",
             ),
             "app/src/main/java/me/rerere/rikkahub/RouteActivity.kt" to listOf(
                 "PAGE_PUSH_DURATION_MS",
